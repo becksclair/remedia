@@ -1,14 +1,22 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
+  import { onMount } from "svelte";
   import * as Menubar from "$lib/components/ui/menubar/index.js";
   import { Button } from "$lib/components/ui/button/index.js";
   import { Input } from "$lib/components/ui/input/index.js";
+  import { Progress } from "$lib/components/ui/progress/index.js";
 
   let name = "";
   let greetMsg = "";
 
   let bookmarks = false;
   let fullUrls = true;
+  let value = 13;
+
+  onMount(() => {
+    const timer = setTimeout(() => (value = 66), 500);
+    return () => clearTimeout(timer);
+  });
 
   const profileRadioValue = "benoit";
 
@@ -124,6 +132,10 @@
       <Button type="submit">Greet</Button>
     </form>
     <p>{greetMsg}</p>
+
+    <div class="row">
+      <Progress {value} max={100} class="w-[60%]" />
+    </div>
   </div>
 </main>
 
