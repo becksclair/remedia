@@ -5,8 +5,11 @@
   import { Button } from "$lib/components/ui/button/index.js";
   import { Input } from "$lib/components/ui/input/index.js";
   import { Progress } from "$lib/components/ui/progress/index.js";
+  import { Separator } from "../lib/components/ui/separator";
 
   let name = "";
+  let mediaSourceUrl = "";
+  let downloadStatus = "";
   let greetMsg = "";
 
   let bookmarks = false;
@@ -20,9 +23,8 @@
 
   const profileRadioValue = "benoit";
 
-  async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    greetMsg = await invoke("greet", { name });
+  async function downloadMedia() {
+    downloadStatus = await invoke("download", { mediaSourceUrl });
   }
 </script>
 
@@ -118,36 +120,32 @@
   </Menubar.Root>
 
   <div class="container">
-    <div class="row">
-      <p>Click on the Tauri, Vite, and SvelteKit logos to learn more.</p>
-    </div>
+    <p class="text-sm font-medium leading-none py-3">
+      Click on the Tauri, Vite, and SvelteKit logos to learn more.
+    </p>
 
-    <form class="row" on:submit|preventDefault={greet}>
+    <form class="flex gap-x-4" on:submit|preventDefault={downloadMedia}>
       <Input
-        type="text"
-        id="greet-input"
-        placeholder="Enter a name..."
-        bind:value={name}
+        type="url"
+        id="source-url-input"
+        placeholder="Enter a video or audio url..."
+        bind:value={mediaSourceUrl}
       />
-      <Button type="submit">Greet</Button>
+      <Button type="submit">Download</Button>
     </form>
-    <p>{greetMsg}</p>
 
+    <p>{downloadStatus}</p>
+
+    <Separator class="my-8" />
     <div class="row">
-      <Progress {value} max={100} class="w-[60%]" />
+      <Progress {value} max={100} class="w-[100%]" />
     </div>
   </div>
 </main>
 
 <style>
   :root {
-    font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
-    font-size: 16px;
-    line-height: 24px;
-    font-weight: 400;
-
-    color: #0f0f0f;
-    background-color: #f6f6f6;
+    font-size: 14px;
 
     font-synthesis: none;
     text-rendering: optimizeLegibility;
@@ -158,15 +156,9 @@
 
   .container {
     margin: 0;
-    padding-top: 10vh;
+    padding: 1rem;
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    text-align: center;
-  }
-
-  .row {
-    display: flex;
     justify-content: center;
   }
 
