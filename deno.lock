@@ -14,8 +14,11 @@
     "npm:bits-ui@~0.21.16": "0.21.16_svelte@4.2.19",
     "npm:clsx@^2.1.1": "2.1.1",
     "npm:lucide-svelte@0.453": "0.453.0_svelte@4.2.19",
+    "npm:mode-watcher@~0.4.1": "0.4.1_svelte@4.2.19",
     "npm:svelte-check@^3.6.0": "3.8.6_svelte@4.2.19_typescript@5.6.2",
+    "npm:svelte-headless-table@~0.18.2": "0.18.2_svelte@4.2.19",
     "npm:svelte-radix@^1.1.1": "1.1.1_svelte@4.2.19",
+    "npm:svelte-sonner@~0.3.28": "0.3.28_svelte@4.2.19",
     "npm:svelte@^4.2.7": "4.2.19",
     "npm:tailwind-merge@^2.5.4": "2.5.4",
     "npm:tailwind-variants@~0.2.1": "0.2.1_tailwindcss@3.4.14__postcss@8.4.47",
@@ -859,6 +862,12 @@
         "minimist"
       ]
     },
+    "mode-watcher@0.4.1_svelte@4.2.19": {
+      "integrity": "sha512-bNC+1NXmwEFZtziCdZSgP7HFQTpqJPcQn9GwwJQGSf6SBF3neEPYV1uRwkYuAQwbsvsXIYtzaqgedDzJ7D1mhg==",
+      "dependencies": [
+        "svelte"
+      ]
+    },
     "mri@1.2.0": {
       "integrity": "sha512-tzzskb3bG8LvYGFF/mDTpq3jpI6Q9wc3LEmBaghu+DdCssd1FakN7Bc0hVNmEyGq1bq3RgfkCb3cmQLpNPOroA=="
     },
@@ -1170,8 +1179,23 @@
         "typescript"
       ]
     },
+    "svelte-headless-table@0.18.2_svelte@4.2.19": {
+      "integrity": "sha512-dnDTaXW5CNzRUjHVbc/Hb0Zv80zU4VcIUnAja6OuZriXvim1AqcWYQCHPRzBGwqj1m3YEHHNvspSzY0o5HzA0A==",
+      "dependencies": [
+        "svelte",
+        "svelte-keyed",
+        "svelte-render",
+        "svelte-subscribe"
+      ]
+    },
     "svelte-hmr@0.16.0_svelte@4.2.19": {
       "integrity": "sha512-Gyc7cOS3VJzLlfj7wKS0ZnzDVdv3Pn2IuVeJPk9m2skfhcu5bq3wtIZyQGggr7/Iim5rH5cncyQft/kRLupcnA==",
+      "dependencies": [
+        "svelte"
+      ]
+    },
+    "svelte-keyed@2.0.0_svelte@4.2.19": {
+      "integrity": "sha512-7TeEn+QbJC2OJrHiuM0T8vMBkms3DNpTE+Ir+NtnVBnBMA78aL4f1ft9t0Hn/pBbD/TnIXi4YfjFRAgtN+DZ5g==",
       "dependencies": [
         "svelte"
       ]
@@ -1190,6 +1214,25 @@
     },
     "svelte-radix@1.1.1_svelte@4.2.19": {
       "integrity": "sha512-TCbV7fzlJ2aEUB0nu2EodVA+r1eYj526IYpmGUTV32Z0bIrCUvx3K8xX3tcxR5dDFA5ZBU1Hxr4RYC4TDFEQ4A==",
+      "dependencies": [
+        "svelte"
+      ]
+    },
+    "svelte-render@2.0.1_svelte@4.2.19": {
+      "integrity": "sha512-RpB0SurwXm4xhjvHHtjeqMmvd645FURb79GFOotScOSqnKK5vpqBgoBPGC0pp+E/eZgDSQ9rRAdn/+N4ys1mXQ==",
+      "dependencies": [
+        "svelte",
+        "svelte-subscribe"
+      ]
+    },
+    "svelte-sonner@0.3.28_svelte@4.2.19": {
+      "integrity": "sha512-K3AmlySeFifF/cKgsYNv5uXqMVNln0NBAacOYgmkQStLa/UoU0LhfAACU6Gr+YYC8bOCHdVmFNoKuDbMEsppJg==",
+      "dependencies": [
+        "svelte"
+      ]
+    },
+    "svelte-subscribe@2.0.1_svelte@4.2.19": {
+      "integrity": "sha512-eKXIjLxB4C7eQWPqKEdxcGfNXm2g/qJ67zmEZK/GigCZMfrTR3m7DPY93R6MX+5uoqM1FRYxl8LZ1oy4URWi2A==",
       "dependencies": [
         "svelte"
       ]
@@ -1362,8 +1405,11 @@
         "npm:bits-ui@~0.21.16",
         "npm:clsx@^2.1.1",
         "npm:lucide-svelte@0.453",
+        "npm:mode-watcher@~0.4.1",
         "npm:svelte-check@^3.6.0",
+        "npm:svelte-headless-table@~0.18.2",
         "npm:svelte-radix@^1.1.1",
+        "npm:svelte-sonner@~0.3.28",
         "npm:svelte@^4.2.7",
         "npm:tailwind-merge@^2.5.4",
         "npm:tailwind-variants@~0.2.1",
