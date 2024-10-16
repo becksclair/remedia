@@ -2,6 +2,7 @@
   import { invoke } from "@tauri-apps/api/core";
   import { listen } from "@tauri-apps/api/event";
   import { getCurrentWindow } from "@tauri-apps/api/window";
+  import { open } from "@tauri-apps/plugin-dialog";
 
   import { onMount } from "svelte";
   import * as Menubar from "$lib/components/ui/menubar/index.js";
@@ -23,7 +24,17 @@
 
   const profileRadioValue = "benoit";
 
-  async function chooseOutputLocation() {}
+  async function chooseOutputLocation() {
+    const directory = await open({
+      title: "Choose location to save downloads",
+      multiple: false,
+      directory: true,
+    });
+    if (directory) {
+      outputLocation = directory;
+      message = "Output location set";
+    }
+  }
 
   async function startDownload() {
     progress = 0;

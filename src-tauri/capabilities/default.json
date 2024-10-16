@@ -25,6 +25,7 @@
           "ytdlp": false
         }
       ]
-    }
+    },
+    "dialog:default"
   ]
 }

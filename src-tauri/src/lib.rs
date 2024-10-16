@@ -75,9 +75,10 @@ pub fn run() {
     let devtools = tauri_plugin_devtools::init(); // initialize the plugin as early as possible
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(devtools)
-        .plugin(tauri_plugin_clipboard_manager::init())
         .setup(|app| {
             #[cfg(debug_assertions)] // only include this code on debug builds
             app.get_webview_window("main").unwrap().open_devtools();
