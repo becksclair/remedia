@@ -4,6 +4,7 @@ use std::{
 };
 
 use tauri::{async_runtime::spawn, Emitter, Manager};
+// use tauri_plugin_shell::ShellExt;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -11,6 +12,8 @@ fn download(window: tauri::Window, media_source_url: String) {
     let window = window.clone();
 
     spawn(async move {
+        // let ytdlp_command = app.shell().ytdlp("yt-dlp").unwrap();
+
         // Build the yt-dlp command
         let mut cmd = Command::new("yt-dlp.exe");
         cmd.arg(media_source_url)
