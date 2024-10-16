@@ -12,6 +12,7 @@
     "npm:@tauri-apps/plugin-clipboard-manager@2": "2.0.0",
     "npm:@tauri-apps/plugin-dialog@2.0": "2.0.0",
     "npm:@tauri-apps/plugin-fs@2.0": "2.0.0",
+    "npm:@tauri-apps/plugin-notification@2.0": "2.0.0",
     "npm:@tauri-apps/plugin-shell@2": "2.0.0",
     "npm:autoprefixer@^10.4.20": "10.4.20_postcss@8.4.47",
     "npm:bits-ui@~0.21.16": "0.21.16_svelte@4.2.19",
@@ -388,6 +389,12 @@
     },
     "@tauri-apps/plugin-fs@2.0.0": {
       "integrity": "sha512-BNEeQQ5aH8J5SwYuWgRszVyItsmquRuzK2QRkVj8Z0sCsLnSvJFYI3JHRzzr3ltZGq1nMPtblrlZzuKqVzRawA==",
+      "dependencies": [
+        "@tauri-apps/api"
+      ]
+    },
+    "@tauri-apps/plugin-notification@2.0.0": {
+      "integrity": "sha512-6qEDYJS7mgXZWLXA0EFL+DVCJh8sJlzSoyw6B50pxhLPVFjc5Vr5DVzl5W3mUHaYhod5wsC984eQnlCCGqxYDA==",
       "dependencies": [
         "@tauri-apps/api"
       ]
@@ -1315,6 +1322,7 @@
         "npm:@tauri-apps/plugin-clipboard-manager@2",
         "npm:@tauri-apps/plugin-dialog@2.0",
         "npm:@tauri-apps/plugin-fs@2.0",
+        "npm:@tauri-apps/plugin-notification@2.0",
         "npm:@tauri-apps/plugin-shell@2",
         "npm:autoprefixer@^10.4.20",
         "npm:bits-ui@~0.21.16",
