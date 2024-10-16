@@ -3,6 +3,7 @@
   import { listen } from "@tauri-apps/api/event";
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import { open } from "@tauri-apps/plugin-dialog";
+  import { downloadDir } from "@tauri-apps/api/path";
 
   import { onMount } from "svelte";
   import * as Menubar from "$lib/components/ui/menubar/index.js";
@@ -21,6 +22,8 @@
 
   let bookmarks = false;
   let fullUrls = true;
+
+  downloadDir().then((dir) => (outputLocation = dir));
 
   const profileRadioValue = "benoit";
 

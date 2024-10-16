@@ -3755,6 +3755,7 @@ dependencies = [
  "tauri-plugin-clipboard-manager",
  "tauri-plugin-devtools",
  "tauri-plugin-dialog",
+ "tauri-plugin-fs",
  "tauri-plugin-shell",
 ]
 

@@ -26,6 +26,7 @@
         }
       ]
     },
-    "dialog:default"
+    "dialog:default",
+    "fs:default"
   ]
 }
