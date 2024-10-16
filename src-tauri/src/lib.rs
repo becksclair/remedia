@@ -1,96 +1,68 @@
-use std::{
-    io::{BufRead, BufReader},
-    process::{Command, Stdio},
-};
-
-use tauri::{async_runtime::spawn, AppHandle, Emitter};
+use downloader::{download, get_media_info};
+use remedia::quit;
+use tauri::Manager;
 // use tauri_plugin_shell::ShellExt;
 
-// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-#[tauri::command]
-fn download(window: tauri::Window, media_source_url: String) {
-    let window = window.clone();
-
-    spawn(async move {
-        // let ytdlp_command = app.shell().ytdlp("yt-dlp").unwrap();
-
-        // Build the yt-dlp command
-        let mut cmd = Command::new("yt-dlp.exe");
-        cmd.arg(media_source_url)
-            .arg("--progress-template")
-            .arg("download:remedia-%(progress.downloaded_bytes)s-%(progress.total_bytes)s-%(progress.eta)s")
-            .arg("--newline")
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped());
-
-        let mut child = cmd.spawn().expect("Failed to spawn yt-dlp");
-
-        let stdout = child.stdout.take().expect("Failed to open stdout");
-        let stderr = child.stderr.take().expect("Failed to open stderr");
-
-        let out_reader = BufReader::new(stdout);
-        let err_reader = BufReader::new(stderr);
-
-        for line in out_reader.lines() {
-            if let Ok(line) = line {
-                println!("{}", line);
-
-                // Check if line starts with 'download:'
-                if line.starts_with("remedia-") {
-                    // Output format: remedia-7168-3098545-0
-                    let ln_status = line.split('-').collect::<Vec<&str>>();
-                    let downloaded_bytes = ln_status[1].parse::<f64>().unwrap();
-                    let total_bytes = ln_status[2].parse::<f64>().unwrap();
-                    // let eta = ln_status[3].parse::<f64>().unwrap_or(0.0);
-
-                    if total_bytes > 0.0 {
-                        let percent = downloaded_bytes / total_bytes * 100.0;
-                        // Emit event to frontend
-                        window.emit("download-progress", percent).unwrap();
-                    }
-                }
-            }
-        }
-
-        // Handle child process errors
-        for line in err_reader.lines() {
-            if let Ok(line) = line {
-                println!("Error: {}", line);
-            }
-        }
-
-        // Wait for the child process to exit
-        let status = child.wait().expect("Failed to wait on yt-dlp");
-        if status.success() {
-            window.emit("download-complete", ()).unwrap();
-        } else {
-            window.emit("download-error", ()).unwrap();
-        }
-    });
-}
-
-#[tauri::command]
-fn quit(app: AppHandle) {
-    app.exit(0);
-}
+mod downloader;
+mod remedia;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // #[cfg(debug_assertions)]
-    // let devtools = tauri_plugin_devtools::init(); // initialize the plugin as early as possible
-    tauri::Builder::default()
+    let mut builder = tauri::Builder::default();
+    builder = builder
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_clipboard_manager::init())
-        .plugin(tauri_plugin_shell::init())
-        // .plugin(devtools)
-        // .setup(|app| {
-        //     #[cfg(debug_assertions)] // only include this code on debug builds
-        //     // app.get_webview_window("main").unwrap().open_devtools();
-        //     Ok(())
-        // })
+        .plugin(tauri_plugin_shell::init());
+
+    #[cfg(desktop)]
+    {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            let _ = app
+                .get_webview_window("main")
+                .expect("no main window")
+                .set_focus();
+        }));
+    }
+
+    // #[cfg(debug_assertions)]
+    // {
+    //     let devtools = tauri_plugin_devtools::init(); // initialize the plugin as early as possible
+    //     builder = builder.plugin(devtools); // initialize the plugin as early as possible
+    // }
+
+    builder = builder.setup(|_app| {
+        // #[cfg(debug_assertions)] // only include this code on debug builds
+        // app.get_webview_window("main").unwrap().open_devtools();
+        Ok(())
+    });
+
+    builder = builder
+        .invoke_handler(tauri::generate_handler![get_media_info])
         .invoke_handler(tauri::generate_handler![download])
-        .invoke_handler(tauri::generate_handler![quit])
+        .invoke_handler(tauri::generate_handler![quit]);
+
+    builder
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+
+    // #[cfg(debug_assertions)]
+    // let devtools = tauri_plugin_devtools::init(); // initialize the plugin as early as possible
+    // tauri::Builder::default()
+    //     .plugin(tauri_plugin_single_instance::init(|app, args, cwd| {}))
+    //     .plugin(tauri_plugin_fs::init())
+    //     .plugin(tauri_plugin_dialog::init())
+    //     .plugin(tauri_plugin_clipboard_manager::init())
+    //     .plugin(tauri_plugin_shell::init())
+    //     // .plugin(devtools)
+    //     // .setup(|app| {
+    //     //     #[cfg(debug_assertions)] // only include this code on debug builds
+    //     //     // app.get_webview_window("main").unwrap().open_devtools();
+    //     //     Ok(())
+    //     // })
+    //     .invoke_handler(tauri::generate_handler![get_media_info])
+    //     .invoke_handler(tauri::generate_handler![download])
+    //     .invoke_handler(tauri::generate_handler![quit])
+    //     .run(tauri::generate_context!())
+    //     .expect("error while running tauri application");
 }
