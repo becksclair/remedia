@@ -7,12 +7,31 @@
 
   import { onMount } from "svelte";
   import * as Menubar from "$lib/components/ui/menubar/index.js";
+  import * as Table from "$lib/components/ui/table/index.js";
   import { Button } from "$lib/components/ui/button/index.js";
   import { Input } from "$lib/components/ui/input/index.js";
   import { Progress } from "$lib/components/ui/progress/index.js";
   import { Separator } from "../lib/components/ui/separator";
 
   import { readText } from "@tauri-apps/plugin-clipboard-manager";
+
+  type VideoInfo = {
+    url: string;
+    title: string;
+    audioOnly: boolean;
+    progress: number;
+    status: "pending" | "downloading" | "downloaded";
+  };
+
+  let mediaUrlList: VideoInfo[] = [
+    {
+      url: "https://www.youtube.com/watch?v=JxRLX4VGuYg",
+      title: "Sample Video",
+      audioOnly: false,
+      progress: 0,
+      status: "pending",
+    },
+  ];
 
   let outputLocation = "";
   let mediaSourceUrl = "https://www.youtube.com/watch?v=JxRLX4VGuYg";
@@ -51,6 +70,10 @@
       message = "Error starting download";
       downloading = false;
     }
+  }
+
+  async function quit() {
+    await invoke("quit");
   }
 
   onMount(() => {
@@ -190,25 +213,33 @@
   </Menubar.Root>
 
   <div class="container gap-y-4">
-    <div>
-      <p class="text-sm font-medium leading-none py-3">
-        Enter the URL of the media you want to download:
-      </p>
-      <div class="flex gap-x-4">
-        <Input
-          type="url"
-          id="source-url-input"
-          placeholder="Enter a video or audio url..."
-          disabled={downloading}
-          bind:value={mediaSourceUrl}
-        />
-        <Button
-          type="button"
-          class="min-w-[8rem]"
-          disabled={downloading}
-          on:click={startDownload}>Download</Button
-        >
-      </div>
+    <div class="min-h-[20rem]">
+      <Table.Root>
+        <Table.Header>
+          <Table.Row>
+            <Table.Head class="w-[100px]">Title</Table.Head>
+            <Table.Head>URL</Table.Head>
+            <Table.Head>Progress</Table.Head>
+            <Table.Head class="text-right">Status</Table.Head>
+          </Table.Row>
+        </Table.Header>
+        <Table.Body>
+          {#each mediaUrlList as mediaUrl, i (i)}
+            <Table.Row>
+              <Table.Cell class="font-medium">{mediaUrl.title}</Table.Cell>
+              <Table.Cell>{mediaUrl.url}</Table.Cell>
+              <Table.Cell
+                ><Progress
+                  value={mediaUrl.progress}
+                  max={100}
+                  class="w-[100%]"
+                /></Table.Cell
+              >
+              <Table.Cell class="text-right">{mediaUrl.status}</Table.Cell>
+            </Table.Row>
+          {/each}
+        </Table.Body>
+      </Table.Root>
     </div>
 
     <div>
@@ -230,12 +261,59 @@
       </div>
     </div>
 
-    <div class="my-4">
+    <div class="my-2">
       <Progress value={progress} max={100} class="w-[100%]" />
+      <div class="flex justify-center">
+        <p class="text-sm font-medium leading-none py-2">{message}</p>
+      </div>
     </div>
-    <div class="flex justify-center">
-      <p class="text-sm font-medium leading-none py-3">{message}</p>
+
+    <div class="flex justify-center gap-x-4">
+      <Button
+        type="button"
+        class="min-w-[8rem]"
+        disabled={downloading}
+        on:click={startDownload}>Download</Button
+      >
+      {#if downloading}
+        <Button
+          type="button"
+          class="min-w-[8rem]"
+          disabled={!downloading}
+          on:click={startDownload}>Cancel</Button
+        >
+        #{/if}
+
+      <Button
+        type="button"
+        class="min-w-[8rem]"
+        disabled={downloading}
+        on:click={startDownload}>Preview</Button
+      >
+
+      <Button type="button" class="min-w-[8rem]" on:click={quit}>Quit</Button>
     </div>
+
+    <!-- <div>
+      <p class="text-sm font-medium leading-none py-3">
+        Enter the URL of the media you want to download:
+      </p>
+      <div class="flex gap-x-4">
+        <Input
+          type="url"
+          id="source-url-input"
+          placeholder="Enter a video or audio url..."
+          disabled={downloading}
+          bind:value={mediaSourceUrl}
+        />
+        <Button
+          type="button"
+          class="min-w-[8rem]"
+          disabled={downloading}
+          on:click={startDownload}>Download</Button
+        >
+      </div>
+    </div> -->
   </div>
 </main>
 

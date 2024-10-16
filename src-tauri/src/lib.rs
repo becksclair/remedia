@@ -3,7 +3,7 @@ use std::{
     process::{Command, Stdio},
 };
 
-use tauri::{async_runtime::spawn, Emitter};
+use tauri::{async_runtime::spawn, AppHandle, Emitter};
 // use tauri_plugin_shell::ShellExt;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
@@ -69,23 +69,28 @@ fn download(window: tauri::Window, media_source_url: String) {
     });
 }
 
+#[tauri::command]
+fn quit(app: AppHandle) {
+    app.exit(0);
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    #[cfg(debug_assertions)]
-    let devtools = tauri_plugin_devtools::init(); // initialize the plugin as early as possible
-
+    // #[cfg(debug_assertions)]
+    // let devtools = tauri_plugin_devtools::init(); // initialize the plugin as early as possible
     tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_shell::init())
-        .plugin(devtools)
+        // .plugin(devtools)
         // .setup(|app| {
         //     #[cfg(debug_assertions)] // only include this code on debug builds
         //     // app.get_webview_window("main").unwrap().open_devtools();
         //     Ok(())
         // })
         .invoke_handler(tauri::generate_handler![download])
+        .invoke_handler(tauri::generate_handler![quit])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
