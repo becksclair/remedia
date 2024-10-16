@@ -9,6 +9,7 @@
     "core:default",
     "shell:allow-open",
     "shell:default",
+    "clipboard-manager:allow-read-text",
     {
       "identifier": "shell:allow-execute",
       "allow": [

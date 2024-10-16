@@ -1,6 +1,7 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
   import { listen } from "@tauri-apps/api/event";
+  import { getCurrentWindow } from "@tauri-apps/api/window";
 
   import { onMount } from "svelte";
   import * as Menubar from "$lib/components/ui/menubar/index.js";
@@ -8,6 +9,8 @@
   import { Input } from "$lib/components/ui/input/index.js";
   import { Progress } from "$lib/components/ui/progress/index.js";
   import { Separator } from "../lib/components/ui/separator";
+
+  import { readText } from "@tauri-apps/plugin-clipboard-manager";
 
   let outputLocation = "";
   let mediaSourceUrl = "https://www.youtube.com/watch?v=JxRLX4VGuYg";
@@ -37,6 +40,27 @@
   }
 
   onMount(() => {
+    const clipboardIsUrl = async () => {
+      // Check if the clipboard content is a URL
+      const clipboardContents = await readText();
+      const isUrl = clipboardContents.match(
+        /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/,
+      );
+
+      if (isUrl) {
+        mediaSourceUrl = clipboardContents;
+        message = "URL added from clipboard";
+      }
+    };
+
+    const unlistenFocus = getCurrentWindow().onFocusChanged(
+      ({ payload: focused }) => {
+        if (focused) {
+          clipboardIsUrl();
+        }
+      },
+    );
+
     const unlistenProgress = listen("download-progress", (event) => {
       progress = event.payload as number;
     });
@@ -53,6 +77,7 @@
     });
 
     return () => {
+      unlistenFocus.then((fn) => fn());
       unlistenProgress.then((fn) => fn());
       unlistenComplete.then((fn) => fn());
       unlistenError.then((fn) => fn());
