@@ -3,7 +3,7 @@ use std::{
     process::{Command, Stdio},
 };
 
-use tauri::{async_runtime::spawn, Emitter, Manager};
+use tauri::{async_runtime::spawn, Emitter};
 // use tauri_plugin_shell::ShellExt;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
@@ -80,11 +80,11 @@ pub fn run() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(devtools)
-        .setup(|app| {
-            #[cfg(debug_assertions)] // only include this code on debug builds
-            app.get_webview_window("main").unwrap().open_devtools();
-            Ok(())
-        })
+        // .setup(|app| {
+        //     #[cfg(debug_assertions)] // only include this code on debug builds
+        //     // app.get_webview_window("main").unwrap().open_devtools();
+        //     Ok(())
+        // })
         .invoke_handler(tauri::generate_handler![download])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
