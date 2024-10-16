@@ -1,5 +1,7 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
+  import { listen } from "@tauri-apps/api/event";
+
   import { onMount } from "svelte";
   import * as Menubar from "$lib/components/ui/menubar/index.js";
   import { Button } from "$lib/components/ui/button/index.js";
@@ -7,25 +9,55 @@
   import { Progress } from "$lib/components/ui/progress/index.js";
   import { Separator } from "../lib/components/ui/separator";
 
-  let name = "";
-  let mediaSourceUrl = "";
-  let downloadStatus = "";
-  let greetMsg = "";
+  let outputLocation = "";
+  let mediaSourceUrl = "https://www.youtube.com/watch?v=JxRLX4VGuYg";
+  let message = "";
+  let progress = 0;
+  let downloading = false;
 
   let bookmarks = false;
   let fullUrls = true;
-  let value = 13;
-
-  onMount(() => {
-    const timer = setTimeout(() => (value = 66), 500);
-    return () => clearTimeout(timer);
-  });
 
   const profileRadioValue = "benoit";
 
-  async function downloadMedia() {
-    downloadStatus = await invoke("download", { mediaSourceUrl });
+  async function chooseOutputLocation() {}
+
+  async function startDownload() {
+    progress = 0;
+    downloading = true;
+    message = "Downloading...";
+
+    try {
+      await invoke("download", { mediaSourceUrl });
+    } catch (err) {
+      console.error("Error starting download:", err);
+      message = "Error starting download";
+      downloading = false;
+    }
   }
+
+  onMount(() => {
+    const unlistenProgress = listen("download-progress", (event) => {
+      progress = event.payload as number;
+    });
+
+    const unlistenComplete = listen("download-complete", () => {
+      downloading = false;
+      progress = 100;
+      message = "Download complete";
+    });
+
+    const unlistenError = listen("download-error", () => {
+      downloading = false;
+      message = "Download failed";
+    });
+
+    return () => {
+      unlistenProgress.then((fn) => fn());
+      unlistenComplete.then((fn) => fn());
+      unlistenError.then((fn) => fn());
+    };
+  });
 </script>
 
 <main class="">
@@ -51,20 +83,13 @@
         </Menubar.Sub>
         <Menubar.Separator />
         <Menubar.Item>
-          Print... <Menubar.Shortcut>⌘P</Menubar.Shortcut>
+          Exit <Menubar.Shortcut>⌘Q</Menubar.Shortcut>
         </Menubar.Item>
       </Menubar.Content>
     </Menubar.Menu>
     <Menubar.Menu>
       <Menubar.Trigger>Edit</Menubar.Trigger>
       <Menubar.Content>
-        <Menubar.Item>
-          Undo <Menubar.Shortcut>⌘Z</Menubar.Shortcut>
-        </Menubar.Item>
-        <Menubar.Item>
-          Redo <Menubar.Shortcut>⇧⌘Z</Menubar.Shortcut>
-        </Menubar.Item>
-        <Menubar.Separator />
         <Menubar.Sub>
           <Menubar.SubTrigger>Find</Menubar.SubTrigger>
           <Menubar.SubContent>
@@ -76,9 +101,15 @@
           </Menubar.SubContent>
         </Menubar.Sub>
         <Menubar.Separator />
-        <Menubar.Item>Cut</Menubar.Item>
-        <Menubar.Item>Copy</Menubar.Item>
-        <Menubar.Item>Paste</Menubar.Item>
+        <Menubar.Item>
+          Cut <Menubar.Shortcut>⌘X</Menubar.Shortcut>
+        </Menubar.Item>
+        <Menubar.Item>
+          Copy <Menubar.Shortcut>⌘C</Menubar.Shortcut>
+        </Menubar.Item>
+        <Menubar.Item>
+          Paste <Menubar.Shortcut>⌘V</Menubar.Shortcut>
+        </Menubar.Item>
       </Menubar.Content>
     </Menubar.Menu>
     <Menubar.Menu>
@@ -119,26 +150,52 @@
     </Menubar.Menu>
   </Menubar.Root>
 
-  <div class="container">
-    <p class="text-sm font-medium leading-none py-3">
-      Click on the Tauri, Vite, and SvelteKit logos to learn more.
-    </p>
+  <div class="container gap-y-4">
+    <div>
+      <p class="text-sm font-medium leading-none py-3">
+        Enter the URL of the media you want to download:
+      </p>
+      <div class="flex gap-x-4">
+        <Input
+          type="url"
+          id="source-url-input"
+          placeholder="Enter a video or audio url..."
+          disabled={downloading}
+          bind:value={mediaSourceUrl}
+        />
+        <Button
+          type="button"
+          class="min-w-[8rem]"
+          disabled={downloading}
+          on:click={startDownload}>Download</Button
+        >
+      </div>
+    </div>
 
-    <form class="flex gap-x-4" on:submit|preventDefault={downloadMedia}>
-      <Input
-        type="url"
-        id="source-url-input"
-        placeholder="Enter a video or audio url..."
-        bind:value={mediaSourceUrl}
-      />
-      <Button type="submit">Download</Button>
-    </form>
+    <div>
+      <p class="text-sm font-medium leading-none py-3">
+        Select the location where you want to save the downloaded files:
+      </p>
+      <div class="flex gap-x-4">
+        <Input
+          type="text"
+          id="output-location-input"
+          placeholder="Download location..."
+          bind:value={outputLocation}
+        />
+        <Button
+          type="button"
+          class="min-w-[8rem]"
+          on:click={chooseOutputLocation}>Browse...</Button
+        >
+      </div>
+    </div>
 
-    <p>{downloadStatus}</p>
-
-    <Separator class="my-8" />
-    <div class="row">
-      <Progress {value} max={100} class="w-[100%]" />
+    <div class="my-4">
+      <Progress value={progress} max={100} class="w-[100%]" />
+    </div>
+    <div class="flex justify-center">
+      <p class="text-sm font-medium leading-none py-3">{message}</p>
     </div>
   </div>
 </main>

@@ -1,17 +1,69 @@
-use tauri::Manager;
+use std::{
+    io::{BufRead, BufReader},
+    process::{Command, Stdio},
+};
+
+use tauri::{async_runtime::spawn, Emitter, Manager};
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
+fn download(window: tauri::Window, media_source_url: String) {
+    let window = window.clone();
 
-#[tauri::command]
-fn download(media_source_url: &str) -> String {
-    format!(
-        "Hello, {}! You've been greeted from Rust!",
-        media_source_url
-    )
+    spawn(async move {
+        // Build the yt-dlp command
+        let mut cmd = Command::new("yt-dlp.exe");
+        cmd.arg(media_source_url)
+            .arg("--progress-template")
+            .arg("download:remedia-%(progress.downloaded_bytes)s-%(progress.total_bytes)s-%(progress.eta)s")
+            .arg("--newline")
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+
+        let mut child = cmd.spawn().expect("Failed to spawn yt-dlp");
+
+        let stdout = child.stdout.take().expect("Failed to open stdout");
+        let stderr = child.stderr.take().expect("Failed to open stderr");
+
+        let out_reader = BufReader::new(stdout);
+        let err_reader = BufReader::new(stderr);
+
+        for line in out_reader.lines() {
+            if let Ok(line) = line {
+                println!("{}", line);
+
+                // Check if line starts with 'download:'
+                if line.starts_with("remedia-") {
+                    // Output format: remedia-7168-3098545-0
+                    let ln_status = line.split('-').collect::<Vec<&str>>();
+                    let downloaded_bytes = ln_status[1].parse::<f64>().unwrap();
+                    let total_bytes = ln_status[2].parse::<f64>().unwrap();
+                    // let eta = ln_status[3].parse::<f64>().unwrap_or(0.0);
+
+                    if total_bytes > 0.0 {
+                        let percent = downloaded_bytes / total_bytes * 100.0;
+                        // Emit event to frontend
+                        window.emit("download-progress", percent).unwrap();
+                    }
+                }
+            }
+        }
+
+        // Handle child process errors
+        for line in err_reader.lines() {
+            if let Ok(line) = line {
+                println!("Error: {}", line);
+            }
+        }
+
+        // Wait for the child process to exit
+        let status = child.wait().expect("Failed to wait on yt-dlp");
+        if status.success() {
+            window.emit("download-complete", ()).unwrap();
+        } else {
+            window.emit("download-error", ()).unwrap();
+        }
+    });
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -27,7 +79,6 @@ pub fn run() {
             app.get_webview_window("main").unwrap().open_devtools();
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![greet])
         .invoke_handler(tauri::generate_handler![download])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
