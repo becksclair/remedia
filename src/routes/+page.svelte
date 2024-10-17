@@ -2,8 +2,14 @@
   import { invoke } from "@tauri-apps/api/core";
   import { listen } from "@tauri-apps/api/event";
   import { getCurrentWindow } from "@tauri-apps/api/window";
+  import { getCurrentWebview } from "@tauri-apps/api/webview";
   import { open } from "@tauri-apps/plugin-dialog";
   import { downloadDir } from "@tauri-apps/api/path";
+  import {
+    isPermissionGranted,
+    requestPermission,
+    sendNotification,
+  } from "@tauri-apps/plugin-notification";
 
   import Sun from "svelte-radix/Sun.svelte";
   import Moon from "svelte-radix/Moon.svelte";
@@ -29,7 +35,7 @@
 
   let mediaUrlList: VideoInfo[] = [
     {
-      url: "https://www.youtube.com/watch?v=JxRLX4VGuYg",
+      url: "https://www.twitch.tv/videos/2277690290",
       title: "Sample Video",
       audioOnly: false,
       progress: 0,
@@ -38,7 +44,6 @@
   ];
 
   let outputLocation = "";
-  let mediaSourceUrl = "https://www.youtube.com/watch?v=JxRLX4VGuYg";
   let message = "";
   let progress = 0;
   let downloading = false;
@@ -47,6 +52,17 @@
   let fullUrls = true;
 
   downloadDir().then((dir) => (outputLocation = dir));
+
+  // Do you have permission to send a notification?
+  let notifPermission = false;
+
+  isPermissionGranted().then((granted) => {
+    if (!granted) {
+      requestPermission().then((permission) => {
+        notifPermission = permission === "granted";
+      });
+    }
+  });
 
   const profileRadioValue = "benoit";
 
