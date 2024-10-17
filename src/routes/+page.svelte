@@ -16,14 +16,16 @@
   import { toggleMode } from "mode-watcher";
 
   import { onMount } from "svelte";
-  import * as Menubar from "$lib/components/ui/menubar/index.js";
+
   import * as Table from "$lib/components/ui/table/index.js";
   import { Button } from "$lib/components/ui/button/index.js";
   import { Input } from "$lib/components/ui/input/index.js";
   import { Progress } from "$lib/components/ui/progress/index.js";
-  import { Separator } from "../lib/components/ui/separator";
 
   import { readText } from "@tauri-apps/plugin-clipboard-manager";
+  import MenuBar from "../components/menu-bar.svelte";
+  import DropZone from "../components/drop-zone.svelte";
+  import PLabel from "../components/p-label.svelte";
 
   type VideoInfo = {
     url: string;
@@ -48,9 +50,6 @@
   let progress = 0;
   let downloading = false;
 
-  let bookmarks = false;
-  let fullUrls = true;
-
   downloadDir().then((dir) => (outputLocation = dir));
 
   // Do you have permission to send a notification?
@@ -63,8 +62,6 @@
       });
     }
   });
-
-  const profileRadioValue = "benoit";
 
   async function chooseOutputLocation() {
     const directory = await open({
@@ -114,6 +111,14 @@
     return input.startsWith("http");
   }
 
+  function dropHandler(input: string) {
+    // Validate if it's a URL
+    if (isUrl(input)) {
+      addMediaUrl(input);
+      message = `Dropped URL: ${input}`;
+    }
+  }
+
   function addMediaUrl(url: string) {
     mediaUrlList = [
       ...mediaUrlList,
@@ -125,26 +130,6 @@
         audioOnly: false,
       },
     ];
-  }
-
-  function handleDragOver(event: DragEvent) {
-    event.preventDefault(); // Prevent default to allow drop
-  }
-
-  function handleDrop(event: DragEvent) {
-    event.preventDefault();
-
-    // Get the dragged data
-    const data = event.dataTransfer?.getData("text/plain");
-    if (!data) {
-      return;
-    }
-
-    // Validate if it's a URL
-    if (isUrl(data)) {
-      addMediaUrl(data);
-      message = `Dropped URL: ${data}`;
-    }
   }
 
   onMount(() => {
@@ -191,106 +176,20 @@
 </script>
 
 <main class="">
-  <Menubar.Root>
-    <Menubar.Menu>
-      <Menubar.Trigger>File</Menubar.Trigger>
-      <Menubar.Content>
-        <Menubar.Item>
-          New Tab <Menubar.Shortcut>⌘T</Menubar.Shortcut>
-        </Menubar.Item>
-        <Menubar.Item>
-          New Window <Menubar.Shortcut>⌘N</Menubar.Shortcut>
-        </Menubar.Item>
-        <Menubar.Item>New Incognito Window</Menubar.Item>
-        <Menubar.Separator />
-        <Menubar.Sub>
-          <Menubar.SubTrigger>Share</Menubar.SubTrigger>
-          <Menubar.SubContent>
-            <Menubar.Item>Email link</Menubar.Item>
-            <Menubar.Item>Messages</Menubar.Item>
-            <Menubar.Item>Notes</Menubar.Item>
-          </Menubar.SubContent>
-        </Menubar.Sub>
-        <Menubar.Separator />
-        <Menubar.Item>
-          Exit <Menubar.Shortcut>⌘Q</Menubar.Shortcut>
-        </Menubar.Item>
-      </Menubar.Content>
-    </Menubar.Menu>
-    <Menubar.Menu>
-      <Menubar.Trigger>Edit</Menubar.Trigger>
-      <Menubar.Content>
-        <Menubar.Sub>
-          <Menubar.SubTrigger>Find</Menubar.SubTrigger>
-          <Menubar.SubContent>
-            <Menubar.Item>Search the web</Menubar.Item>
-            <Menubar.Separator />
-            <Menubar.Item>Find...</Menubar.Item>
-            <Menubar.Item>Find Next</Menubar.Item>
-            <Menubar.Item>Find Previous</Menubar.Item>
-          </Menubar.SubContent>
-        </Menubar.Sub>
-        <Menubar.Separator />
-        <Menubar.Item>
-          Cut <Menubar.Shortcut>⌘X</Menubar.Shortcut>
-        </Menubar.Item>
-        <Menubar.Item>
-          Copy <Menubar.Shortcut>⌘C</Menubar.Shortcut>
-        </Menubar.Item>
-        <Menubar.Item>
-          Paste <Menubar.Shortcut>⌘V</Menubar.Shortcut>
-        </Menubar.Item>
-      </Menubar.Content>
-    </Menubar.Menu>
-    <Menubar.Menu>
-      <Menubar.Trigger>View</Menubar.Trigger>
-      <Menubar.Content>
-        <Menubar.CheckboxItem bind:checked={bookmarks}
-          >Always Show Bookmarks Bar</Menubar.CheckboxItem
-        >
-        <Menubar.CheckboxItem bind:checked={fullUrls}>
-          Always Show Full URLs
-        </Menubar.CheckboxItem>
-        <Menubar.Separator />
-        <Menubar.Item inset>
-          Reload <Menubar.Shortcut>⌘R</Menubar.Shortcut>
-        </Menubar.Item>
-        <Menubar.Item inset>
-          Force Reload <Menubar.Shortcut>⇧⌘R</Menubar.Shortcut>
-        </Menubar.Item>
-        <Menubar.Separator />
-        <Menubar.Item inset>Toggle Fullscreen</Menubar.Item>
-        <Menubar.Separator />
-        <Menubar.Item inset>Hide Sidebar</Menubar.Item>
-      </Menubar.Content>
-    </Menubar.Menu>
-    <Menubar.Menu>
-      <Menubar.Trigger>Profiles</Menubar.Trigger>
-      <Menubar.Content>
-        <Menubar.RadioGroup value={profileRadioValue}>
-          <Menubar.RadioItem value="andy">Andy</Menubar.RadioItem>
-          <Menubar.RadioItem value="benoit">Benoit</Menubar.RadioItem>
-          <Menubar.RadioItem value="Luis">Luis</Menubar.RadioItem>
-        </Menubar.RadioGroup>
-        <Menubar.Separator />
-        <Menubar.Item inset>Edit...</Menubar.Item>
-        <Menubar.Separator />
-        <Menubar.Item inset>Add Profile...</Menubar.Item>
-      </Menubar.Content>
-    </Menubar.Menu>
-  </Menubar.Root>
+  <MenuBar />
 
   <div class="container gap-y-4">
+    <!-- <Button on:click={toggleMode} variant="outline" size="icon">
+      <Sun
+        class="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0"
+      />
+      <Moon
+        class="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100"
+      />
+      <span class="sr-only">Toggle theme</span>
+    </Button> -->
 
-    <div
-      role="region"
-      on:dragover={handleDragOver}
-      on:drop={handleDrop}
-      class="drop-area p-[20px] text-center"
-      style="border: 2px dashed #ccc;"
-    >
-      Drop a URL here
-    </div>
+    <DropZone {dropHandler} />
 
     <div class="min-h-[20rem]">
       <Table.Root>
@@ -322,9 +221,10 @@
     </div>
 
     <div>
-      <p class="text-sm font-medium leading-none py-3">
+      <PLabel>
         Select the location where you want to save the downloaded files:
-      </p>
+      </PLabel>
+
       <div class="flex gap-x-4">
         <Input
           type="text"
@@ -343,7 +243,10 @@
     <div class="my-2">
       <Progress value={progress} max={100} class="w-[100%]" />
       <div class="flex justify-center">
-        <p class="text-sm font-medium leading-none py-2">{message}</p>
+        <PLabel className="py-2">
+          {message}
+        </PLabel>
+        <p></p>
       </div>
     </div>
 
@@ -361,7 +264,7 @@
           disabled={!downloading}
           on:click={startDownload}>Cancel</Button
         >
-        #{/if}
+      {/if}
 
       <Button type="button" class="min-w-[8rem]" on:click={preview}
         >Preview</Button
