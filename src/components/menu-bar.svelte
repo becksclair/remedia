@@ -23,7 +23,7 @@
 				Export URL list... <Menubar.Shortcut>⌘E</Menubar.Shortcut>
 			</Menubar.Item>
 			<Menubar.Separator />
-			<Menubar.Item>Preferences...</Menubar.Item>
+			<Menubar.Item>Preferences...<Menubar.Shortcut>⌘,</Menubar.Shortcut></Menubar.Item>
 			<Menubar.Separator />
 			<Menubar.Item>
 				Exit <Menubar.Shortcut>⌘Q</Menubar.Shortcut>
@@ -33,8 +33,8 @@
 	<Menubar.Menu>
 		<Menubar.Trigger>Find</Menubar.Trigger>
 		<Menubar.Content>
-			<Menubar.Item>Search the web</Menubar.Item>
-			<Menubar.Item>Find...</Menubar.Item>
+			<Menubar.Item>Search the web <Menubar.Shortcut>⌘F</Menubar.Shortcut></Menubar.Item>
+			<Menubar.Item>Find...<Menubar.Shortcut>⇧⌘F</Menubar.Shortcut></Menubar.Item>
 		</Menubar.Content>
 	</Menubar.Menu>
 	<Menubar.Menu>
