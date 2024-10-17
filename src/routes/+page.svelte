@@ -363,36 +363,12 @@
         >
         #{/if}
 
-      <Button
-        type="button"
-        class="min-w-[8rem]"
-        disabled={downloading}
-        on:click={startDownload}>Preview</Button
+      <Button type="button" class="min-w-[8rem]" on:click={preview}
+        >Preview</Button
       >
 
       <Button type="button" class="min-w-[8rem]" on:click={quit}>Quit</Button>
     </div>
-
-    <!-- <div>
-      <p class="text-sm font-medium leading-none py-3">
-        Enter the URL of the media you want to download:
-      </p>
-      <div class="flex gap-x-4">
-        <Input
-          type="url"
-          id="source-url-input"
-          placeholder="Enter a video or audio url..."
-          disabled={downloading}
-          bind:value={mediaSourceUrl}
-        />
-        <Button
-          type="button"
-          class="min-w-[8rem]"
-          disabled={downloading}
-          on:click={startDownload}>Download</Button
-        >
-      </div>
-    </div> -->
   </div>
 </main>
 
