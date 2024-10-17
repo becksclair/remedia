@@ -7,25 +7,10 @@
   ],
   "permissions": [
     "core:default",
-    "shell:allow-open",
     "shell:default",
+    "shell:allow-open",
+    "shell:allow-execute",
     "clipboard-manager:allow-read-text",
-    {
-      "identifier": "shell:allow-execute",
-      "allow": [
-        {
-          "name": "exec-sh",
-          "cmd": "sh",
-          "args": [
-            "-c",
-            {
-              "validator": "\\S+"
-            }
-          ],
-          "ytdlp": false
-        }
-      ]
-    },
     "dialog:default",
     "fs:default",
     "notification:default"
