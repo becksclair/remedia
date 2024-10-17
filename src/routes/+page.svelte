@@ -110,6 +110,23 @@
     await invoke("quit");
   }
 
+  function isUrl(input: string): boolean {
+    return input.startsWith("http");
+  }
+
+  function addMediaUrl(url: string) {
+    mediaUrlList = [
+      ...mediaUrlList,
+      {
+        title: url,
+        url: url,
+        status: "pending",
+        progress: 0,
+        audioOnly: false,
+      },
+    ];
+  }
+
   onMount(() => {
     const clipboardIsUrl = async () => {
       // Check if the clipboard content is a URL
