@@ -105,7 +105,7 @@ pub fn download_media(
         let mut cmd = Command::new("yt-dlp.exe");
         cmd.arg(media_source_url)
                 .arg("--progress-template")
-                .arg("download:remedia-%(progress.downloaded_bytes)s-%(progress.total_bytes)s-%(progress.eta)s")
+                .arg("download:remedia-%(progress.downloaded_bytes)s-%(progress.total_bytes)s-%(progress.total_bytes_estimate)s-%(progress.eta)s")
                 .arg("--newline")
                 .arg("--continue")
                 .arg("--output")
@@ -137,11 +137,18 @@ pub fn download_media(
                     // Output format: remedia-7168-3098545-0
                     let ln_status = line.split('-').collect::<Vec<&str>>();
                     let downloaded_bytes = ln_status[1].parse::<f64>().unwrap_or(0.0);
-                    let total_bytes = ln_status[2].parse::<f64>().unwrap_or(0.0);
-                    // let eta = ln_status[3].parse::<f64>().unwrap_or(0.0);
+                    let total_bytes_est = ln_status[2].parse::<f64>().unwrap_or(0.0);
+                    let total_bytes = ln_status[3].parse::<f64>().unwrap_or(0.0);
+                    // let eta = ln_status[4].parse::<f64>().unwrap_or(0.0);
 
-                    if total_bytes > 0.0 {
-                        let percent = downloaded_bytes / total_bytes * 100.0;
+                    let t_bytes = if total_bytes > 0.0 {
+                        total_bytes
+                    } else {
+                        total_bytes_est
+                    };
+
+                    if t_bytes > 0.0 {
+                        let percent = downloaded_bytes / t_bytes * 100.0;
                         // Emit event to frontend
                         window.emit("download-progress", percent).unwrap();
                     }
