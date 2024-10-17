@@ -1,5 +1,6 @@
 use std::io::BufRead;
 use std::io::BufReader;
+use std::path;
 use std::process::Command;
 use std::process::Stdio;
 
@@ -9,7 +10,7 @@ use tauri::Emitter;
 use tauri::Window;
 
 #[tauri::command]
-pub(crate) async fn get_media_info(
+pub async fn get_media_info(
     _app: AppHandle,
     window: Window,
     media_source_url: String,
@@ -74,7 +75,12 @@ pub(crate) async fn get_media_info(
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
-pub(crate) fn download(_app: AppHandle, window: Window, media_source_url: String) {
+pub fn download_media(
+    _app: AppHandle,
+    window: Window,
+    media_source_url: String,
+    output_location: String,
+) {
     let window = window.clone();
 
     spawn(async move {
@@ -88,12 +94,29 @@ pub(crate) fn download(_app: AppHandle, window: Window, media_source_url: String
 
         // let mut child = ytdlp_command.spawn().expect("Failed to spawn yt-dlp");
 
+        let output_format = format!(
+            "{}{}{}",
+            output_location,
+            path::MAIN_SEPARATOR,
+            "%(title)s.%(ext)s"
+        );
+
         // Build the yt-dlp command
         let mut cmd = Command::new("yt-dlp.exe");
         cmd.arg(media_source_url)
                 .arg("--progress-template")
                 .arg("download:remedia-%(progress.downloaded_bytes)s-%(progress.total_bytes)s-%(progress.eta)s")
                 .arg("--newline")
+                .arg("--continue")
+                .arg("--output")
+                .arg(output_format)
+                .arg("--embed-thumbnail")
+                // .arg("--embed-subs")
+                .arg("--embed-metadata")
+                .arg("--embed-chapters")
+                .arg("--windows-filenames")
+                // .arg("--sponsorblock-remove")
+                // .arg("default")
                 .stdout(Stdio::piped())
                 .stderr(Stdio::piped());
 
@@ -113,8 +136,8 @@ pub(crate) fn download(_app: AppHandle, window: Window, media_source_url: String
                 if line.starts_with("remedia-") {
                     // Output format: remedia-7168-3098545-0
                     let ln_status = line.split('-').collect::<Vec<&str>>();
-                    let downloaded_bytes = ln_status[1].parse::<f64>().unwrap();
-                    let total_bytes = ln_status[2].parse::<f64>().unwrap();
+                    let downloaded_bytes = ln_status[1].parse::<f64>().unwrap_or(0.0);
+                    let total_bytes = ln_status[2].parse::<f64>().unwrap_or(0.0);
                     // let eta = ln_status[3].parse::<f64>().unwrap_or(0.0);
 
                     if total_bytes > 0.0 {

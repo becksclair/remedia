@@ -1,4 +1,4 @@
-use downloader::{download, get_media_info};
+// use downloader::get_media_info;
 use remedia::quit;
 use tauri::Manager;
 // use tauri_plugin_shell::ShellExt;
@@ -38,10 +38,11 @@ pub fn run() {
         Ok(())
     });
 
-    builder = builder
-        .invoke_handler(tauri::generate_handler![get_media_info])
-        .invoke_handler(tauri::generate_handler![download])
-        .invoke_handler(tauri::generate_handler![quit]);
+    builder = builder.invoke_handler(tauri::generate_handler![
+        downloader::get_media_info,
+        downloader::download_media,
+        quit
+    ]);
 
     builder
         .run(tauri::generate_context!())
