@@ -127,6 +127,26 @@
     ];
   }
 
+  function handleDragOver(event: DragEvent) {
+    event.preventDefault(); // Prevent default to allow drop
+  }
+
+  function handleDrop(event: DragEvent) {
+    event.preventDefault();
+
+    // Get the dragged data
+    const data = event.dataTransfer?.getData("text/plain");
+    if (!data) {
+      return;
+    }
+
+    // Validate if it's a URL
+    if (isUrl(data)) {
+      addMediaUrl(data);
+      message = `Dropped URL: ${data}`;
+    }
+  }
+
   onMount(() => {
     const clipboardIsUrl = async () => {
       // Check if the clipboard content is a URL
@@ -264,6 +284,17 @@
   </Menubar.Root>
 
   <div class="container gap-y-4">
+
+    <div
+      role="region"
+      on:dragover={handleDragOver}
+      on:drop={handleDrop}
+      class="drop-area p-[20px] text-center"
+      style="border: 2px dashed #ccc;"
+    >
+      Drop a URL here
+    </div>
+
     <div class="min-h-[20rem]">
       <Table.Root>
         <Table.Header>
