@@ -22,6 +22,7 @@
     "bits-ui": "^0.21.16",
     "clsx": "^2.1.1",
     "lucide-svelte": "^0.453.0",
+    "mode-watcher": "^0.4.1",
     "svelte-headless-table": "^0.18.2",
     "svelte-radix": "^1.1.1",
     "tailwind-merge": "^2.5.4",

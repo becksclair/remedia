@@ -5,6 +5,10 @@
   import { open } from "@tauri-apps/plugin-dialog";
   import { downloadDir } from "@tauri-apps/api/path";
 
+  import Sun from "svelte-radix/Sun.svelte";
+  import Moon from "svelte-radix/Moon.svelte";
+  import { toggleMode } from "mode-watcher";
+
   import { onMount } from "svelte";
   import * as Menubar from "$lib/components/ui/menubar/index.js";
   import * as Table from "$lib/components/ui/table/index.js";
