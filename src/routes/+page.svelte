@@ -2,23 +2,18 @@
 	import { invoke } from '@tauri-apps/api/core'
 	import { listen } from '@tauri-apps/api/event'
 	import { getCurrentWindow } from '@tauri-apps/api/window'
-	import { getCurrentWebview } from '@tauri-apps/api/webview'
 	import { open } from '@tauri-apps/plugin-dialog'
 	import { downloadDir } from '@tauri-apps/api/path'
+	import { readText } from '@tauri-apps/plugin-clipboard-manager'
 	import { isPermissionGranted, requestPermission, sendNotification } from '@tauri-apps/plugin-notification'
-
-	import Sun from 'svelte-radix/Sun.svelte'
-	import Moon from 'svelte-radix/Moon.svelte'
-	import { toggleMode } from 'mode-watcher'
 
 	import { onMount } from 'svelte'
 
-	import * as Table from '$lib/components/ui/table/index.js'
-	import { Button } from '$lib/components/ui/button/index.js'
-	import { Input } from '$lib/components/ui/input/index.js'
-	import { Progress } from '$lib/components/ui/progress/index.js'
+	import * as Table from '$lib/components/ui/table'
+	import { Button } from '$lib/components/ui/button'
+	import { Input } from '$lib/components/ui/input'
+	import { Progress } from '$lib/components/ui/progress'
 
-	import { readText } from '@tauri-apps/plugin-clipboard-manager'
 	import MenuBar from '../components/menu-bar.svelte'
 	import DropZone from '../components/drop-zone.svelte'
 	import PLabel from '../components/p-label.svelte'
@@ -173,16 +168,6 @@
 	<MenuBar />
 
 	<div class="container gap-y-4">
-		<!-- <Button on:click={toggleMode} variant="outline" size="icon">
-      <Sun
-        class="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0"
-      />
-      <Moon
-        class="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100"
-      />
-      <span class="sr-only">Toggle theme</span>
-    </Button> -->
-
 		<DropZone {dropHandler} />
 
 		<div class="min-h-[20rem]">
