@@ -97,6 +97,15 @@
     }
   }
 
+  async function preview() {
+    if (notifPermission) {
+      sendNotification({
+        title: "Download complete",
+        body: "Your video title finished downloading",
+      });
+    }
+  }
+
   async function quit() {
     await invoke("quit");
   }
