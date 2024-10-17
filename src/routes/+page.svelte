@@ -84,7 +84,12 @@
     message = "Downloading...";
 
     try {
-      await invoke("download", { mediaSourceUrl });
+      for (const mediaUrl of mediaUrlList) {
+        await invoke("download_media", {
+          mediaSourceUrl: mediaUrl.url,
+          outputLocation: outputLocation,
+        });
+      }
     } catch (err) {
       console.error("Error starting download:", err);
       message = "Error starting download";
