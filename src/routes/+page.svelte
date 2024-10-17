@@ -219,7 +219,6 @@
 			{/if}
 
 			<Button type="button" class="min-w-[8rem]" on:click={preview}>Preview</Button>
-
 			<Button type="button" class="min-w-[8rem]" on:click={quit}>Quit</Button>
 		</div>
 	</div>
