@@ -151,12 +151,9 @@
     const clipboardIsUrl = async () => {
       // Check if the clipboard content is a URL
       const clipboardContents = await readText();
-      const isUrl = clipboardContents.match(
-        /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/,
-      );
 
-      if (isUrl) {
-        mediaSourceUrl = clipboardContents;
+      if (isUrl(clipboardContents)) {
+        addMediaUrl(clipboardContents);
         message = "URL added from clipboard";
       }
     };
