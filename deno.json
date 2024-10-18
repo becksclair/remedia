@@ -5,6 +5,11 @@
     "strict": true,
     "checkJs": true
   },
+  "lint": {
+    "include": [
+      "src"
+    ]
+  },
   "fmt": {
     "useTabs": true,
     "indentWidth": 4,
