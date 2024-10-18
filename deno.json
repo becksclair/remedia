@@ -1,6 +1,5 @@
 {
   "imports": {
-    "@std/assert": "jsr:@std/assert@^1.0.6"
   },
   "compilerOptions": {
     "strict": true,
