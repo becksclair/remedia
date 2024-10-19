@@ -13,6 +13,7 @@ use tauri::Window;
 pub async fn get_media_info(
     _app: AppHandle,
     window: Window,
+    media_idx: i32,
     media_source_url: String,
 ) -> Result<(), String> {
     spawn(async move {
@@ -48,7 +49,7 @@ pub async fn get_media_info(
                     if total_bytes > 0.0 {
                         let percent = downloaded_bytes / total_bytes * 100.0;
                         // Emit event to frontend
-                        window.emit("download-progress", percent).unwrap();
+                        window.emit("download-progress", (media_idx, percent)).unwrap();
                     }
                 }
             }
@@ -64,9 +65,9 @@ pub async fn get_media_info(
         // Wait for the child process to exit
         let status = child.wait().expect("Failed to wait on yt-dlp");
         if status.success() {
-            window.emit("download-complete", ()).unwrap();
+            window.emit("download-complete", media_idx).unwrap();
         } else {
-            window.emit("download-error", ()).unwrap();
+            window.emit("download-error", media_idx).unwrap();
         }
     });
 
@@ -78,6 +79,7 @@ pub async fn get_media_info(
 pub fn download_media(
     _app: AppHandle,
     window: Window,
+    media_idx: i32,
     media_source_url: String,
     output_location: String,
 ) {
@@ -150,7 +152,7 @@ pub fn download_media(
                     if t_bytes > 0.0 {
                         let percent = downloaded_bytes / t_bytes * 100.0;
                         // Emit event to frontend
-                        window.emit("download-progress", percent).unwrap();
+                        window.emit("download-progress", (media_idx, percent)).unwrap();
                     }
                 }
             }
@@ -166,9 +168,9 @@ pub fn download_media(
         // Wait for the child process to exit
         let status = child.wait().expect("Failed to wait on yt-dlp");
         if status.success() {
-            window.emit("download-complete", ()).unwrap();
+            window.emit("download-complete", media_idx).unwrap();
         } else {
-            window.emit("download-error", ()).unwrap();
+            window.emit("download-error", media_idx).unwrap();
         }
     });
 }

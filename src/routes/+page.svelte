@@ -18,12 +18,14 @@
 	import DropZone from '../components/drop-zone.svelte'
 	import PLabel from '../components/p-label.svelte'
 
+	type MediaProgressEvent = [number, number]
+
 	type VideoInfo = {
 		url: string
 		title: string
 		audioOnly: boolean
 		progress: number
-		status: 'pending' | 'downloading' | 'downloaded'
+		status: 'Pending' | 'Downloading' | 'Done' | 'Error'
 	}
 
 	let mediaUrlList: VideoInfo[] = [
@@ -32,16 +34,19 @@
 			title: 'Sample Video',
 			audioOnly: false,
 			progress: 0,
-			status: 'pending'
+			status: 'Pending'
 		}
 	]
 
 	let outputLocation = ''
-	let message = ''
-	let progress = 0
-	let downloading = false
+	let globalMessage = ''
+	let globalProgress = 0
+	let globalDownloading = false
 
-	downloadDir().then(dir => (outputLocation = dir))
+	// Set the default download directory to the user's download folder
+	downloadDir().then(dir => {
+		outputLocation = dir
+	})
 
 	// Do you have permission to send a notification?
 	let notifPermission = false
@@ -62,26 +67,27 @@
 		})
 		if (directory) {
 			outputLocation = directory
-			message = 'Output location set'
+			globalMessage = 'Output location set'
 		}
 	}
 
 	async function startDownload() {
-		progress = 0
-		downloading = true
-		message = 'Downloading...'
+		globalProgress = 0
+		globalDownloading = true
 
 		try {
-			for (const mediaUrl of mediaUrlList) {
+			const mediaCount = mediaUrlList.length - 1
+			for (let i = 0; i <= mediaCount; i++) {
 				await invoke('download_media', {
-					mediaSourceUrl: mediaUrl.url,
+					mediaIdx: i,
+					mediaSourceUrl: mediaUrlList[i].url,
 					outputLocation: outputLocation
 				})
 			}
 		} catch (err) {
 			console.error('Error starting download:', err)
-			message = 'Error starting download'
-			downloading = false
+			globalMessage = 'Error starting download'
+			globalDownloading = false
 		}
 	}
 
@@ -106,7 +112,7 @@
 		// Validate if it's a URL
 		if (isUrl(input)) {
 			addMediaUrl(input)
-			message = `Dropped URL: ${input}`
+			globalMessage = `Dropped URL: ${input}`
 		}
 	}
 
@@ -116,12 +122,16 @@
 			{
 				title: url,
 				url: url,
-				status: 'pending',
+				status: 'Pending',
 				progress: 0,
 				audioOnly: false
 			}
 		]
 	}
+
+	// Reactive assignment for global progress
+	$: globalProgress = mediaUrlList.reduce((acc, item) => acc + item.progress, 0) / mediaUrlList.length
+	$: globalDownloading = mediaUrlList.some(media => media.status === 'Downloading')
 
 	onMount(() => {
 		const clipboardIsUrl = async () => {
@@ -130,7 +140,7 @@
 
 			if (isUrl(clipboardContents)) {
 				addMediaUrl(clipboardContents)
-				message = 'URL added from clipboard'
+				globalMessage = 'URL added from clipboard'
 			}
 		}
 
@@ -140,19 +150,23 @@
 			}
 		})
 
+		const updateMediaItem = (index: number, updates: Partial<VideoInfo>) => {
+			mediaUrlList = mediaUrlList.map((item, i) => (i === index ? { ...item, ...updates } : item))
+		}
+
 		const unlistenProgress = listen('download-progress', event => {
-			progress = event.payload as number
+			const [mediaIdx, progress] = event.payload as MediaProgressEvent
+			updateMediaItem(mediaIdx, { progress })
 		})
 
-		const unlistenComplete = listen('download-complete', () => {
-			downloading = false
-			progress = 100
-			message = 'Download complete'
+		const unlistenComplete = listen('download-complete', event => {
+			const mediaIdx = event.payload as number
+			updateMediaItem(mediaIdx, { progress: 100, status: 'Done' })
 		})
 
-		const unlistenError = listen('download-error', () => {
-			downloading = false
-			message = 'Download failed'
+		const unlistenError = listen('download-error', event => {
+			const mediaIdx = event.payload as number
+			updateMediaItem(mediaIdx, { status: 'Error' })
 		})
 
 		return () => {
@@ -164,7 +178,7 @@
 	})
 </script>
 
-<main class="">
+<main>
 	<MenuBar />
 
 	<div class="container gap-y-4">
@@ -203,19 +217,20 @@
 		</div>
 
 		<div class="my-2">
-			<Progress value={progress} max={100} class="w-[100%]" />
+			<Progress value={globalProgress} max={100} class="w-[100%]" />
 			<div class="flex justify-center">
 				<PLabel className="py-2">
-					{message}
+					{globalMessage}
 				</PLabel>
 				<p></p>
 			</div>
 		</div>
 
 		<div class="flex justify-center gap-x-4">
-			<Button type="button" class="min-w-[8rem]" disabled={downloading} on:click={startDownload}>Download</Button>
-			{#if downloading}
-				<Button type="button" class="min-w-[8rem]" disabled={!downloading} on:click={startDownload}>Cancel</Button>
+			<Button type="button" class="min-w-[8rem]" disabled={globalDownloading} on:click={startDownload}>Download</Button>
+			{#if globalDownloading}
+				<Button type="button" class="min-w-[8rem]" disabled={!globalDownloading} on:click={startDownload}
+					>Cancel</Button>
 			{/if}
 
 			<Button type="button" class="min-w-[8rem]" on:click={preview}>Preview</Button>
