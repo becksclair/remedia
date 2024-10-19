@@ -20,12 +20,14 @@
 	type MediaProgressEvent = [number, number]
 	type MediaInfoEvent = [number, string, string]
 
-	const PENDING = 'Pending'
-	const DOWNLOADING = 'Downlaoding'
-	const DONE = 'Done'
-	const ERROR = 'Error'
+	const Status = {
+		Pending: 'Pending',
+		Downloading: 'Downloading',
+		Done: 'Done',
+		Error: 'Error'
+	} as const
 
-	type VideoStatus = typeof PENDING | typeof DOWNLOADING | typeof DONE | typeof ERROR
+	type VideoStatus = (typeof Status)[keyof typeof Status]
 
 	type VideoInfo = {
 		url: string
@@ -41,6 +43,8 @@
 	let globalProgress = 0.0
 	let globalDownloading = false
 	let dragHovering = false
+
+	const urlSet = new Set(mediaList.map(item => item.url))
 
 	// Set the default download directory to the user's download folder
 	downloadDir().then(dir => {
@@ -106,6 +110,8 @@
 	const isUrl = (input: string) => /^https?:\/\//.test(input)
 
 	function addMediaUrl(url: string) {
+		if (urlSet.has(url)) return // No duplicate
+
 		mediaList = [
 			...mediaList,
 			{
@@ -116,6 +122,8 @@
 				audioOnly: false
 			}
 		]
+		urlSet.add(url)
+
 		// Request media information
 		const mediaIdx = mediaList.findIndex(m => m.url === url)
 		void invoke('get_media_info', {
@@ -179,7 +187,7 @@
 	}
 
 	// Reactive assignment for global progress
-	$: globalDownloading = mediaList.some(media => media.status === DOWNLOADING)
+	$: globalDownloading = mediaList.some(media => media.status === Status.Downloading)
 	$: globalProgress = globalDownloading ? mediaList.reduce((acc, item) => acc + item.progress, 0) / mediaList.length : 0
 
 	onMount(() => {
