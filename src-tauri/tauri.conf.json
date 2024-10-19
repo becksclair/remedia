@@ -35,5 +35,6 @@
     "externalBin": [
       "helpers/yt-dlp.exe"
     ]
-  }
+  },
+  "plugins": {}
 }
