@@ -30,7 +30,7 @@
 		status: 'Pending' | 'Downloading' | 'Done' | 'Error'
 	}
 
-	let mediaUrlList: VideoInfo[] = []
+	let mediaList: VideoInfo[] = []
 	let outputLocation = ''
 	let globalProgress = 0.0
 	let globalDownloading = false
@@ -68,11 +68,11 @@
 		globalDownloading = true
 
 		try {
-			const mediaCount = mediaUrlList.length - 1
+			const mediaCount = mediaList.length - 1
 			for (let i = 0; i <= mediaCount; i++) {
 				await invoke('download_media', {
 					mediaIdx: i,
-					mediaSourceUrl: mediaUrlList[i].url,
+					mediaSourceUrl: mediaList[i].url,
 					outputLocation: outputLocation
 				})
 			}
@@ -108,8 +108,8 @@
 	}
 
 	function addMediaUrl(url: string) {
-		mediaUrlList = [
-			...mediaUrlList,
+		mediaList = [
+			...mediaList,
 			{
 				title: url,
 				url: url,
@@ -119,16 +119,16 @@
 			}
 		]
 		// Request media information
-		const mediaIdx = mediaUrlList.findIndex(m => m.url === url)
+		const mediaIdx = mediaList.findIndex(m => m.url === url)
 		void invoke('get_media_info', {
 			mediaIdx,
-			mediaSourceUrl: url,
+			mediaSourceUrl: url
 		})
 		dragHovering = false
 	}
 
 	const updateMediaItem = (index: number, updates: Partial<VideoInfo>) => {
-		mediaUrlList = mediaUrlList.map((item, i) => (i === index ? { ...item, ...updates } : item))
+		mediaList = mediaList.map((item, i) => (i === index ? { ...item, ...updates } : item))
 	}
 
 	function onDragOver() {
@@ -140,8 +140,8 @@
 	}
 
 	// Reactive assignment for global progress
-	$: globalProgress = mediaUrlList.reduce((acc, item) => acc + item.progress, 0) / mediaUrlList.length
-	$: globalDownloading = mediaUrlList.some(media => media.status === 'Downloading')
+	$: globalProgress = mediaList.reduce((acc, item) => acc + item.progress, 0) / mediaList.length
+	$: globalDownloading = mediaList.some(media => media.status === 'Downloading')
 
 	onMount(() => {
 		const clipboardIsUrl = async () => {
@@ -200,7 +200,8 @@
 			role="region"
 			on:dragenter={onDragOver}
 			on:dragleave={onDragLeave}
-			on:dragend={onDragLeave}>
+			on:dragend={onDragLeave}
+		>
 			{#if dragHovering}
 				<DropZone {dropHandler} />
 			{:else}
@@ -214,16 +215,16 @@
 						</Table.Row>
 					</Table.Header>
 					<Table.Body>
-						{#each mediaUrlList as mediaUrl, i (i)}
+						{#each mediaList as mediaItem, i (i)}
 							<Table.Row>
 								<Table.Cell>
-									{#if mediaUrl.thumbnail}
-										<img class="w-auto h-[72px]" alt="Media thumbnail" src={mediaUrl.thumbnail} />
+									{#if mediaItem.thumbnail}
+										<img class="w-auto h-[72px]" alt="Media thumbnail" src={mediaItem.thumbnail} />
 									{/if}
 								</Table.Cell>
-								<Table.Cell class="font-medium">{mediaUrl.title}</Table.Cell>
-								<Table.Cell><Progress value={mediaUrl.progress} max={100} class="w-[100%]" /></Table.Cell>
-								<Table.Cell class="text-right">{mediaUrl.status}</Table.Cell>
+								<Table.Cell class="font-medium">{mediaItem.title}</Table.Cell>
+								<Table.Cell><Progress value={mediaItem.progress} max={100} class="w-[100%]" /></Table.Cell>
+								<Table.Cell class="text-right">{mediaItem.status}</Table.Cell>
 							</Table.Row>
 						{/each}
 					</Table.Body>
