@@ -39,7 +39,6 @@
 	]
 
 	let outputLocation = ''
-	let globalMessage = ''
 	let globalProgress = 0
 	let globalDownloading = false
 
@@ -67,7 +66,6 @@
 		})
 		if (directory) {
 			outputLocation = directory
-			globalMessage = 'Output location set'
 		}
 	}
 
@@ -86,7 +84,7 @@
 			}
 		} catch (err) {
 			console.error('Error starting download:', err)
-			globalMessage = 'Error starting download'
+			alert('Error starting download')
 			globalDownloading = false
 		}
 	}
@@ -112,7 +110,6 @@
 		// Validate if it's a URL
 		if (isUrl(input)) {
 			addMediaUrl(input)
-			globalMessage = `Dropped URL: ${input}`
 		}
 	}
 
@@ -140,7 +137,7 @@
 
 			if (isUrl(clipboardContents)) {
 				addMediaUrl(clipboardContents)
-				globalMessage = 'URL added from clipboard'
+				console.log('URL added from clipboard')
 			}
 		}
 
@@ -218,12 +215,6 @@
 
 		<div class="my-2">
 			<Progress value={globalProgress} max={100} class="w-[100%]" />
-			<div class="flex justify-center">
-				<PLabel className="py-2">
-					{globalMessage}
-				</PLabel>
-				<p></p>
-			</div>
 		</div>
 
 		<div class="flex justify-center gap-x-4">
