@@ -19,10 +19,12 @@
 	import PLabel from '../components/p-label.svelte'
 
 	type MediaProgressEvent = [number, number]
+	type MediaInfoEvent = [number, string, string]
 
 	type VideoInfo = {
 		url: string
 		title: string
+		thumbnail?: string
 		audioOnly: boolean
 		progress: number
 		status: 'Pending' | 'Downloading' | 'Done' | 'Error'
@@ -41,6 +43,7 @@
 	let outputLocation = ''
 	let globalProgress = 0
 	let globalDownloading = false
+	let dragHovering = false
 
 	// Set the default download directory to the user's download folder
 	downloadDir().then(dir => {
@@ -124,6 +127,25 @@
 				audioOnly: false
 			}
 		]
+		// Request media information
+		const mediaIdx = mediaUrlList.findIndex(m => m.url === url)
+		void invoke('get_media_info', {
+			mediaIdx,
+			mediaSourceUrl: url,
+		})
+		dragHovering = false
+	}
+
+	const updateMediaItem = (index: number, updates: Partial<VideoInfo>) => {
+		mediaUrlList = mediaUrlList.map((item, i) => (i === index ? { ...item, ...updates } : item))
+	}
+
+	function onDragOver() {
+		dragHovering = true
+	}
+
+	function onDragLeave() {
+		dragHovering = false
 	}
 
 	// Reactive assignment for global progress
@@ -147,9 +169,11 @@
 			}
 		})
 
-		const updateMediaItem = (index: number, updates: Partial<VideoInfo>) => {
-			mediaUrlList = mediaUrlList.map((item, i) => (i === index ? { ...item, ...updates } : item))
-		}
+		const unlistenMediaInfo = listen('update-media-info', event => {
+			const [mediaIdx, title, thumbnail] = event.payload as MediaInfoEvent
+			console.log(event.payload)
+			updateMediaItem(mediaIdx, { title, thumbnail })
+		})
 
 		const unlistenProgress = listen('download-progress', event => {
 			const [mediaIdx, progress] = event.payload as MediaProgressEvent
@@ -168,6 +192,7 @@
 
 		return () => {
 			unlistenFocus.then(fn => fn())
+			unlistenMediaInfo.then(fn => fn())
 			unlistenProgress.then(fn => fn())
 			unlistenComplete.then(fn => fn())
 			unlistenError.then(fn => fn())
@@ -179,29 +204,40 @@
 	<MenuBar />
 
 	<div class="container gap-y-4">
-		<DropZone {dropHandler} />
-
-		<div class="min-h-[20rem]">
-			<Table.Root>
-				<Table.Header>
-					<Table.Row>
-						<Table.Head class="w-[100px]">Title</Table.Head>
-						<Table.Head>URL</Table.Head>
-						<Table.Head>Progress</Table.Head>
-						<Table.Head class="text-right">Status</Table.Head>
-					</Table.Row>
-				</Table.Header>
-				<Table.Body>
-					{#each mediaUrlList as mediaUrl, i (i)}
+		<div
+			class="min-h-[20rem]"
+			role="region"
+			on:dragenter={onDragOver}
+			on:dragleave={onDragLeave}
+			on:dragend={onDragLeave}>
+			{#if dragHovering}
+				<DropZone {dropHandler} />
+			{:else}
+				<Table.Root>
+					<Table.Header>
 						<Table.Row>
-							<Table.Cell class="font-medium">{mediaUrl.title}</Table.Cell>
-							<Table.Cell>{mediaUrl.url}</Table.Cell>
-							<Table.Cell><Progress value={mediaUrl.progress} max={100} class="w-[100%]" /></Table.Cell>
-							<Table.Cell class="text-right">{mediaUrl.status}</Table.Cell>
+							<Table.Head class="w-[300px]">Thumbnail</Table.Head>
+							<Table.Head class="w-[100%]">Title</Table.Head>
+							<Table.Head class="min-w-[100px]">Progress</Table.Head>
+							<Table.Head class="text-right">Status</Table.Head>
 						</Table.Row>
-					{/each}
-				</Table.Body>
-			</Table.Root>
+					</Table.Header>
+					<Table.Body>
+						{#each mediaUrlList as mediaUrl, i (i)}
+							<Table.Row>
+								<Table.Cell>
+									{#if mediaUrl.thumbnail}
+										<img class="w-auto h-[72px]" alt="Media thumbnail" src={mediaUrl.thumbnail} />
+									{/if}
+								</Table.Cell>
+								<Table.Cell class="font-medium">{mediaUrl.title}</Table.Cell>
+								<Table.Cell><Progress value={mediaUrl.progress} max={100} class="w-[100%]" /></Table.Cell>
+								<Table.Cell class="text-right">{mediaUrl.status}</Table.Cell>
+							</Table.Row>
+						{/each}
+					</Table.Body>
+				</Table.Root>
+			{/if}
 		</div>
 
 		<div>

@@ -24,7 +24,7 @@
 	role="region"
 	on:dragover={handleDragOver}
 	on:drop={handleDrop}
-	class="drop-area p-[20px] text-center"
+	class="drop-area p-[20px] text-center min-h-[20rem]"
 	style="border: 2px dashed #ccc;">
 	Drop a URL here
 </div>
