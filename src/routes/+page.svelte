@@ -194,7 +194,7 @@
 <main>
 	<MenuBar />
 
-	<div class="container gap-y-4">
+	<div class="app-container gap-y-4">
 		<div
 			class="min-h-[20rem]"
 			role="region"
@@ -268,7 +268,7 @@
 		-webkit-text-size-adjust: 100%;
 	}
 
-	.container {
+	.app-container {
 		margin: 0;
 		padding: 1rem;
 		display: flex;
