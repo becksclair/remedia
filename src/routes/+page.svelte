@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { invoke } from '@tauri-apps/api/core'
-	import { listen } from '@tauri-apps/api/event'
-	import { getCurrentWindow } from '@tauri-apps/api/window'
+	import { listen, type Event } from '@tauri-apps/api/event'
 	import { open } from '@tauri-apps/plugin-dialog'
 	import { downloadDir } from '@tauri-apps/api/path'
 	import { readText } from '@tauri-apps/plugin-clipboard-manager'
@@ -21,13 +20,20 @@
 	type MediaProgressEvent = [number, number]
 	type MediaInfoEvent = [number, string, string]
 
+	const PENDING = 'Pending'
+	const DOWNLOADING = 'Downlaoding'
+	const DONE = 'Done'
+	const ERROR = 'Error'
+
+	type VideoStatus = typeof PENDING | typeof DOWNLOADING | typeof DONE | typeof ERROR
+
 	type VideoInfo = {
 		url: string
 		title: string
 		thumbnail?: string
 		audioOnly: boolean
 		progress: number
-		status: 'Pending' | 'Downloading' | 'Done' | 'Error'
+		status: VideoStatus
 	}
 
 	let mediaList: VideoInfo[] = []
@@ -68,14 +74,15 @@
 		globalDownloading = true
 
 		try {
-			const mediaCount = mediaList.length - 1
-			for (let i = 0; i <= mediaCount; i++) {
-				await invoke('download_media', {
-					mediaIdx: i,
-					mediaSourceUrl: mediaList[i].url,
-					outputLocation: outputLocation
-				})
-			}
+			await Promise.all(
+				mediaList.map((media, i) =>
+					invoke('download_media', {
+						mediaIdx: i,
+						mediaSourceUrl: media.url,
+						outputLocation: outputLocation
+					})
+				)
+			)
 		} catch (err) {
 			console.error('Error starting download:', err)
 			alert('Error starting download')
@@ -96,16 +103,7 @@
 		await invoke('quit')
 	}
 
-	function isUrl(input: string): boolean {
-		return input.startsWith('http')
-	}
-
-	function dropHandler(input: string) {
-		// Validate if it's a URL
-		if (isUrl(input)) {
-			addMediaUrl(input)
-		}
-	}
+	const isUrl = (input: string) => /^https?:\/\//.test(input)
 
 	function addMediaUrl(url: string) {
 		mediaList = [
@@ -127,8 +125,23 @@
 		dragHovering = false
 	}
 
-	const updateMediaItem = (index: number, updates: Partial<VideoInfo>) => {
-		mediaList = mediaList.map((item, i) => (i === index ? { ...item, ...updates } : item))
+	async function clipboardIsUrl() {
+		// Check if the clipboard content is a URL
+		const clipboardContents = await readText()
+
+		if (isUrl(clipboardContents)) {
+			addMediaUrl(clipboardContents)
+			console.log('URL added from clipboard')
+		}
+	}
+
+	function updateMediaItem(index: number, updates: Partial<VideoInfo>) {
+		mediaList[index] = { ...mediaList[index], ...updates }
+		mediaList = mediaList
+	}
+
+	function handleWindowFocus() {
+		clipboardIsUrl()
 	}
 
 	function onDragOver() {
@@ -139,57 +152,51 @@
 		dragHovering = false
 	}
 
+	function dropHandler(input: string) {
+		// Validate if it's a URL
+		if (isUrl(input)) {
+			addMediaUrl(input)
+		}
+	}
+
+	function handleMediaInfo({ payload: [mediaIdx, title, thumbnail] }: Event<MediaInfoEvent>) {
+		console.log(mediaIdx, title, thumbnail)
+		updateMediaItem(mediaIdx, { title, thumbnail })
+	}
+	function handleProgress(event: Event<MediaProgressEvent>) {
+		const [mediaIdx, progress] = event.payload as MediaProgressEvent
+		updateMediaItem(mediaIdx, { progress })
+	}
+
+	function handleComplete(event: Event<number>) {
+		const mediaIdx = event.payload as number
+		updateMediaItem(mediaIdx, { progress: 100, status: 'Done' })
+	}
+
+	function handleError(event: Event<number>) {
+		const mediaIdx = event.payload as number
+		updateMediaItem(mediaIdx, { status: 'Error' })
+	}
+
 	// Reactive assignment for global progress
-	$: globalProgress = mediaList.reduce((acc, item) => acc + item.progress, 0) / mediaList.length
-	$: globalDownloading = mediaList.some(media => media.status === 'Downloading')
+	$: globalDownloading = mediaList.some(media => media.status === DOWNLOADING)
+	$: globalProgress = globalDownloading ? mediaList.reduce((acc, item) => acc + item.progress, 0) / mediaList.length : 0
 
 	onMount(() => {
-		const clipboardIsUrl = async () => {
-			// Check if the clipboard content is a URL
-			const clipboardContents = await readText()
-
-			if (isUrl(clipboardContents)) {
-				addMediaUrl(clipboardContents)
-				console.log('URL added from clipboard')
-			}
-		}
-
-		const unlistenFocus = getCurrentWindow().onFocusChanged(({ payload: focused }) => {
-			if (focused) {
-				clipboardIsUrl()
-			}
-		})
-
-		const unlistenMediaInfo = listen('update-media-info', event => {
-			const [mediaIdx, title, thumbnail] = event.payload as MediaInfoEvent
-			console.log(event.payload)
-			updateMediaItem(mediaIdx, { title, thumbnail })
-		})
-
-		const unlistenProgress = listen('download-progress', event => {
-			const [mediaIdx, progress] = event.payload as MediaProgressEvent
-			updateMediaItem(mediaIdx, { progress })
-		})
-
-		const unlistenComplete = listen('download-complete', event => {
-			const mediaIdx = event.payload as number
-			updateMediaItem(mediaIdx, { progress: 100, status: 'Done' })
-		})
-
-		const unlistenError = listen('download-error', event => {
-			const mediaIdx = event.payload as number
-			updateMediaItem(mediaIdx, { status: 'Error' })
-		})
+		const unlisteners = [
+			listen('update-media-info', handleMediaInfo),
+			listen('download-progress', handleProgress),
+			listen('download-complete', handleComplete),
+			listen('download-error', handleError)
+		]
 
 		return () => {
-			unlistenFocus.then(fn => fn())
-			unlistenMediaInfo.then(fn => fn())
-			unlistenProgress.then(fn => fn())
-			unlistenComplete.then(fn => fn())
-			unlistenError.then(fn => fn())
+			unlisteners.forEach(unlistener => unlistener.then(fn => fn()))
 		}
 	})
 </script>
+
+<svelte:window on:focus={handleWindowFocus} />
 
 <main>
 	<MenuBar />
@@ -248,8 +255,8 @@
 		<div class="flex justify-center gap-x-4">
 			<Button type="button" class="min-w-[8rem]" disabled={globalDownloading} on:click={startDownload}>Download</Button>
 			{#if globalDownloading}
-				<Button type="button" class="min-w-[8rem]" disabled={!globalDownloading} on:click={startDownload}
-					>Cancel</Button>
+				<Button type="button" class="min-w-[8rem]" disabled={!globalDownloading} on:click={startDownload}>Cancel</Button
+				>
 			{/if}
 
 			<Button type="button" class="min-w-[8rem]" on:click={preview}>Preview</Button>
@@ -257,30 +264,3 @@
 		</div>
 	</div>
 </main>
-
-<style>
-	:root {
-		font-size: 14px;
-
-		font-synthesis: none;
-		text-rendering: optimizeLegibility;
-		-webkit-font-smoothing: antialiased;
-		-moz-osx-font-smoothing: grayscale;
-		-webkit-text-size-adjust: 100%;
-	}
-
-	.app-container {
-		margin: 0;
-		padding: 1rem;
-		display: flex;
-		flex-direction: column;
-		justify-content: center;
-	}
-
-	@media (prefers-color-scheme: dark) {
-		:root {
-			color: #f6f6f6;
-			background-color: #2f2f2f;
-		}
-	}
-</style>
