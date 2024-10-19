@@ -30,18 +30,9 @@
 		status: 'Pending' | 'Downloading' | 'Done' | 'Error'
 	}
 
-	let mediaUrlList: VideoInfo[] = [
-		{
-			url: 'https://www.twitch.tv/videos/2277690290',
-			title: 'Sample Video',
-			audioOnly: false,
-			progress: 0,
-			status: 'Pending'
-		}
-	]
-
+	let mediaUrlList: VideoInfo[] = []
 	let outputLocation = ''
-	let globalProgress = 0
+	let globalProgress = 0.0
 	let globalDownloading = false
 	let dragHovering = false
 
