@@ -32,11 +32,13 @@
 		
 	>
 		{#snippet children({ isChecked, isIndeterminate })}
-				{#if isIndeterminate}
+			{#if isIndeterminate}
 				<Minus class="h-3.5 w-3.5" />
+			{:else if isChecked}
+				<Check class="h-3.5 w-3.5" />
 			{:else}
-				<Check class={cn("h-3.5 w-3.5", !isChecked && "text-transparent")} />
+				<Check class="h-3.5 w-3.5 text-transparent" />
 			{/if}
-					{/snippet}
+		{/snippet}
 		</CheckboxPrimitive.Indicator>
 </CheckboxPrimitive.Root>
