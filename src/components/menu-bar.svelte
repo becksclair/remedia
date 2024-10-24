@@ -3,10 +3,10 @@
 	import * as Menubar from '$lib/components/ui/menubar'
 
 	interface Props {
-		alwaysOnTop?: boolean;
+		alwaysOnTop?: boolean
 	}
 
-	let { alwaysOnTop = $bindable(false) }: Props = $props();
+	let { alwaysOnTop = $bindable(false) }: Props = $props()
 	let darkMode = $state(false)
 </script>
 
