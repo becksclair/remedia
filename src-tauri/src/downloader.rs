@@ -98,12 +98,31 @@ pub struct RechatSubtitle {
     pub ext: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Version {
-    pub version: Option<String>,
-    pub current_git_head: Option<String>,
-    pub release_git_head: String,
-    pub repository: Option<String>,
+async fn run_yt_dlp(cmd: &mut Command) -> Result<(String, String), std::io::Error> {
+    let mut child = cmd.spawn()?;
+
+    let stdout = child.stdout.take().ok_or_else(|| {
+        std::io::Error::new(std::io::ErrorKind::Other, "Could not capture stdout")
+    })?;
+    let stderr = child.stderr.take().ok_or_else(|| {
+        std::io::Error::new(std::io::ErrorKind::Other, "Could not capture stderr")
+    })?;
+
+    let mut out_reader = BufReader::new(stdout);
+    let err_reader = BufReader::new(stderr);
+
+    let mut output = String::new();
+    out_reader.read_to_string(&mut output)?;
+
+    let mut errors = String::new();
+    for line in err_reader.lines() {
+        errors.push_str(&line?);
+        errors.push('\n');
+    }
+
+    child.wait()?;
+
+    Ok((output, errors))
 }
 
 #[tauri::command]
@@ -113,48 +132,26 @@ pub async fn get_media_info(
     media_idx: i32,
     media_source_url: String,
 ) -> Result<(), String> {
-    spawn(async move {
-        // Build the yt-dlp command
-        let mut cmd = Command::new("yt-dlp.exe");
-        cmd.arg(media_source_url)
-            .arg("-j")
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped());
+    let mut cmd = Command::new("yt-dlp.exe");
+    cmd.arg(media_source_url)
+        .arg("-j")
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
 
-        let mut child = cmd.spawn().expect("Failed to spawn yt-dlp");
+    let (output, errors) = run_yt_dlp(&mut cmd).await.map_err(|e| e.to_string())?;
 
-        let stdout = child.stdout.take().expect("Failed to open stdout");
-        let stderr = child.stderr.take().expect("Failed to open stderr");
+    if !errors.is_empty() {
+        println!("Errors: {}", errors);
+    }
 
-        let mut out_reader = BufReader::new(stdout);
-        let err_reader = BufReader::new(stderr);
+    let video_info: YtDlpVideo = serde_json::from_str(&output).map_err(|e| e.to_string())?;
 
-        let mut media_info_json_raw: String = String::new();
-        out_reader
-            .read_to_string(&mut media_info_json_raw)
-            .expect("Failed to read media info.");
-
-        let video_info: YtDlpVideo =
-            serde_json::from_str(&media_info_json_raw).expect("Failed to parse JSON");
-
-        // Notify UI with the media information for the requested media
-        window
-            .emit(
-                "update-media-info",
-                (media_idx, video_info.title, video_info.thumbnail),
-            )
-            .unwrap();
-
-        // Handle child process errors
-        err_reader.lines().for_each(|line| {
-            if let Ok(line) = line {
-                println!("Error: {}", line);
-            }
-        });
-
-        // Wait for the child process to exit
-        child.wait().expect("Failed to wait on yt-dlp");
-    });
+    window
+        .emit(
+            "update-media-info",
+            (media_idx, video_info.title, video_info.thumbnail),
+        )
+        .map_err(|e| e.to_string())?;
 
     Ok(())
 }

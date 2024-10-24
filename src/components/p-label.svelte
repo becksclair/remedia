@@ -1,9 +1,14 @@
 <script lang="ts">
 	import { cn } from '$lib/utils.js'
 
-	export let className = ''
+	interface Props {
+		klass?: string;
+		children?: import('svelte').Snippet;
+	}
+
+	let { klass = '', children }: Props = $props();
 </script>
 
-<p class={cn('text-sm font-medium leading-none py-3', className)}>
-	<slot />
+<p class={cn('text-sm font-medium leading-none py-3', klass)}>
+	{@render children?.()}
 </p>

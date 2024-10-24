@@ -2,8 +2,12 @@
 	import { toggleMode } from 'mode-watcher'
 	import * as Menubar from '$lib/components/ui/menubar'
 
-	export let alwaysOnTop = false
-	let darkMode = false
+	interface Props {
+		alwaysOnTop?: boolean;
+	}
+
+	let { alwaysOnTop = $bindable(false) }: Props = $props();
+	let darkMode = $state(false)
 </script>
 
 <Menubar.Root>

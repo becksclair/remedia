@@ -38,27 +38,23 @@
 		status: VideoStatus
 	}
 
-	let mediaList: VideoInfo[] = []
-	let outputLocation = ''
-	let globalProgress = 0.0
-	let globalDownloading = false
-	let dragHovering = false
+	let mediaList: VideoInfo[] = $state([])
+	let outputLocation = $state('')
+	let globalProgress = $state(0.0)
+	let globalDownloading = $state(false)
+	let dragHovering = $state(false)
 
 	const urlSet = new Set(mediaList.map(item => item.url))
 
 	// Set the default download directory to the user's download folder
-	downloadDir().then(dir => {
-		outputLocation = dir
-	})
+	downloadDir().then(dir => outputLocation = dir)
 
 	// Do you have permission to send a notification?
 	let notifPermission = false
 
 	isPermissionGranted().then(granted => {
 		if (!granted) {
-			requestPermission().then(permission => {
-				notifPermission = permission === 'granted'
-			})
+			requestPermission().then(permission => notifPermission = permission === 'granted')
 		}
 	})
 
@@ -187,8 +183,10 @@
 	}
 
 	// Reactive assignment for global progress
-	$: globalDownloading = mediaList.some(media => media.status === Status.Downloading)
-	$: globalProgress = globalDownloading ? mediaList.reduce((acc, item) => acc + item.progress, 0) / mediaList.length : 0
+	$effect(() => {
+		globalDownloading = mediaList.some(media => media.status === Status.Downloading)
+		globalProgress = globalDownloading ? mediaList.reduce((acc, item) => acc + item.progress, 0) / mediaList.length : 0
+	});
 
 	onMount(() => {
 		const unlisteners = [
@@ -204,7 +202,7 @@
 	})
 </script>
 
-<svelte:window on:focus={handleWindowFocus} />
+<svelte:window onfocus={handleWindowFocus} />
 
 <main>
 	<MenuBar />
@@ -213,9 +211,9 @@
 		<div
 			class="min-h-[20rem]"
 			role="region"
-			on:dragenter={onDragOver}
-			on:dragleave={onDragLeave}
-			on:dragend={onDragLeave}
+			ondragenter={onDragOver}
+			ondragleave={onDragLeave}
+			ondragend={onDragLeave}
 		>
 			{#if dragHovering}
 				<DropZone {dropHandler} />

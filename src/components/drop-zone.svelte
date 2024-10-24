@@ -1,11 +1,15 @@
 <script lang="ts">
-	export let dropHandler: (url: string) => void
+	interface Props {
+		dropHandler: (url: string) => void;
+	}
 
-	function handleDragOver(event: DragEvent) {
+	let { dropHandler }: Props = $props();
+
+	function ondragover(event: DragEvent) {
 		event.preventDefault() // Prevent default to allow drop
 	}
 
-	function handleDrop(event: DragEvent) {
+	function ondrop(event: DragEvent) {
 		event.preventDefault()
 
 		// Get the dragged data
@@ -22,9 +26,10 @@
 
 <div
 	role="region"
-	on:dragover={handleDragOver}
-	on:drop={handleDrop}
 	class="drop-area p-[20px] text-center min-h-[20rem]"
-	style="border: 2px dashed #ccc;">
+	style="border: 2px dashed #ccc;"
+	{ondragover}
+	{ondrop}
+>
 	Drop a URL here
 </div>
