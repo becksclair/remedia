@@ -8,7 +8,15 @@
 	},
 	"files": {
 		"ignoreUnknown": true,
-		"include": ["**/*.js", "**/*.mjs", "**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts", "**/*.yaml"],
+		"include": [
+			"**/*.js",
+			"**/*.mjs",
+			"**/*.ts",
+			"**/*.tsx",
+			"**/*.mts",
+			"**/*.cts",
+			"**/*.yaml"
+		],
 		"ignore": [
 			"**/*.svelte",
 			"src/lib/components/ui/**/*.svelte",
@@ -26,18 +34,9 @@
 		"indentStyle": "tab",
 		"indentWidth": 4,
 		"lineEnding": "lf",
-		"lineWidth": 120,
+		"lineWidth": 100,
 		"attributePosition": "auto",
-		"ignore": [
-			"**/*.svelte",
-			"src/lib/components/ui/**/*.svelte",
-			"src/lib/components/ui/**/*.js",
-			"src/lib/components/ui/**/*.ts",
-			"build/",
-			".svelte-kit/",
-			"dist/",
-			"src-tauri"
-		]
+		"ignore": ["${files.ignore}"]
 	},
 	"organizeImports": {
 		"enabled": true
@@ -80,7 +79,11 @@
 				"useValidForDirection": "error",
 				"useYield": "error"
 			},
-			"style": { "noNamespace": "error", "useAsConstAssertion": "error", "useBlockStatements": "off" },
+			"style": {
+				"noNamespace": "error",
+				"useAsConstAssertion": "error",
+				"useBlockStatements": "off"
+			},
 			"suspicious": {
 				"noAssignInExpressions": "error",
 				"noAsyncPromiseExecutor": "error",

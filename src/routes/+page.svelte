@@ -4,11 +4,16 @@
 	import { open } from '@tauri-apps/plugin-dialog'
 	import { downloadDir } from '@tauri-apps/api/path'
 	import { readText } from '@tauri-apps/plugin-clipboard-manager'
-	import { isPermissionGranted, requestPermission, sendNotification } from '@tauri-apps/plugin-notification'
+	import {
+		isPermissionGranted,
+		requestPermission,
+		sendNotification,
+	} from '@tauri-apps/plugin-notification'
 
 	import { onMount } from 'svelte'
 
-	import * as Table from '$lib/components/ui/table'
+	// noinspection ES6UnusedImports
+	import * as Table from '$lib/components/ui/table/index'
 	import { Button } from '$lib/components/ui/button'
 	import { Input } from '$lib/components/ui/input'
 	import { Progress } from '$lib/components/ui/progress'
@@ -44,17 +49,20 @@
 	let globalDownloading = $state(false)
 	let dragHovering = $state(false)
 
-	const urlSet = new Set(mediaList.map(item => item.url))
+	let urlSet: Set<string>
+	$effect(() => {
+		urlSet = new Set(mediaList.map(item => item.url))
+	})
 
 	// Set the default download directory to the user's download folder
 	downloadDir().then(dir => (outputLocation = dir))
 
 	// Do you have permission to send a notification?
-	let notifPermission = false
+	let notificationPermission = false
 
 	isPermissionGranted().then(granted => {
 		if (!granted) {
-			requestPermission().then(permission => (notifPermission = permission === 'granted'))
+			requestPermission().then(permission => (notificationPermission = permission === 'granted'))
 		}
 	})
 
@@ -91,7 +99,7 @@
 	}
 
 	async function preview() {
-		if (notifPermission) {
+		if (notificationPermission) {
 			sendNotification({
 				title: 'Download complete',
 				body: 'Your video title finished downloading',
@@ -185,7 +193,9 @@
 	// Reactive assignment for global progress
 	$effect(() => {
 		globalDownloading = mediaList.some(media => media.status === Status.Downloading)
-		globalProgress = globalDownloading ? mediaList.reduce((acc, item) => acc + item.progress, 0) / mediaList.length : 0
+		globalProgress = globalDownloading
+			? mediaList.reduce((acc, item) => acc + item.progress, 0) / mediaList.length
+			: 0
 	})
 
 	onMount(() => {
@@ -208,7 +218,13 @@
 	<MenuBar />
 
 	<div class="app-container gap-y-4">
-		<div class="min-h-[20rem]" role="region" ondragenter={onDragOver} ondragleave={onDragLeave} ondragend={onDragLeave}>
+		<div
+			class="min-h-[20rem]"
+			role="region"
+			ondragenter={onDragOver}
+			ondragleave={onDragLeave}
+			ondragend={onDragLeave}
+		>
 			{#if dragHovering}
 				<DropZone {dropHandler} />
 			{:else}
@@ -230,7 +246,9 @@
 									{/if}
 								</Table.Cell>
 								<Table.Cell class="font-medium">{mediaItem.title}</Table.Cell>
-								<Table.Cell><Progress value={mediaItem.progress} max={100} class="w-[100%]" /></Table.Cell>
+								<Table.Cell
+									><Progress value={mediaItem.progress} max={100} class="w-[100%]" /></Table.Cell
+								>
 								<Table.Cell class="text-right">{mediaItem.status}</Table.Cell>
 							</Table.Row>
 						{/each}
@@ -243,8 +261,14 @@
 			<PLabel>Select the location where you want to save the downloaded files:</PLabel>
 
 			<div class="flex gap-x-4">
-				<Input type="text" id="output-location-input" placeholder="Download location..." bind:value={outputLocation} />
-				<Button type="button" class="min-w-[8rem]" on:click={chooseOutputLocation}>Browse...</Button>
+				<Input
+					type="text"
+					id="output-location-input"
+					placeholder="Download location..."
+					bind:value={outputLocation}
+				/>
+				<Button type="button" class="min-w-[8rem]" on:click={chooseOutputLocation}>Browse...</Button
+				>
 			</div>
 		</div>
 
@@ -253,9 +277,18 @@
 		</div>
 
 		<div class="flex justify-center gap-x-4">
-			<Button type="button" class="min-w-[8rem]" disabled={globalDownloading} on:click={startDownload}>Download</Button>
+			<Button
+				type="button"
+				class="min-w-[8rem]"
+				disabled={globalDownloading}
+				on:click={startDownload}>Download</Button
+			>
 			{#if globalDownloading}
-				<Button type="button" class="min-w-[8rem]" disabled={!globalDownloading} on:click={startDownload}>Cancel</Button
+				<Button
+					type="button"
+					class="min-w-[8rem]"
+					disabled={!globalDownloading}
+					on:click={startDownload}>Cancel</Button
 				>
 			{/if}
 
