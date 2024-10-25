@@ -1,9 +1,9 @@
 <script lang="ts">
 	interface Props {
-		dropHandler: (url: string) => void;
+		dropHandler: (url: string) => void
 	}
 
-	let { dropHandler }: Props = $props();
+	let { dropHandler }: Props = $props()
 
 	function ondragover(event: DragEvent) {
 		event.preventDefault() // Prevent default to allow drop
@@ -26,7 +26,7 @@
 
 <div
 	role="region"
-	class="drop-area p-[20px] text-center min-h-[20rem]"
+	class="drop-area min-h-[20rem] p-[20px] text-center"
 	style="border: 2px dashed #ccc;"
 	{ondragover}
 	{ondrop}

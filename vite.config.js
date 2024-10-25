@@ -1,6 +1,6 @@
-import { defineConfig } from "vite";
-import { sveltekit } from "@sveltejs/kit/vite";
-import path from "node:path";
+import path from 'node:path';
+import { sveltekit } from '@sveltejs/kit/vite';
+import { defineConfig } from 'vite';
 
 // deno-lint-ignore no-process-globals
 const host = process.env.TAURI_DEV_HOST;
@@ -20,19 +20,19 @@ export default defineConfig(async () => ({
 		host: host || false,
 		hmr: host
 			? {
-					protocol: "ws",
+					protocol: 'ws',
 					host,
 					port: 1421,
 				}
 			: undefined,
 		watch: {
 			// 3. tell vite to ignore watching `src-tauri`
-			ignored: ["**/src-tauri/**"],
+			ignored: ['**/src-tauri/**'],
 		},
 	},
 	resolve: {
-    alias: {
-      $lib: path.resolve("./src/lib"),
-    },
-  },
+		alias: {
+			$lib: path.resolve('./src/lib'),
+		},
+	},
 }));
