@@ -24,6 +24,9 @@ export default [
 		languageOptions: {
 			parserOptions: {
 				parser: ts.parser,
+				project: './tsconfig.json',
+				extraFileExtensions: ['.svelte'],
+				sourceType: 'module',
 			},
 		},
 	},
