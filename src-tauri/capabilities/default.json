@@ -4,7 +4,13 @@
   "description": "Capability for the main window",
   "windows": ["main"],
   "permissions": [
-    "core:default",
-    "opener:default"
-  ]
+		"core:default",
+		"shell:default",
+		"shell:allow-open",
+		"shell:allow-execute",
+		"clipboard-manager:allow-read-text",
+		"dialog:default",
+		"fs:default",
+		"notification:default"
+	]
 }
