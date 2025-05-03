@@ -135,6 +135,8 @@ pub async fn get_media_info(
     let mut cmd = Command::new("yt-dlp.exe");
     cmd.arg(media_source_url)
         .arg("-j")
+        .arg("--extractor-args")
+        .arg("generic:impersonate")
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
 
@@ -216,7 +218,7 @@ pub fn download_media(
             if let Ok(line) = line {
                 println!("{}", line);
 
-                // Check if line starts with 'download:'
+                // Check if the line starts with 'download:'
                 if line.starts_with("remedia-") {
                     // Output format: remedia-7168-3098545-0
                     let ln_status = line.split('-').collect::<Vec<&str>>();
