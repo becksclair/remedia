@@ -60,7 +60,7 @@
 
 .container {
 	margin: 0;
-	padding-top: 10vh;
+	/* padding-top: 10vh; */
 	display: flex;
 	flex-direction: column;
 	justify-content: center;
@@ -98,7 +98,7 @@ h1 {
 }
 
 button {
-	cursor: arrow;
+	cursor: default;
 }
 
 #greet-input {
@@ -183,5 +183,35 @@ button {
 	}
 	body {
 		@apply bg-background text-foreground;
+		height: 100vh;
+		cursor: default;
+		user-select: none;
+	}
+
+	button {
+		cursor: default;
+	}
+
+	.app-container {
+		margin: 0;
+		padding: 1rem;
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+	}
+
+	.drop-zone {
+		z-index: 999;
+		opacity: 0;
+		position: absolute;
+		/* pointer-events: none; */
+		width: 95%;
+		border: 3px dashed #ccc;
+		border-radius: 10px;
+		background: white;
+	}
+
+	.hover {
+		opacity: 1;
 	}
 }
