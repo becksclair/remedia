@@ -32,7 +32,7 @@
 			"icons/icon.icns",
 			"icons/icon.ico"
 		],
-		"externalBin": ["helpers/yt-dlp.exe"]
+		"externalBin": ["helpers/yt-dlp"]
 	},
 	"plugins": {}
 }

@@ -132,7 +132,7 @@ pub async fn get_media_info(
     media_idx: i32,
     media_source_url: String,
 ) -> Result<(), String> {
-    let mut cmd = Command::new("yt-dlp.exe");
+    let mut cmd = Command::new("yt-dlp");
     cmd.arg(media_source_url)
         .arg("-j")
         .arg("--extractor-args")
@@ -188,7 +188,7 @@ pub fn download_media(
         );
 
         // Build the yt-dlp command
-        let mut cmd = Command::new("yt-dlp.exe");
+        let mut cmd = Command::new("yt-dlp");
         cmd.arg(media_source_url)
                 .arg("--progress-template")
                 .arg("download:remedia-%(progress.downloaded_bytes)s-%(progress.total_bytes)s-%(progress.total_bytes_estimate)s-%(progress.eta)s")
