@@ -14,32 +14,28 @@ import { useState, useEffect } from "react";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { Progress } from "./components/ui/progress";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
 
 import { PLabel } from "./components/p-label";
 import { DropZone } from "./components/drop-zone";
 
 import "./App.css";
 import { useWindowFocus } from "@/hooks/use-window-focus";
+import { DataTable } from "./components/data-table";
+import type { ColumnDef } from "@tanstack/react-table";
+
+import { MoreHorizontal } from "lucide-react";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuLabel,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Checkbox } from "./components/ui/checkbox";
 
 type MediaProgressEvent = [number, number];
 type MediaInfoEvent = [number, string, string];
-
-const Status = {
-	Pending: "Pending",
-	Downloading: "Downloading",
-	Done: "Done",
-	Error: "Error",
-} as const;
-
-type VideoStatus = (typeof Status)[keyof typeof Status];
 
 type VideoInfo = {
 	url: string;
@@ -47,26 +43,115 @@ type VideoInfo = {
 	thumbnail?: string;
 	audioOnly: boolean;
 	progress: number;
-	status: VideoStatus;
+	status: "Pending" | "Downloading" | "Done" | "Error";
 };
+
+export const MediaListColumns: ColumnDef<VideoInfo>[] = [
+	{
+		id: "select",
+		header: ({ table }) => (
+			<Checkbox
+				checked={
+					table.getIsAllPageRowsSelected() ||
+					(table.getIsSomePageRowsSelected() && "indeterminate")
+				}
+				onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+				aria-label="Select all"
+			/>
+		),
+		cell: ({ row }) => (
+			<Checkbox
+				checked={row.getIsSelected()}
+				onCheckedChange={(value) => row.toggleSelected(!!value)}
+				aria-label="Select row"
+			/>
+		),
+		enableSorting: false,
+		enableHiding: false,
+	},
+	{
+		accessorKey: "thumbnail",
+		header: () => <div className="text-left">Preview</div>,
+		cell: ({ row }) => {
+			const thumbnail = row.getValue("thumbnail");
+			if (!thumbnail) return <div className="h-[72px] w-auto" />;
+
+			return (
+				<img
+					className="h-[72px] w-auto"
+					alt="Media thumbnail"
+					src={thumbnail as string}
+				/>
+			);
+		},
+	},
+	{
+		accessorKey: "title",
+		header: () => <div className="text-left">Title</div>,
+	},
+	{
+		accessorKey: "audioOnly",
+		header: () => <div className="text-center">Audio</div>,
+		cell: ({ row }) => {
+			return <input type="checkbox" checked={row.getValue("audioOnly")} />;
+		},
+	},
+	{
+		accessorKey: "progress",
+		header: () => <div className="text-center">Progress</div>,
+		cell: ({ row }) => {
+			return <Progress value={row.getValue("progress")} />;
+		},
+	},
+	{
+		accessorKey: "status",
+		header: () => <div className="text-right">Status</div>,
+	},
+	{
+		id: "actions",
+		cell: ({ row }) => {
+			return (
+				<DropdownMenu>
+					<DropdownMenuTrigger asChild>
+						<Button variant="ghost" className="h-8 w-8 p-0">
+							<span className="sr-only">Open menu</span>
+							<MoreHorizontal className="h-4 w-4" />
+						</Button>
+					</DropdownMenuTrigger>
+					<DropdownMenuContent align="end">
+						<DropdownMenuLabel>Actions</DropdownMenuLabel>
+						<DropdownMenuItem
+							onClick={() => navigator.clipboard.writeText(row.getValue("url"))}
+						>
+							Copy URL
+						</DropdownMenuItem>
+						<DropdownMenuSeparator />
+						<DropdownMenuItem>View customer</DropdownMenuItem>
+						<DropdownMenuItem>View payment details</DropdownMenuItem>
+					</DropdownMenuContent>
+				</DropdownMenu>
+			);
+		},
+	},
+];
 
 function App() {
 	const [urlSet, setUrlSet] = useState<Set<string>>(new Set());
 	const [mediaList, setMediaList] = useState<VideoInfo[]>([]);
-	const [outputLocation, setOutputLocation] = useState<string>('');
+	const [outputLocation, setOutputLocation] = useState<string>("");
 	const [globalProgress, setGlobalProgress] = useState(0.0);
 	const [globalDownloading, setGlobalDownloading] = useState(false);
 
 	const [dragHovering, setDragHovering] = useState(false);
 
 	const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
-			event.preventDefault();
-			setDragHovering(true);
-		};
+		event.preventDefault();
+		setDragHovering(true);
+	};
 
-		const handleDragLeave = () => {
-			setDragHovering(false);
-		};
+	const handleDragLeave = () => {
+		setDragHovering(false);
+	};
 
 	// Do you have permission to send a notification?
 	let notificationPermission = false;
@@ -84,7 +169,7 @@ function App() {
 			title: "Choose location to save downloads",
 			multiple: false,
 			directory: true,
-			defaultPath: outputLocation
+			defaultPath: outputLocation,
 		});
 		if (directory) {
 			setOutputLocation(directory);
@@ -98,16 +183,16 @@ function App() {
 		try {
 			await Promise.all(
 				mediaList.map((media, i) =>
-					invoke('download_media', {
+					invoke("download_media", {
 						mediaIdx: i,
 						mediaSourceUrl: media.url,
 						outputLocation: outputLocation,
 					}),
 				),
-			)
+			);
 		} catch (err) {
-			console.error('Error starting download:', err)
-			alert('Error starting download')
+			console.error("Error starting download:", err);
+			alert("Error starting download");
 			setGlobalDownloading(false);
 		}
 	}
@@ -115,14 +200,14 @@ function App() {
 	async function preview() {
 		if (notificationPermission) {
 			sendNotification({
-				title: 'Download complete',
-				body: 'Your video title finished downloading',
-			})
+				title: "Download complete",
+				body: "Your video title finished downloading",
+			});
 		}
 	}
 
 	async function quit() {
-		await invoke('quit')
+		await invoke("quit");
 	}
 
 	const isUrl = (input: string) => /^https?:\/\//.test(input);
@@ -176,23 +261,25 @@ function App() {
 		clipboardIsUrl();
 	}
 
-	function handleMediaInfo({ payload: [mediaIdx, title, thumbnail] }: Event<MediaInfoEvent>) {
-		console.log(mediaIdx, title, thumbnail)
-		updateMediaItem(mediaIdx, { title, thumbnail })
+	function handleMediaInfo({
+		payload: [mediaIdx, title, thumbnail],
+	}: Event<MediaInfoEvent>) {
+		console.log(mediaIdx, title, thumbnail);
+		updateMediaItem(mediaIdx, { title, thumbnail });
 	}
 	function handleProgress(event: Event<MediaProgressEvent>) {
-		const [mediaIdx, progress] = event.payload as MediaProgressEvent
-		updateMediaItem(mediaIdx, { progress })
+		const [mediaIdx, progress] = event.payload as MediaProgressEvent;
+		updateMediaItem(mediaIdx, { progress });
 	}
 
 	function handleComplete(event: Event<number>) {
-		const mediaIdx = event.payload as number
-		updateMediaItem(mediaIdx, { progress: 100, status: 'Done' })
+		const mediaIdx = event.payload as number;
+		updateMediaItem(mediaIdx, { progress: 100, status: "Done" });
 	}
 
 	function handleError(event: Event<number>) {
-		const mediaIdx = event.payload as number
-		updateMediaItem(mediaIdx, { status: 'Error' })
+		const mediaIdx = event.payload as number;
+		updateMediaItem(mediaIdx, { status: "Error" });
 	}
 
 	useWindowFocus(handleWindowFocus);
@@ -204,10 +291,10 @@ function App() {
 
 		const setup = async () => {
 			unlisteners = [
-				await listen('update-media-info', handleMediaInfo),
-				await listen('download-progress', handleProgress),
-				await listen('download-complete', handleComplete),
-				await listen('download-error', handleError),
+				await listen("update-media-info", handleMediaInfo),
+				await listen("download-progress", handleProgress),
+				await listen("download-complete", handleComplete),
+				await listen("download-error", handleError),
 			];
 		};
 
@@ -222,9 +309,8 @@ function App() {
 				try {
 					unlisten();
 					// window.removeEventListener('focus', handleWindowFocus);
-				}
-				catch (err) {
-					console.warn('Error during unlisten:', err);
+				} catch (err) {
+					console.warn("Error during unlisten:", err);
 				}
 			}
 		};
@@ -237,66 +323,38 @@ function App() {
 
 	// Handle dynamic updating of global download status and progress
 	useEffect(() => {
-		setGlobalDownloading(mediaList.some(media => media.status === Status.Downloading));
-		setGlobalProgress(globalDownloading
-			? mediaList.reduce((acc, item) => acc + item.progress, 0) / mediaList.length
-			: 0)
+		setGlobalDownloading(
+			mediaList.some((media) => media.status === "Downloading"),
+		);
+		setGlobalProgress(
+			globalDownloading
+				? mediaList.reduce((acc, item) => acc + item.progress, 0) /
+						mediaList.length
+				: 0,
+		);
 	}, [mediaList, globalDownloading]);
-
 
 	return (
 		<main className="container">
 			<div className="app-container gap-y-4">
-				<section className="min-h-[18rem] max-h-[18rem] overflow-y-auto"
+				<section
+					className="min-h-[18rem] max-h-[18rem] overflow-y-auto"
 					onDragOver={handleDragOver}
 					onDragLeave={handleDragLeave}
 				>
-						<DropZone dropHandler={dropHandler}
-							style={{
-								pointerEvents: dragHovering ? 'auto' : 'none',
-							}}
-						/>
+					<DropZone
+						dropHandler={dropHandler}
+						style={{
+							pointerEvents: dragHovering ? "auto" : "none",
+						}}
+					/>
 
-						<Table className="">
-							<TableHeader>
-								<TableRow>
-									<TableHead className="w-[300px]">Thumbnail</TableHead>
-									<TableHead className="w-[90%]">Title</TableHead>
-									<TableHead className="min-w-[100px]">Progress</TableHead>
-									<TableHead className="text-right">Status</TableHead>
-								</TableRow>
-							</TableHeader>
-							<TableBody>
-								{mediaList.map((mediaItem, idx) => (
-									<TableRow key={`${mediaItem.title}_${idx}`}>
-										<TableCell>
-											{mediaItem.thumbnail &&
-												<img className="h-[72px] w-auto" alt="Media thumbnail" src={mediaItem.thumbnail} />
-											}
-										</TableCell>
-
-										<TableCell className="font-medium">
-											<div className="text-left wrap-break-word w-96 overflow-ellipsis overflow-clip">
-												{mediaItem.title}
-											</div>
-										</TableCell>
-
-										<TableCell>
-											<Progress value={mediaItem.progress} max={100} className="w-[100%]" />
-										</TableCell>
-
-										<TableCell className="text-right">
-											{mediaItem.status}
-										</TableCell>
-									</TableRow>
-								))}
-							</TableBody>
-						</Table>
+					<DataTable columns={MediaListColumns} data={mediaList} />
 				</section>
 
 				<div>
 					<PLabel>
-						Select the location where you want to save the downloaded files:
+						Select the location where you want to save the downloaded files
 					</PLabel>
 
 					<div className="flex gap-x-4">
@@ -326,19 +384,27 @@ function App() {
 						type="button"
 						className="min-w-[8rem]"
 						disabled={globalDownloading}
-						onClick={startDownload}>Download</Button
+						onClick={startDownload}
 					>
-					{globalDownloading &&
+						Download
+					</Button>
+					{globalDownloading && (
 						<Button
 							type="button"
 							className="min-w-[8rem]"
 							disabled={!globalDownloading}
-							onClick={startDownload}>Cancel</Button
+							onClick={startDownload}
 						>
-					}
+							Cancel
+						</Button>
+					)}
 
-					<Button type="button" className="min-w-[8rem]" onClick={preview}>Preview</Button>
-					<Button type="button" className="min-w-[8rem]" onClick={quit}>Quit</Button>
+					<Button type="button" className="min-w-[8rem]" onClick={preview}>
+						Preview
+					</Button>
+					<Button type="button" className="min-w-[8rem]" onClick={quit}>
+						Quit
+					</Button>
 				</div>
 			</div>
 		</main>

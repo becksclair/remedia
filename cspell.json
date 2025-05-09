@@ -11,6 +11,8 @@
         "shadcn",
         "sonner",
         "sponsorblock",
+        "unlisten",
+        "unlisteners",
         "vcodec"
     ],
     "ignoreWords": [],

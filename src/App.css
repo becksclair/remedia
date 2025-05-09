@@ -60,11 +60,11 @@
 
 .container {
 	margin: 0;
-	/* padding-top: 10vh; */
 	display: flex;
 	flex-direction: column;
 	justify-content: center;
 	text-align: center;
+	max-width: 100%;
 }
 
 .logo {
@@ -204,7 +204,7 @@ button {
 		z-index: 999;
 		opacity: 0;
 		position: absolute;
-		/* pointer-events: none; */
+		pointer-events: none;
 		width: 95%;
 		border: 3px dashed #ccc;
 		border-radius: 10px;
