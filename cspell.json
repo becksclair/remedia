@@ -1,20 +1,20 @@
 {
-    "version": "0.2",
-    "ignorePaths": [],
-    "dictionaryDefinitions": [],
-    "dictionaries": [],
-    "words": [
-        "acodec",
-        "filesize",
-        "fulltitle",
-        "Rechat",
-        "shadcn",
-        "sonner",
-        "sponsorblock",
-        "unlisten",
-        "unlisteners",
-        "vcodec"
-    ],
-    "ignoreWords": [],
-    "import": []
+	"version": "0.2",
+	"ignorePaths": [],
+	"dictionaryDefinitions": [],
+	"dictionaries": [],
+	"words": [
+		"acodec",
+		"filesize",
+		"fulltitle",
+		"Rechat",
+		"shadcn",
+		"sonner",
+		"sponsorblock",
+		"unlisten",
+		"unlisteners",
+		"vcodec"
+	],
+	"ignoreWords": [],
+	"import": []
 }
