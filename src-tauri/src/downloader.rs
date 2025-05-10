@@ -102,10 +102,10 @@ async fn run_yt_dlp(cmd: &mut Command) -> Result<(String, String), std::io::Erro
     let mut child = cmd.spawn()?;
 
     let stdout = child.stdout.take().ok_or_else(|| {
-        std::io::Error::new(std::io::ErrorKind::Other, "Could not capture stdout")
+        std::io::Error::other("Could not capture stdout")
     })?;
     let stderr = child.stderr.take().ok_or_else(|| {
-        std::io::Error::new(std::io::ErrorKind::Other, "Could not capture stderr")
+        std::io::Error::other("Could not capture stderr")
     })?;
 
     let mut out_reader = BufReader::new(stdout);
@@ -143,7 +143,7 @@ pub async fn get_media_info(
     let (output, errors) = run_yt_dlp(&mut cmd).await.map_err(|e| e.to_string())?;
 
     if !errors.is_empty() {
-        println!("Errors: {}", errors);
+        println!("Errors: {errors}");
     }
 
     let video_info: YtDlpVideo = serde_json::from_str(&output).map_err(|e| e.to_string())?;
@@ -216,7 +216,7 @@ pub fn download_media(
 
         out_reader.lines().for_each(|line| {
             if let Ok(line) = line {
-                println!("{}", line);
+                println!("{line}");
 
                 // Check if the line starts with 'download:'
                 if line.starts_with("remedia-") {
@@ -247,7 +247,7 @@ pub fn download_media(
         // Handle child process errors
         err_reader.lines().for_each(|line| {
             if let Ok(line) = line {
-                println!("Error: {}", line);
+                println!("Error: {line}");
             }
         });
 
