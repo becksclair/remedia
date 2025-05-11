@@ -101,12 +101,8 @@ pub struct RechatSubtitle {
 async fn run_yt_dlp(cmd: &mut Command) -> Result<(String, String), std::io::Error> {
     let mut child = cmd.spawn()?;
 
-    let stdout = child.stdout.take().ok_or_else(|| {
-        std::io::Error::other("Could not capture stdout")
-    })?;
-    let stderr = child.stderr.take().ok_or_else(|| {
-        std::io::Error::other("Could not capture stderr")
-    })?;
+    let stdout = child.stdout.take().ok_or_else(|| std::io::Error::other("Could not capture stdout"))?;
+    let stderr = child.stderr.take().ok_or_else(|| std::io::Error::other("Could not capture stderr"))?;
 
     let mut out_reader = BufReader::new(stdout);
     let err_reader = BufReader::new(stderr);
@@ -148,12 +144,7 @@ pub async fn get_media_info(
 
     let video_info: YtDlpVideo = serde_json::from_str(&output).map_err(|e| e.to_string())?;
 
-    window
-        .emit(
-            "update-media-info",
-            (media_idx, video_info.title, video_info.thumbnail),
-        )
-        .map_err(|e| e.to_string())?;
+    window.emit("update-media-info", (media_idx, video_info.title, video_info.thumbnail)).map_err(|e| e.to_string())?;
 
     Ok(())
 }
@@ -180,12 +171,7 @@ pub fn download_media(
 
         // let mut child = ytdlp_command.spawn().expect("Failed to spawn yt-dlp");
 
-        let output_format = format!(
-            "{}{}{}",
-            output_location,
-            path::MAIN_SEPARATOR,
-            "%(title)s.%(ext)s"
-        );
+        let output_format = format!("{}{}{}", output_location, path::MAIN_SEPARATOR, "%(title)s.%(ext)s");
 
         // Build the yt-dlp command
         let mut cmd = Command::new("yt-dlp");
@@ -236,9 +222,7 @@ pub fn download_media(
                     if t_bytes > 0.0 {
                         let percent = downloaded_bytes / t_bytes * 100.0;
                         // Emit event to frontend
-                        window
-                            .emit("download-progress", (media_idx, percent))
-                            .unwrap();
+                        window.emit("download-progress", (media_idx, percent)).unwrap();
                     }
                 }
             }

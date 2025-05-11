@@ -1,0 +1,6 @@
+max_width              = 120
+tab_spaces             = 4
+attr_fn_like_width     = 120
+use_small_heuristics   = "Off"
+force_multiline_blocks = false
+struct_lit_single_line = false
