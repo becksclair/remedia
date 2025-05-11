@@ -213,5 +213,6 @@ button {
 
 	.hover {
 		opacity: 1;
+		pointer-events: auto;
 	}
 }

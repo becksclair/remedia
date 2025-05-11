@@ -1,128 +1,114 @@
-import { invoke } from "@tauri-apps/api/core";
-import { downloadDir } from "@tauri-apps/api/path";
-import { readText } from "@tauri-apps/plugin-clipboard-manager";
-import { open } from "@tauri-apps/plugin-dialog";
-import { listen, type Event } from "@tauri-apps/api/event";
-import {
-	isPermissionGranted,
-	requestPermission,
-	sendNotification,
-} from "@tauri-apps/plugin-notification";
+import { invoke } from "@tauri-apps/api/core"
+import { type Event, listen } from "@tauri-apps/api/event"
+import { downloadDir } from "@tauri-apps/api/path"
+import { readText } from "@tauri-apps/plugin-clipboard-manager"
+import { open } from "@tauri-apps/plugin-dialog"
+import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification"
 
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react"
+import { DropZone } from "./components/drop-zone.tsx"
+import { PLabel } from "./components/p-label.tsx"
+import { Button } from "./components/ui/button.tsx"
+import { Input } from "./components/ui/input.tsx"
+import { Progress } from "./components/ui/progress.tsx"
 
-import { Button } from "./components/ui/button";
-import { Input } from "./components/ui/input";
-import { Progress } from "./components/ui/progress";
-
-import { PLabel } from "./components/p-label";
-import { DropZone } from "./components/drop-zone";
-
-import "./App.css";
-import { useWindowFocus } from "@/hooks/use-window-focus";
-import { DataTable } from "./components/data-table";
-import type { ColumnDef } from "@tanstack/react-table";
-
-import { MoreHorizontal } from "lucide-react";
+import "./App.css"
+import type { ColumnDef } from "@tanstack/react-table"
+import { MoreHorizontal } from "lucide-react"
 import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
 	DropdownMenuLabel,
 	DropdownMenuSeparator,
-	DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Checkbox } from "./components/ui/checkbox";
-
-type MediaProgressEvent = [number, number];
-type MediaInfoEvent = [number, string, string];
+	DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu"
+import { useWindowFocus } from "@/hooks/use-window-focus"
+import type { MediaInfoEvent, MediaProgressEvent } from "@/hooks/useTauriEvent"
+import { DataTable } from "./components/data-table.tsx"
+import { Checkbox } from "./components/ui/checkbox.tsx"
 
 type VideoInfo = {
-	url: string;
-	title: string;
-	thumbnail?: string;
-	audioOnly: boolean;
-	progress: number;
-	status: "Pending" | "Downloading" | "Done" | "Error";
-};
+	url: string
+	title: string
+	thumbnail?: string
+	audioOnly: boolean
+	progress: number
+	status: "Pending" | "Downloading" | "Done" | "Error"
+}
 
 export const MediaListColumns: ColumnDef<VideoInfo>[] = [
 	{
-		id: "select",
-		header: ({ table }) => (
-			<Checkbox
-				checked={
-					table.getIsAllPageRowsSelected() ||
-					(table.getIsSomePageRowsSelected() && "indeterminate")
-				}
-				onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-				aria-label="Select all"
-			/>
-		),
 		cell: ({ row }) => (
 			<Checkbox
 				checked={row.getIsSelected()}
-				onCheckedChange={(value) => row.toggleSelected(!!value)}
-				aria-label="Select row"
+				onCheckedChange={value => row.toggleSelected(!!value)}
+				aria-label='Select row'
 			/>
 		),
-		enableSorting: false,
 		enableHiding: false,
+		enableSorting: false,
+		header: ({ table }) => (
+			<Checkbox
+				checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")}
+				onCheckedChange={value => table.toggleAllPageRowsSelected(!!value)}
+				aria-label='Select all'
+			/>
+		),
+		id: "select"
 	},
 	{
 		accessorKey: "thumbnail",
-		header: () => <div className="text-left">Preview</div>,
 		cell: ({ row }) => {
-			const thumbnail = row.getValue("thumbnail");
-			if (!thumbnail) return <div className="h-[72px] w-auto" />;
+			const thumbnail = row.getValue("thumbnail")
+			if (!thumbnail) return <div className='h-[72px] w-auto' />
 
-			return (
-				<img
-					className="h-[72px] w-auto"
-					alt="Media thumbnail"
-					src={thumbnail as string}
-				/>
-			);
+			return <img className='h-[72px] w-auto' alt='Media thumbnail' src={thumbnail as string} />
 		},
+		header: () => <div className='text-left'>Preview</div>
 	},
 	{
 		accessorKey: "title",
-		header: () => <div className="text-left">Title</div>,
+		header: () => <div className='text-left'>Title</div>
 	},
 	{
 		accessorKey: "audioOnly",
-		header: () => <div className="text-center">Audio</div>,
 		cell: ({ row }) => {
-			return <input type="checkbox" checked={row.getValue("audioOnly")} />;
+			return (
+				<Checkbox
+					checked={row.getValue("audioOnly")}
+					aria-label='Audio only'
+					// Optionally, add onCheckedChange if you want to allow toggling
+					// onCheckedChange={(value) => ...}
+				/>
+			)
 		},
+		header: () => <div className='text-center'>Audio</div>
 	},
 	{
 		accessorKey: "progress",
-		header: () => <div className="text-center">Progress</div>,
 		cell: ({ row }) => {
-			return <Progress value={row.getValue("progress")} />;
+			return <Progress value={row.getValue("progress")} />
 		},
+		header: () => <div className='text-center'>Progress</div>
 	},
 	{
 		accessorKey: "status",
-		header: () => <div className="text-right">Status</div>,
+		header: () => <div className='text-right'>Status</div>
 	},
 	{
-		id: "actions",
 		cell: ({ row }) => {
 			return (
 				<DropdownMenu>
 					<DropdownMenuTrigger asChild>
-						<Button variant="ghost" className="h-8 w-8 p-0">
-							<span className="sr-only">Open menu</span>
-							<MoreHorizontal className="h-4 w-4" />
+						<Button variant='ghost' className='h-8 w-8 p-0'>
+							<span className='sr-only'>Open menu</span>
+							<MoreHorizontal className='h-4 w-4' />
 						</Button>
 					</DropdownMenuTrigger>
-					<DropdownMenuContent align="end">
+					<DropdownMenuContent align='end'>
 						<DropdownMenuLabel>Actions</DropdownMenuLabel>
-						<DropdownMenuItem
-							onClick={() => navigator.clipboard.writeText(row.getValue("url"))}
-						>
+						<DropdownMenuItem onClick={() => navigator.clipboard.writeText(row.getValue("url"))}>
 							Copy URL
 						</DropdownMenuItem>
 						<DropdownMenuSeparator />
@@ -130,55 +116,73 @@ export const MediaListColumns: ColumnDef<VideoInfo>[] = [
 						<DropdownMenuItem>View payment details</DropdownMenuItem>
 					</DropdownMenuContent>
 				</DropdownMenu>
-			);
+			)
 		},
-	},
-];
+		id: "actions"
+	}
+]
+
+// function useDebounce(callback: () => void, delay: number) {
+// 	let timer: NodeJS.Timeout;
+// 	return () => {
+// 		clearTimeout(timer);
+// 		timer = setTimeout(callback, delay);
+// 	};
+// }
+
+function debounce(callback: () => void, delay: number) {
+	let timer: NodeJS.Timeout
+	return () => {
+		clearTimeout(timer)
+		timer = setTimeout(callback, delay)
+	}
+}
 
 function App() {
-	const [urlSet, setUrlSet] = useState<Set<string>>(new Set());
-	const [mediaList, setMediaList] = useState<VideoInfo[]>([]);
-	const [outputLocation, setOutputLocation] = useState<string>("");
-	const [globalProgress, setGlobalProgress] = useState(0.0);
-	const [globalDownloading, setGlobalDownloading] = useState(false);
+	const [urlSet, setUrlSet] = useState<Set<string>>(new Set())
+	const [mediaList, setMediaList] = useState<VideoInfo[]>([])
+	const [outputLocation, setOutputLocation] = useState<string>("")
+	const [globalProgress, setGlobalProgress] = useState(0.0)
+	const [globalDownloading, setGlobalDownloading] = useState(false)
 
-	const [dragHovering, setDragHovering] = useState(false);
+	const [dragHovering, setDragHovering] = useState(false)
 
 	const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
-		event.preventDefault();
-		setDragHovering(true);
-	};
+		event.preventDefault()
+		setDragHovering(true)
+	}
 
-	const handleDragLeave = () => {
-		setDragHovering(false);
-	};
+	const handleDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
+		event.preventDefault()
+		debounce(() => setDragHovering(false), 300)
+	}
 
 	// Do you have permission to send a notification?
-	let notificationPermission = false;
+	let notificationPermission = false
 
-	isPermissionGranted().then((granted) => {
+	isPermissionGranted().then(granted => {
 		if (!granted) {
-			requestPermission().then((permission) => {
-				notificationPermission = permission === "granted";
-			});
+			requestPermission().then(permission => {
+				notificationPermission = permission === "granted"
+			})
 		}
-	});
+	})
 
 	async function chooseOutputLocation() {
 		const directory = await open({
-			title: "Choose location to save downloads",
-			multiple: false,
-			directory: true,
 			defaultPath: outputLocation,
-		});
+			directory: true,
+			multiple: false,
+			title: "Choose location to save downloads"
+		})
 		if (directory) {
-			setOutputLocation(directory);
+			setOutputLocation(directory)
 		}
 	}
 
 	async function startDownload() {
-		setGlobalProgress(0.0);
-		setGlobalDownloading(true);
+		setGlobalProgress(0.0)
+		setGlobalDownloading(true)
 
 		try {
 			await Promise.all(
@@ -186,229 +190,259 @@ function App() {
 					invoke("download_media", {
 						mediaIdx: i,
 						mediaSourceUrl: media.url,
-						outputLocation: outputLocation,
-					}),
-				),
-			);
+						outputLocation: outputLocation
+					})
+				)
+			)
 		} catch (err) {
-			console.error("Error starting download:", err);
-			alert("Error starting download");
-			setGlobalDownloading(false);
+			console.error("Error starting download:", err)
+			alert("Error starting download")
+			setGlobalDownloading(false)
 		}
 	}
 
 	async function preview() {
 		if (notificationPermission) {
 			sendNotification({
-				title: "Download complete",
 				body: "Your video title finished downloading",
-			});
+				title: "Download complete"
+			})
 		}
 	}
 
 	async function quit() {
-		await invoke("quit");
+		await invoke("quit")
 	}
 
-	const isUrl = (input: string) => /^https?:\/\//.test(input);
+	const isUrl = (input: string) => /^https?:\/\//.test(input)
 
 	function addMediaUrl(url: string) {
-		if (urlSet.has(url)) return; // No duplicate
+		if (urlSet.has(url)) return // No duplicate
 
 		const newMedia = {
-			title: url,
-			url: url,
-			status: "Pending",
-			progress: 0.0,
 			audioOnly: false,
-		} as VideoInfo;
-		const updatedMediaList = [...mediaList, newMedia];
-		const mediaIdx = updatedMediaList.findIndex((m) => m.url === url);
+			progress: 0.0,
+			status: "Pending",
+			title: url,
+			url: url
+		} as VideoInfo
+		const updatedMediaList = [...mediaList, newMedia]
+		const mediaIdx = updatedMediaList.findIndex(m => m.url === url)
 
-		setMediaList(updatedMediaList);
-		urlSet.add(url);
+		setMediaList(updatedMediaList)
+		urlSet.add(url)
 
 		// Request media information
 		void invoke("get_media_info", {
 			mediaIdx,
-			mediaSourceUrl: url,
-		});
+			mediaSourceUrl: url
+		})
 	}
 
 	async function clipboardIsUrl() {
 		// Check if the clipboard content is a URL
-		const clipboardContents = await readText();
-
-		if (isUrl(clipboardContents)) {
-			addMediaUrl(clipboardContents);
-			console.log("URL added from clipboard");
-		}
+		readText().then(text => {
+			if (isUrl(text)) {
+				addMediaUrl(text)
+				console.log("URL added from clipboard")
+			}
+		}).catch(err => {
+			console.error("Error reading clipboard:", err)
+		})
 	}
 
-	function updateMediaItem(index: number, updates: Partial<VideoInfo>) {
-		mediaList[index] = { ...mediaList[index], ...updates };
-		setMediaList(mediaList);
-	}
+	const updateMediaItem = useCallback((index: number, updates: Partial<VideoInfo>) => {
+		setMediaList(prevList => {
+			const newList = [...prevList]
+			newList[index] = { ...newList[index], ...updates }
+			return newList
+		})
+	}, [])
 
 	function dropHandler(input: string) {
+		setDragHovering(false)
+
 		// Validate if it's a URL
 		if (isUrl(input)) {
-			addMediaUrl(input);
+			addMediaUrl(input)
 		}
 	}
 
 	function handleWindowFocus() {
-		clipboardIsUrl();
+		void clipboardIsUrl()
 	}
 
-	function handleMediaInfo({
-		payload: [mediaIdx, title, thumbnail],
-	}: Event<MediaInfoEvent>) {
-		console.log(mediaIdx, title, thumbnail);
-		updateMediaItem(mediaIdx, { title, thumbnail });
-	}
-	function handleProgress(event: Event<MediaProgressEvent>) {
-		const [mediaIdx, progress] = event.payload as MediaProgressEvent;
-		updateMediaItem(mediaIdx, { progress });
-	}
+	const handleMediaInfo = useCallback(
+		({ payload: [mediaIdx, title, thumbnail] }: Event<MediaInfoEvent>) => {
+			console.log(mediaIdx, title, thumbnail)
+			updateMediaItem(mediaIdx, { thumbnail, title })
+		},
+		[updateMediaItem]
+	)
 
-	function handleComplete(event: Event<number>) {
-		const mediaIdx = event.payload as number;
-		updateMediaItem(mediaIdx, { progress: 100, status: "Done" });
-	}
+	const handleProgress = useCallback(
+		(event: Event<MediaProgressEvent>) => {
+			const [mediaIdx, progress] = event.payload as MediaProgressEvent
+			updateMediaItem(mediaIdx, { progress })
+		},
+		[updateMediaItem]
+	)
 
-	function handleError(event: Event<number>) {
-		const mediaIdx = event.payload as number;
-		updateMediaItem(mediaIdx, { status: "Error" });
-	}
+	const handleComplete = useCallback(
+		(event: Event<number>) => {
+			const mediaIdx = event.payload as number
+			updateMediaItem(mediaIdx, { progress: 100, status: "Done" })
+		},
+		[updateMediaItem]
+	)
 
-	useWindowFocus(handleWindowFocus);
+	const handleError = useCallback(
+		(event: Event<number>) => {
+			const mediaIdx = event.payload as number
+			updateMediaItem(mediaIdx, { status: "Error" })
+		},
+		[updateMediaItem]
+	)
 
-	// Setup Effect
-	// biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
+	useWindowFocus(handleWindowFocus)
+
+	// #region Setup Effect
+
 	useEffect(() => {
-		let unlisteners: (() => void)[] = [];
+		// Set up all Tauri event listeners
+		const setupEventListeners = async () => {
+			const unlistenFunctions: Array<() => void> = []
 
-		const setup = async () => {
-			unlisteners = [
-				await listen("update-media-info", handleMediaInfo),
-				await listen("download-progress", handleProgress),
-				await listen("download-complete", handleComplete),
-				await listen("download-error", handleError),
-			];
-		};
+			try {
+				// Register all event listeners and collect their unlisten functions
+				const mediaInfoUnlisten = await listen<MediaInfoEvent>("update-media-info", handleMediaInfo)
+				unlistenFunctions.push(mediaInfoUnlisten)
+				console.log("Registered update-media-info event listener")
 
-		setup();
-		// window.addEventListener('focus', handleWindowFocus);
+				const progressUnlisten = await listen<MediaProgressEvent>("download-progress", handleProgress)
+				unlistenFunctions.push(progressUnlisten)
+				console.log("Registered download-progress event listener")
+
+				const completeUnlisten = await listen<number>("download-complete", handleComplete)
+				unlistenFunctions.push(completeUnlisten)
+				console.log("Registered download-complete event listener")
+
+				const errorUnlisten = await listen<number>("download-error", handleError)
+				unlistenFunctions.push(errorUnlisten)
+				console.log("Registered download-error event listener")
+			} catch (error) {
+				console.error("Failed to set up event listeners:", error)
+			}
+
+			return unlistenFunctions
+		}
+
+		// Start setting up event listeners
+		let unlistenFunctions: Array<() => void> = []
+		setupEventListeners()
+			.then(functions => {
+				unlistenFunctions = functions
+			})
+			.catch(error => {
+				console.error("Failed to set up event listeners:", error)
+			})
 
 		// Set the default download directory to the user's download folder
-		downloadDir().then((dir) => setOutputLocation(dir));
+		downloadDir()
+			.then(dir => setOutputLocation(dir))
+			.catch(error => {
+				console.error("Failed to get download directory:", error)
+			})
 
+		// Cleanup function to remove all event listeners when component unmounts
 		return () => {
-			for (const unlisten of unlisteners) {
-				try {
-					unlisten();
-					// window.removeEventListener('focus', handleWindowFocus);
-				} catch (err) {
-					console.warn("Error during unlisten:", err);
-				}
-			}
-		};
-	}, []); // Empty dependency array indicates the effect should only run once
+			// Remove all registered event listeners
+			unlistenFunctions.forEach(unlisten => unlisten())
+			console.log("Removed all Tauri event listeners")
+		}
+	}, [handleMediaInfo, handleProgress, handleComplete, handleError]) // Include all handler functions as dependencies
+
+	// You could alternatively use the new useTauriEvents hook, uncomment this to try it:
+	/*
+	useTauriEvents({
+		"update-media-info": handleMediaInfo as HandlerFuncType<MediaInfoEvent>,
+		"download-progress": handleProgress as HandlerFuncType<MediaProgressEvent>,
+		"download-complete": handleComplete as HandlerFuncType<number>,
+		"download-error": handleError as HandlerFuncType<number>
+	});
+	*/
+
+	// #endregion
 
 	// Handle filtering duplicates when adding media URLs
 	useEffect(() => {
-		setUrlSet(new Set(mediaList.map((media) => media.url)));
-	}, [mediaList]);
+		setUrlSet(new Set(mediaList.map(media => media.url)))
+	}, [mediaList])
 
 	// Handle dynamic updating of global download status and progress
 	useEffect(() => {
-		setGlobalDownloading(
-			mediaList.some((media) => media.status === "Downloading"),
-		);
+		setGlobalDownloading(mediaList.some(media => media.status === "Downloading"))
 		setGlobalProgress(
-			globalDownloading
-				? mediaList.reduce((acc, item) => acc + item.progress, 0) /
-						mediaList.length
-				: 0,
-		);
-	}, [mediaList, globalDownloading]);
+			globalDownloading ? mediaList.reduce((acc, item) => acc + item.progress, 0) / mediaList.length : 0
+		)
+	}, [mediaList, globalDownloading])
 
 	return (
-		<main className="container">
-			<div className="app-container gap-y-4">
-				<section
-					className="min-h-[18rem] max-h-[18rem] overflow-y-auto"
-					onDragOver={handleDragOver}
-					onDragLeave={handleDragLeave}
-				>
-					<DropZone
-						dropHandler={dropHandler}
-						style={{
-							pointerEvents: dragHovering ? "auto" : "none",
-						}}
-					/>
+		<main className='container' onDragOver={handleDragOver} onDragLeave={handleDragLeave}>
+			<div className='app-container gap-y-4'>
+				<div className='min-h-[18rem] max-h-[18rem] overflow-y-auto'>
+					<DropZone dropHandler={dropHandler} dragHovering={dragHovering} />
+
+					{/* Drop Zone + Data View */}
 
 					<DataTable columns={MediaListColumns} data={mediaList} />
-				</section>
+				</div>
 
 				<div>
-					<PLabel>
-						Select the location where you want to save the downloaded files
-					</PLabel>
+					<PLabel>Select the location where you want to save the downloaded files</PLabel>
 
-					<div className="flex gap-x-4">
+					<div className='flex gap-x-4'>
 						<Input
-							type="text"
-							id="output-location-input"
-							placeholder="Download location..."
+							type='text'
+							id='output-location-input'
+							placeholder='Download location...'
 							value={outputLocation}
-							onChange={(e) => setOutputLocation(e.target.value)}
+							onChange={e => setOutputLocation(e.target.value)}
 						/>
-						<Button
-							type="button"
-							className="min-w-[8rem]"
-							onClick={chooseOutputLocation}
-						>
+						<Button type='button' className='min-w-[8rem]' onClick={chooseOutputLocation}>
 							Browse...
 						</Button>
 					</div>
 				</div>
 
-				<div className="my-2">
-					<Progress value={globalProgress} max={100} className="w-[100%]" />
+				<div className='my-2'>
+					<Progress value={globalProgress} max={100} className='w-[100%]' />
 				</div>
 
-				<div className="flex justify-center gap-x-4">
-					<Button
-						type="button"
-						className="min-w-[8rem]"
-						disabled={globalDownloading}
-						onClick={startDownload}
-					>
+				<div className='flex justify-center gap-x-4'>
+					<Button type='button' className='min-w-[8rem]' disabled={globalDownloading} onClick={startDownload}>
 						Download
 					</Button>
 					{globalDownloading && (
 						<Button
-							type="button"
-							className="min-w-[8rem]"
+							type='button'
+							className='min-w-[8rem]'
 							disabled={!globalDownloading}
-							onClick={startDownload}
-						>
+							onClick={startDownload}>
 							Cancel
 						</Button>
 					)}
 
-					<Button type="button" className="min-w-[8rem]" onClick={preview}>
+					<Button type='button' className='min-w-[8rem]' onClick={preview}>
 						Preview
 					</Button>
-					<Button type="button" className="min-w-[8rem]" onClick={quit}>
+					<Button type='button' className='min-w-[8rem]' onClick={quit}>
 						Quit
 					</Button>
 				</div>
 			</div>
 		</main>
-	);
+	)
 }
 
-export default App;
+export default App
