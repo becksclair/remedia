@@ -1,11 +1,11 @@
 import { invoke } from "@tauri-apps/api/core"
-import { type Event, listen } from "@tauri-apps/api/event"
+import type { Event } from "@tauri-apps/api/event"
 import { downloadDir } from "@tauri-apps/api/path"
 import { readText } from "@tauri-apps/plugin-clipboard-manager"
 import { open } from "@tauri-apps/plugin-dialog"
 import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification"
 
-import { useCallback, useEffect, useState } from "react"
+import { useEffect, useState } from "react"
 import { DropZone } from "./components/drop-zone.tsx"
 import { PLabel } from "./components/p-label.tsx"
 import { Button } from "./components/ui/button.tsx"
@@ -294,10 +294,10 @@ function App() {
 
 	// You could alternatively use the new useTauriEvents hook, uncomment this to try it:
 	useTauriEvents({
-		"update-media-info": handleMediaInfo as HandlerFuncType<MediaInfoEvent>,
-		"download-progress": handleProgress as HandlerFuncType<MediaProgressEvent>,
-		"download-complete": handleComplete as HandlerFuncType<number>,
-		"download-error": handleError as HandlerFuncType<number>
+		"update-media-info": handleMediaInfo,
+		"download-progress": handleProgress,
+		"download-complete": handleComplete,
+		"download-error": handleError
 	})
 
 	// Handle dynamic updating of global download status and progress
