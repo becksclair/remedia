@@ -11,10 +11,6 @@ import { PLabel } from "./components/p-label.tsx"
 import { Button } from "./components/ui/button.tsx"
 import { Input } from "./components/ui/input.tsx"
 import { Progress } from "./components/ui/progress.tsx"
-
-import "./App.css"
-import type { ColumnDef } from "@tanstack/react-table"
-import { MoreHorizontal } from "lucide-react"
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -23,10 +19,17 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
+
+import type { ColumnDef } from "@tanstack/react-table"
+import { MoreHorizontal } from "lucide-react"
+
 import { useWindowFocus } from "@/hooks/use-window-focus"
-import type { MediaInfoEvent, MediaProgressEvent } from "@/hooks/useTauriEvent"
+import { type MediaInfoEvent, type MediaProgressEvent, useTauriEvents } from "@/hooks/useTauriEvent"
+
 import { DataTable } from "./components/data-table.tsx"
 import { Checkbox } from "./components/ui/checkbox.tsx"
+
+import "./App.css"
 
 type VideoInfo = {
 	url: string
@@ -37,7 +40,7 @@ type VideoInfo = {
 	status: "Pending" | "Downloading" | "Done" | "Error"
 }
 
-export const MediaListColumns: ColumnDef<VideoInfo>[] = [
+const MediaListColumns: ColumnDef<VideoInfo>[] = [
 	{
 		cell: ({ row }) => (
 			<Checkbox
@@ -122,14 +125,6 @@ export const MediaListColumns: ColumnDef<VideoInfo>[] = [
 	}
 ]
 
-// function useDebounce(callback: () => void, delay: number) {
-// 	let timer: NodeJS.Timeout;
-// 	return () => {
-// 		clearTimeout(timer);
-// 		timer = setTimeout(callback, delay);
-// 	};
-// }
-
 function debounce(callback: () => void, delay: number) {
 	let timer: NodeJS.Timeout
 	return () => {
@@ -139,13 +134,11 @@ function debounce(callback: () => void, delay: number) {
 }
 
 function App() {
-	const [urlSet, setUrlSet] = useState<Set<string>>(new Set())
+	const [dragHovering, setDragHovering] = useState(false)
 	const [mediaList, setMediaList] = useState<VideoInfo[]>([])
 	const [outputLocation, setOutputLocation] = useState<string>("")
 	const [globalProgress, setGlobalProgress] = useState(0.0)
 	const [globalDownloading, setGlobalDownloading] = useState(false)
-
-	const [dragHovering, setDragHovering] = useState(false)
 
 	const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
 		event.preventDefault()
@@ -217,20 +210,19 @@ function App() {
 	const isUrl = (input: string) => /^https?:\/\//.test(input)
 
 	function addMediaUrl(url: string) {
-		if (urlSet.has(url)) return // No duplicate
-
 		const newMedia = {
 			audioOnly: false,
 			progress: 0.0,
 			status: "Pending",
 			title: url,
-			url: url
+			url: url,
+			thumbnail: ""
 		} as VideoInfo
+
 		const updatedMediaList = [...mediaList, newMedia]
 		const mediaIdx = updatedMediaList.findIndex(m => m.url === url)
 
 		setMediaList(updatedMediaList)
-		urlSet.add(url)
 
 		// Request media information
 		void invoke("get_media_info", {
@@ -241,28 +233,26 @@ function App() {
 
 	async function clipboardIsUrl() {
 		// Check if the clipboard content is a URL
-		readText().then(text => {
-			if (isUrl(text)) {
-				addMediaUrl(text)
-				console.log("URL added from clipboard")
-			}
-		}).catch(err => {
-			console.error("Error reading clipboard:", err)
-		})
+		readText()
+			.then(text => {
+				if (isUrl(text)) {
+					addMediaUrl(text)
+					console.log("URL added from clipboard")
+				}
+			})
+			.catch(err => {
+				console.error("Error reading clipboard:", err)
+			})
 	}
 
-	const updateMediaItem = useCallback((index: number, updates: Partial<VideoInfo>) => {
-		setMediaList(prevList => {
-			const newList = [...prevList]
-			newList[index] = { ...newList[index], ...updates }
-			return newList
-		})
-	}, [])
+	function updateMediaItem(index: number, updates: Partial<VideoInfo>) {
+		mediaList[index] = { ...mediaList[index], ...updates }
+		setMediaList(mediaList)
+	}
 
 	function dropHandler(input: string) {
 		setDragHovering(false)
 
-		// Validate if it's a URL
 		if (isUrl(input)) {
 			addMediaUrl(input)
 		}
@@ -272,112 +262,43 @@ function App() {
 		void clipboardIsUrl()
 	}
 
-	const handleMediaInfo = useCallback(
-		({ payload: [mediaIdx, title, thumbnail] }: Event<MediaInfoEvent>) => {
-			console.log(mediaIdx, title, thumbnail)
-			updateMediaItem(mediaIdx, { thumbnail, title })
-		},
-		[updateMediaItem]
-	)
+	const handleMediaInfo = ({ payload: [mediaIdx, title, thumbnail] }: Event<MediaInfoEvent>) => {
+		updateMediaItem(mediaIdx, { thumbnail, title })
+	}
 
-	const handleProgress = useCallback(
-		(event: Event<MediaProgressEvent>) => {
-			const [mediaIdx, progress] = event.payload as MediaProgressEvent
-			updateMediaItem(mediaIdx, { progress })
-		},
-		[updateMediaItem]
-	)
+	const handleProgress = (event: Event<MediaProgressEvent>) => {
+		const [mediaIdx, progress] = event.payload as MediaProgressEvent
+		updateMediaItem(mediaIdx, { progress })
+	}
 
-	const handleComplete = useCallback(
-		(event: Event<number>) => {
-			const mediaIdx = event.payload as number
-			updateMediaItem(mediaIdx, { progress: 100, status: "Done" })
-		},
-		[updateMediaItem]
-	)
+	const handleComplete = (event: Event<number>) => {
+		const mediaIdx = event.payload as number
+		updateMediaItem(mediaIdx, { progress: 100, status: "Done" })
+	}
 
-	const handleError = useCallback(
-		(event: Event<number>) => {
-			const mediaIdx = event.payload as number
-			updateMediaItem(mediaIdx, { status: "Error" })
-		},
-		[updateMediaItem]
-	)
+	const handleError = (event: Event<number>) => {
+		const mediaIdx = event.payload as number
+		updateMediaItem(mediaIdx, { status: "Error" })
+	}
 
 	useWindowFocus(handleWindowFocus)
 
-	// #region Setup Effect
-
 	useEffect(() => {
-		// Set up all Tauri event listeners
-		const setupEventListeners = async () => {
-			const unlistenFunctions: Array<() => void> = []
-
-			try {
-				// Register all event listeners and collect their unlisten functions
-				const mediaInfoUnlisten = await listen<MediaInfoEvent>("update-media-info", handleMediaInfo)
-				unlistenFunctions.push(mediaInfoUnlisten)
-				console.log("Registered update-media-info event listener")
-
-				const progressUnlisten = await listen<MediaProgressEvent>("download-progress", handleProgress)
-				unlistenFunctions.push(progressUnlisten)
-				console.log("Registered download-progress event listener")
-
-				const completeUnlisten = await listen<number>("download-complete", handleComplete)
-				unlistenFunctions.push(completeUnlisten)
-				console.log("Registered download-complete event listener")
-
-				const errorUnlisten = await listen<number>("download-error", handleError)
-				unlistenFunctions.push(errorUnlisten)
-				console.log("Registered download-error event listener")
-			} catch (error) {
-				console.error("Failed to set up event listeners:", error)
-			}
-
-			return unlistenFunctions
-		}
-
-		// Start setting up event listeners
-		let unlistenFunctions: Array<() => void> = []
-		setupEventListeners()
-			.then(functions => {
-				unlistenFunctions = functions
-			})
-			.catch(error => {
-				console.error("Failed to set up event listeners:", error)
-			})
-
 		// Set the default download directory to the user's download folder
 		downloadDir()
 			.then(dir => setOutputLocation(dir))
 			.catch(error => {
 				console.error("Failed to get download directory:", error)
 			})
-
-		// Cleanup function to remove all event listeners when component unmounts
-		return () => {
-			// Remove all registered event listeners
-			unlistenFunctions.forEach(unlisten => unlisten())
-			console.log("Removed all Tauri event listeners")
-		}
-	}, [handleMediaInfo, handleProgress, handleComplete, handleError]) // Include all handler functions as dependencies
+	}, [])
 
 	// You could alternatively use the new useTauriEvents hook, uncomment this to try it:
-	/*
 	useTauriEvents({
 		"update-media-info": handleMediaInfo as HandlerFuncType<MediaInfoEvent>,
 		"download-progress": handleProgress as HandlerFuncType<MediaProgressEvent>,
 		"download-complete": handleComplete as HandlerFuncType<number>,
 		"download-error": handleError as HandlerFuncType<number>
-	});
-	*/
-
-	// #endregion
-
-	// Handle filtering duplicates when adding media URLs
-	useEffect(() => {
-		setUrlSet(new Set(mediaList.map(media => media.url)))
-	}, [mediaList])
+	})
 
 	// Handle dynamic updating of global download status and progress
 	useEffect(() => {
