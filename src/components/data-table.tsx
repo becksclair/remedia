@@ -1,29 +1,14 @@
-import {
-	type ColumnDef,
-	flexRender,
-	getCoreRowModel,
-	useReactTable,
-} from "@tanstack/react-table";
-import { useState } from "react";
-import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from "@/components/ui/table";
+import { type ColumnDef, flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table"
+import { useState } from "react"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
 interface DataTableProps<TData, TValue> {
-	columns: ColumnDef<TData, TValue>[];
-	data: TData[];
+	columns: ColumnDef<TData, TValue>[]
+	data: TData[]
 }
 
-export function DataTable<TData, TValue>({
-	columns,
-	data,
-}: DataTableProps<TData, TValue>) {
-	const [rowSelection, setRowSelection] = useState({});
+export function DataTable<TData, TValue>({ columns, data }: DataTableProps<TData, TValue>) {
+	const [rowSelection, setRowSelection] = useState({})
 
 	const table = useReactTable({
 		columns,
@@ -31,39 +16,33 @@ export function DataTable<TData, TValue>({
 		getCoreRowModel: getCoreRowModel(),
 		onRowSelectionChange: setRowSelection,
 		state: {
-			rowSelection,
-		},
-	});
+			rowSelection
+		}
+	})
 
 	return (
-		<div className="rounded-md border min-h-[18rem] max-h-[18rem]">
+		<div className='rounded-md border min-h-[18rem] max-h-[18rem]'>
 			<Table>
 				<TableHeader>
-					{table.getHeaderGroups().map((headerGroup) => (
+					{table.getHeaderGroups().map(headerGroup => (
 						<TableRow key={headerGroup.id}>
-							{headerGroup.headers.map((header) => {
+							{headerGroup.headers.map(header => {
 								return (
 									<TableHead key={header.id}>
 										{header.isPlaceholder
 											? null
-											: flexRender(
-													header.column.columnDef.header,
-													header.getContext(),
-												)}
+											: flexRender(header.column.columnDef.header, header.getContext())}
 									</TableHead>
-								);
+								)
 							})}
 						</TableRow>
 					))}
 				</TableHeader>
-				<TableBody className="overflow-y-auto min-h-[18rem] max-h-[18rem]">
+				<TableBody className='overflow-y-auto min-h-[18rem] max-h-[18rem]'>
 					{table.getRowModel().rows?.length ? (
-						table.getRowModel().rows.map((row) => (
-							<TableRow
-								key={row.id}
-								data-state={row.getIsSelected() && "selected"}
-							>
-								{row.getVisibleCells().map((cell) => (
+						table.getRowModel().rows.map(row => (
+							<TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
+								{row.getVisibleCells().map(cell => (
 									<TableCell key={cell.id}>
 										{flexRender(cell.column.columnDef.cell, cell.getContext())}
 									</TableCell>
@@ -72,7 +51,7 @@ export function DataTable<TData, TValue>({
 						))
 					) : (
 						<TableRow>
-							<TableCell colSpan={columns.length} className="h-24 text-center">
+							<TableCell colSpan={columns.length} className='h-24 text-center'>
 								No results.
 							</TableCell>
 						</TableRow>
@@ -80,5 +59,5 @@ export function DataTable<TData, TValue>({
 				</TableBody>
 			</Table>
 		</div>
-	);
+	)
 }
