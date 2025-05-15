@@ -129,7 +129,7 @@ pub async fn get_media_info(
     media_source_url: String,
 ) -> Result<(), String> {
     let mut cmd = Command::new("yt-dlp");
-    cmd.arg(media_source_url)
+    cmd.arg(&media_source_url)
         .arg("-j")
         .arg("--extractor-args")
         .arg("generic:impersonate")
@@ -142,9 +142,32 @@ pub async fn get_media_info(
         println!("Errors: {errors}");
     }
 
-    let video_info: YtDlpVideo = serde_json::from_str(&output).map_err(|e| e.to_string())?;
-
-    window.emit("update-media-info", (media_idx, video_info.title, video_info.thumbnail)).map_err(|e| e.to_string())?;
+    // yt-dlp outputs one JSON object per line for playlists, or a single object for a single video
+    let mut found_any = false;
+    for line in output.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        let video_info: Result<YtDlpVideo, _> = serde_json::from_str(trimmed);
+        match video_info {
+            Ok(info) => {
+                found_any = true;
+                window
+                    .emit(
+                        "update-media-info",
+                        (media_idx, media_source_url.clone(), info.title.clone(), info.thumbnail.clone()),
+                    )
+                    .map_err(|e| e.to_string())?;
+            }
+            Err(e) => {
+                println!("Failed to parse yt-dlp output line as YtDlpVideo: {e}\nLine: {trimmed}");
+            }
+        }
+    }
+    if !found_any {
+        return Err("No valid media info found in yt-dlp output.".to_string());
+    }
 
     Ok(())
 }

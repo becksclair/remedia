@@ -2,7 +2,7 @@ import { type EventCallback, listen } from "@tauri-apps/api/event"
 import { useEffect } from "react"
 
 export type MediaProgressEvent = [number, number]
-export type MediaInfoEvent = [number, string, string]
+export type MediaInfoEvent = [number, string, string, string]
 
 let tauriEventHandlers: Record<string, unknown> = {}
 

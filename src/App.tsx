@@ -72,7 +72,8 @@ const MediaListColumns: ColumnDef<VideoInfo>[] = [
 	},
 	{
 		accessorKey: "title",
-		header: () => <div className='text-left'>Title</div>
+		header: () => <div className='text-left'>Title</div>,
+		cell: ({ row }) => <div className='text-left'>{row.getValue("title")}</div>
 	},
 	{
 		accessorKey: "audioOnly",
@@ -137,7 +138,7 @@ function App() {
 	const [dragHovering, setDragHovering] = useState(false)
 	const [mediaList, setMediaList] = useState<VideoInfo[]>([])
 	const [outputLocation, setOutputLocation] = useState<string>("")
-	const [globalProgress, setGlobalProgress] = useState(0.0)
+	const [globalProgress, setGlobalProgress] = useState(0)
 	const [globalDownloading, setGlobalDownloading] = useState(false)
 
 	const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
@@ -174,7 +175,7 @@ function App() {
 	}
 
 	async function startDownload() {
-		setGlobalProgress(0.0)
+		setGlobalProgress(0)
 		setGlobalDownloading(true)
 
 		try {
@@ -212,7 +213,7 @@ function App() {
 	function addMediaUrl(url: string) {
 		const newMedia = {
 			audioOnly: false,
-			progress: 0.0,
+			progress: 0,
 			status: "Pending",
 			title: url,
 			url: url,
@@ -245,9 +246,36 @@ function App() {
 			})
 	}
 
-	function updateMediaItem(index: number, updates: Partial<VideoInfo>) {
-		mediaList[index] = { ...mediaList[index], ...updates }
-		setMediaList(mediaList)
+	const updateMediaItem = (updates: Partial<VideoInfo>) => {
+		if (!updates.url) return
+
+		setMediaList(prevList => {
+			// Remove any items where title equals updates.url
+			const filtered = prevList.filter(item => item.title !== updates.url)
+
+			const newMedia = {
+				audioOnly: false,
+				progress: 0,
+				status: "Pending",
+				title: updates.title,
+				url: updates.url,
+				thumbnail: updates.thumbnail
+			} as VideoInfo
+
+			// If filtered contains an item with the same title as updates.title, merge it
+			const idx = filtered.findIndex(item => item.title === updates.title)
+
+			if (idx !== -1) {
+				filtered[idx] = {
+					...filtered[idx],
+					...updates
+				}
+			} else {
+				filtered.push(newMedia)
+			}
+
+			return [...filtered]
+		})
 	}
 
 	function dropHandler(input: string) {
@@ -259,26 +287,26 @@ function App() {
 	}
 
 	function handleWindowFocus() {
-		void clipboardIsUrl()
+		// TODO: Re-enable clipboardIsUrl() when done with testing
+		// void clipboardIsUrl()
 	}
 
-	const handleMediaInfo = ({ payload: [mediaIdx, title, thumbnail] }: Event<MediaInfoEvent>) => {
-		updateMediaItem(mediaIdx, { thumbnail, title })
+	const handleMediaInfo = ({
+		payload: [_mediaIdx, mediaSourceUrl, title, thumbnail]
+	}: Event<MediaInfoEvent>) => {
+		updateMediaItem({ thumbnail, title, url: mediaSourceUrl })
 	}
 
 	const handleProgress = (event: Event<MediaProgressEvent>) => {
-		const [mediaIdx, progress] = event.payload as MediaProgressEvent
-		updateMediaItem(mediaIdx, { progress })
+		const [_mediaIdx, progress] = event.payload as MediaProgressEvent
+		updateMediaItem({ progress })
 	}
 
-	const handleComplete = (event: Event<number>) => {
-		const mediaIdx = event.payload as number
-		updateMediaItem(mediaIdx, { progress: 100, status: "Done" })
+	const handleComplete = (_event: Event<number>) => {
+		updateMediaItem({ progress: 100, status: "Done" })
 	}
-
-	const handleError = (event: Event<number>) => {
-		const mediaIdx = event.payload as number
-		updateMediaItem(mediaIdx, { status: "Error" })
+	const handleError = (_event: Event<number>) => {
+		updateMediaItem({ status: "Error" })
 	}
 
 	useWindowFocus(handleWindowFocus)
