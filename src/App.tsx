@@ -354,76 +354,77 @@ function App() {
 
 	return (
 		<main className="container" onDragOver={handleDragOver} onDragLeave={handleDragLeave}>
-			<div className="app-container gap-y-4">
-				<div className="min-h-[18rem] max-h-[18rem] overflow-y-auto">
-					<DropZone dropHandler={dropHandler} dragHovering={dragHovering} />
+			<div className="app-container flex flex-col justify-between gap-y-4 h-screen">
 
+				<DropZone className="flex-auto grow overflow-y-auto" dropHandler={dropHandler} dragHovering={dragHovering} />
 					{/* Drop Zone + Data View */}
+				<DataTable className="flex-auto grow overflow-y-auto" columns={MediaListColumns} data={mediaList} />
 
-					<DataTable columns={MediaListColumns} data={mediaList} />
-				</div>
+				<section className="flex-none">
+					<div>
+						<PLabel>Select the location where you want to save the downloaded files</PLabel>
 
-				<div>
-					<PLabel>Select the location where you want to save the downloaded files</PLabel>
-
-					<div className="flex gap-x-4">
-						<Input
-							type="text"
-							id="output-location-input"
-							placeholder="Download location..."
-							value={outputLocation}
-							onChange={e => setOutputLocation(e.target.value)}
-						/>
-						<Button type="button" className="min-w-[8rem]" onClick={chooseOutputLocation}>
-							Browse...
-						</Button>
+						<div className="flex gap-x-4">
+							<Input
+								type="text"
+								id="output-location-input"
+								placeholder="Download location..."
+								value={outputLocation}
+								onChange={e => setOutputLocation(e.target.value)}
+							/>
+							<Button type="button" className="min-w-[8rem]" onClick={chooseOutputLocation}>
+								Browse...
+							</Button>
+						</div>
 					</div>
-				</div>
 
-				<div className="my-2">
-					<Progress value={globalProgress} max={100} className="w-[100%]" />
-				</div>
+					<div className="my-2">
+						<Progress value={globalProgress} max={100} className="w-[100%]" />
+					</div>
 
-				{isWayland ? (
-					<Alert variant="destructive" className="text-left">
-						<AlertCircle className="h-4 w-4" />
-						<AlertTitle>"Stay on top" is not supported on Wayland yet.</AlertTitle>
-						<AlertDescription>
-								Try X11 or watch for Tauri updates.
-						</AlertDescription>
-					</Alert>
-				) : (
+					{isWayland ? (
+						<Alert variant="destructive" className="text-left">
+							<AlertCircle className="h-4 w-4" />
+							<AlertTitle>"Stay on top" is not supported on Wayland yet.</AlertTitle>
+							<AlertDescription>Try X11 or watch for Tauri updates.</AlertDescription>
+						</Alert>
+					) : (
 						<div className="flex items-center gap-x-2">
-						<Checkbox
-							checked={alwaysOnTop}
-							onCheckedChange={handleAlwaysOnTopChange}
-							id="always-on-top-checkbox"
-						/>
-						<label htmlFor="always-on-top-checkbox">Stay on top</label>
-					</div>
-				)}
+							<Checkbox
+								checked={alwaysOnTop}
+								onCheckedChange={handleAlwaysOnTopChange}
+								id="always-on-top-checkbox"
+							/>
+							<label htmlFor="always-on-top-checkbox">Stay on top</label>
+						</div>
+					)}
 
-				<div className="flex justify-center gap-x-4">
-					<Button type="button" className="min-w-[8rem]" disabled={globalDownloading} onClick={startDownload}>
-						Download
-					</Button>
-					{globalDownloading && (
+					<div className="flex justify-center gap-x-4">
 						<Button
 							type="button"
 							className="min-w-[8rem]"
-							disabled={!globalDownloading}
+							disabled={globalDownloading}
 							onClick={startDownload}>
-							Cancel
+							Download
 						</Button>
-					)}
+						{globalDownloading && (
+							<Button
+								type="button"
+								className="min-w-[8rem]"
+								disabled={!globalDownloading}
+								onClick={startDownload}>
+								Cancel
+							</Button>
+						)}
 
-					<Button type="button" className="min-w-[8rem]" onClick={preview}>
-						Preview
-					</Button>
-					<Button type="button" className="min-w-[8rem]" onClick={quit}>
-						Quit
-					</Button>
-				</div>
+						<Button type="button" className="min-w-[8rem]" onClick={preview}>
+							Preview
+						</Button>
+						<Button type="button" className="min-w-[8rem]" onClick={quit}>
+							Quit
+						</Button>
+					</div>
+				</section>
 			</div>
 		</main>
 	)
