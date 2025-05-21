@@ -354,13 +354,16 @@ function App() {
 
 	return (
 		<main className="container" onDragOver={handleDragOver} onDragLeave={handleDragLeave}>
-			<div className="app-container flex flex-col justify-between gap-y-4 h-screen">
-
-				<DropZone className="flex-auto grow overflow-y-auto" dropHandler={dropHandler} dragHovering={dragHovering} />
-					{/* Drop Zone + Data View */}
+			<div className="app-container compact flex flex-col justify-between gap-y-4 h-screen">
+				<DropZone
+					className="flex-auto grow overflow-y-auto"
+					dropHandler={dropHandler}
+					dragHovering={dragHovering}
+				/>
+				{/* Drop Zone + Data View */}
 				<DataTable className="flex-auto grow overflow-y-auto" columns={MediaListColumns} data={mediaList} />
 
-				<section className="flex-none">
+				<section className="flex-none flex flex-col gap-y-4">
 					<div>
 						<PLabel>Select the location where you want to save the downloaded files</PLabel>
 
