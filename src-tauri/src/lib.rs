@@ -33,6 +33,8 @@ pub fn run() {
     builder = builder.invoke_handler(tauri::generate_handler![
         downloader::get_media_info,
         downloader::download_media,
+        remedia::set_always_on_top,
+        remedia::is_wayland,
         quit
     ]);
 

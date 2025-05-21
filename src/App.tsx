@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 
 import type { ColumnDef } from "@tanstack/react-table"
-import { MoreHorizontal } from "lucide-react"
+import { AlertCircle, MoreHorizontal } from "lucide-react"
 
 import { useWindowFocus } from "@/hooks/use-window-focus"
 import { type MediaInfoEvent, type MediaProgressEvent, useTauriEvents } from "@/hooks/useTauriEvent"
@@ -30,6 +30,7 @@ import { DataTable } from "./components/data-table.tsx"
 import { Checkbox } from "./components/ui/checkbox.tsx"
 
 import "./App.css"
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 
 type VideoInfo = {
 	url: string
@@ -46,7 +47,7 @@ const MediaListColumns: ColumnDef<VideoInfo>[] = [
 			<Checkbox
 				checked={row.getIsSelected()}
 				onCheckedChange={value => row.toggleSelected(!!value)}
-				aria-label='Select row'
+				aria-label="Select row"
 			/>
 		),
 		enableHiding: false,
@@ -55,7 +56,7 @@ const MediaListColumns: ColumnDef<VideoInfo>[] = [
 			<Checkbox
 				checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")}
 				onCheckedChange={value => table.toggleAllPageRowsSelected(!!value)}
-				aria-label='Select all'
+				aria-label="Select all"
 			/>
 		),
 		id: "select"
@@ -64,16 +65,16 @@ const MediaListColumns: ColumnDef<VideoInfo>[] = [
 		accessorKey: "thumbnail",
 		cell: ({ row }) => {
 			const thumbnail = row.getValue("thumbnail")
-			if (!thumbnail) return <div className='h-[72px] w-auto' />
+			if (!thumbnail) return <div className="h-[72px] w-auto" />
 
-			return <img className='h-[72px] w-auto' alt='Media thumbnail' src={thumbnail as string} />
+			return <img className="h-[72px] w-auto" alt="Media thumbnail" src={thumbnail as string} />
 		},
-		header: () => <div className='text-left'>Preview</div>
+		header: () => <div className="text-left">Preview</div>
 	},
 	{
 		accessorKey: "title",
-		header: () => <div className='text-left'>Title</div>,
-		cell: ({ row }) => <div className='text-left'>{row.getValue("title")}</div>
+		header: () => <div className="text-left">Title</div>,
+		cell: ({ row }) => <div className="text-left">{row.getValue("title")}</div>
 	},
 	{
 		accessorKey: "audioOnly",
@@ -81,36 +82,36 @@ const MediaListColumns: ColumnDef<VideoInfo>[] = [
 			return (
 				<Checkbox
 					checked={row.getValue("audioOnly")}
-					aria-label='Audio only'
+					aria-label="Audio only"
 					// Optionally, add onCheckedChange if you want to allow toggling
 					// onCheckedChange={(value) => ...}
 				/>
 			)
 		},
-		header: () => <div className='text-center'>Audio</div>
+		header: () => <div className="text-center">Audio</div>
 	},
 	{
 		accessorKey: "progress",
 		cell: ({ row }) => {
 			return <Progress value={row.getValue("progress")} />
 		},
-		header: () => <div className='text-center'>Progress</div>
+		header: () => <div className="text-center">Progress</div>
 	},
 	{
 		accessorKey: "status",
-		header: () => <div className='text-right'>Status</div>
+		header: () => <div className="text-right">Status</div>
 	},
 	{
 		cell: ({ row }) => {
 			return (
 				<DropdownMenu>
 					<DropdownMenuTrigger asChild>
-						<Button variant='ghost' className='h-8 w-8 p-0'>
-							<span className='sr-only'>Open menu</span>
-							<MoreHorizontal className='h-4 w-4' />
+						<Button variant="ghost" className="h-8 w-8 p-0">
+							<span className="sr-only">Open menu</span>
+							<MoreHorizontal className="h-4 w-4" />
 						</Button>
 					</DropdownMenuTrigger>
-					<DropdownMenuContent align='end'>
+					<DropdownMenuContent align="end">
 						<DropdownMenuLabel>Actions</DropdownMenuLabel>
 						<DropdownMenuItem onClick={() => navigator.clipboard.writeText(row.getValue("url"))}>
 							Copy URL
@@ -140,6 +141,8 @@ function App() {
 	const [outputLocation, setOutputLocation] = useState<string>("")
 	const [globalProgress, setGlobalProgress] = useState(0)
 	const [globalDownloading, setGlobalDownloading] = useState(false)
+	const [alwaysOnTop, setAlwaysOnTop] = useState(false)
+	const [isWayland, setIsWayland] = useState(false)
 
 	const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
 		event.preventDefault()
@@ -287,13 +290,10 @@ function App() {
 	}
 
 	function handleWindowFocus() {
-		// TODO: Re-enable clipboardIsUrl() when done with testing
-		// void clipboardIsUrl()
+		void clipboardIsUrl()
 	}
 
-	const handleMediaInfo = ({
-		payload: [_mediaIdx, mediaSourceUrl, title, thumbnail]
-	}: Event<MediaInfoEvent>) => {
+	const handleMediaInfo = ({ payload: [_mediaIdx, mediaSourceUrl, title, thumbnail] }: Event<MediaInfoEvent>) => {
 		updateMediaItem({ thumbnail, title, url: mediaSourceUrl })
 	}
 
@@ -309,6 +309,11 @@ function App() {
 		updateMediaItem({ status: "Error" })
 	}
 
+	const handleAlwaysOnTopChange = async (checked: boolean) => {
+		setAlwaysOnTop(checked)
+		await invoke("set_always_on_top", { alwaysOnTop: checked })
+	}
+
 	useWindowFocus(handleWindowFocus)
 
 	useEffect(() => {
@@ -317,6 +322,17 @@ function App() {
 			.then(dir => setOutputLocation(dir))
 			.catch(error => {
 				console.error("Failed to get download directory:", error)
+			})
+	}, [])
+
+	useEffect(() => {
+		// Check if we're running on Wayland using the Rust backend
+		invoke("is_wayland")
+			.then((value: unknown) => {
+				setIsWayland(Boolean(value))
+			})
+			.catch(err => {
+				console.error("Failed to check Wayland status:", err)
 			})
 	}, [])
 
@@ -337,9 +353,9 @@ function App() {
 	}, [mediaList, globalDownloading])
 
 	return (
-		<main className='container' onDragOver={handleDragOver} onDragLeave={handleDragLeave}>
-			<div className='app-container gap-y-4'>
-				<div className='min-h-[18rem] max-h-[18rem] overflow-y-auto'>
+		<main className="container" onDragOver={handleDragOver} onDragLeave={handleDragLeave}>
+			<div className="app-container gap-y-4">
+				<div className="min-h-[18rem] max-h-[18rem] overflow-y-auto">
 					<DropZone dropHandler={dropHandler} dragHovering={dragHovering} />
 
 					{/* Drop Zone + Data View */}
@@ -350,42 +366,61 @@ function App() {
 				<div>
 					<PLabel>Select the location where you want to save the downloaded files</PLabel>
 
-					<div className='flex gap-x-4'>
+					<div className="flex gap-x-4">
 						<Input
-							type='text'
-							id='output-location-input'
-							placeholder='Download location...'
+							type="text"
+							id="output-location-input"
+							placeholder="Download location..."
 							value={outputLocation}
 							onChange={e => setOutputLocation(e.target.value)}
 						/>
-						<Button type='button' className='min-w-[8rem]' onClick={chooseOutputLocation}>
+						<Button type="button" className="min-w-[8rem]" onClick={chooseOutputLocation}>
 							Browse...
 						</Button>
 					</div>
 				</div>
 
-				<div className='my-2'>
-					<Progress value={globalProgress} max={100} className='w-[100%]' />
+				<div className="my-2">
+					<Progress value={globalProgress} max={100} className="w-[100%]" />
 				</div>
 
-				<div className='flex justify-center gap-x-4'>
-					<Button type='button' className='min-w-[8rem]' disabled={globalDownloading} onClick={startDownload}>
+				{isWayland ? (
+					<Alert variant="destructive" className="text-left">
+						<AlertCircle className="h-4 w-4" />
+						<AlertTitle>"Stay on top" is not supported on Wayland yet.</AlertTitle>
+						<AlertDescription>
+								Try X11 or watch for Tauri updates.
+						</AlertDescription>
+					</Alert>
+				) : (
+						<div className="flex items-center gap-x-2">
+						<Checkbox
+							checked={alwaysOnTop}
+							onCheckedChange={handleAlwaysOnTopChange}
+							id="always-on-top-checkbox"
+						/>
+						<label htmlFor="always-on-top-checkbox">Stay on top</label>
+					</div>
+				)}
+
+				<div className="flex justify-center gap-x-4">
+					<Button type="button" className="min-w-[8rem]" disabled={globalDownloading} onClick={startDownload}>
 						Download
 					</Button>
 					{globalDownloading && (
 						<Button
-							type='button'
-							className='min-w-[8rem]'
+							type="button"
+							className="min-w-[8rem]"
 							disabled={!globalDownloading}
 							onClick={startDownload}>
 							Cancel
 						</Button>
 					)}
 
-					<Button type='button' className='min-w-[8rem]' onClick={preview}>
+					<Button type="button" className="min-w-[8rem]" onClick={preview}>
 						Preview
 					</Button>
-					<Button type='button' className='min-w-[8rem]' onClick={quit}>
+					<Button type="button" className="min-w-[8rem]" onClick={quit}>
 						Quit
 					</Button>
 				</div>
