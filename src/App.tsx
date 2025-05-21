@@ -74,7 +74,11 @@ const MediaListColumns: ColumnDef<VideoInfo>[] = [
 	{
 		accessorKey: "title",
 		header: () => <div className="text-left">Title</div>,
-		cell: ({ row }) => <div className="text-left">{row.getValue("title")}</div>
+		cell: ({ row }) => (
+			<div className="text-left w-full whitespace-pre-line break-words overflow-hidden text-ellipsis">
+				{row.getValue("title")}
+			</div>
+		)
 	},
 	{
 		accessorKey: "audioOnly",
