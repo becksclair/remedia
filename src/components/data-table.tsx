@@ -25,14 +25,14 @@ export function DataTable<TData, TValue>({ className, columns, data }: DataTable
 	})
 
 	return (
-		<div className={cn("rounded-md border", className)}>
+		<div className={cn("rounded-md border border-sidebar-ring shadow-md grad-background", className)}>
 			<Table>
-				<TableHeader>
+				<TableHeader className="bg-primary ">
 					{table.getHeaderGroups().map(headerGroup => (
-						<TableRow key={headerGroup.id}>
+						<TableRow key={headerGroup.id} className="h-10 hover:bg-primary">
 							{headerGroup.headers.map(header => {
 								return (
-									<TableHead key={header.id}>
+									<TableHead key={header.id} className="text-white ">
 										{header.isPlaceholder
 											? null
 											: flexRender(header.column.columnDef.header, header.getContext())}
@@ -42,10 +42,13 @@ export function DataTable<TData, TValue>({ className, columns, data }: DataTable
 						</TableRow>
 					))}
 				</TableHeader>
-				<TableBody className="overflow-y-auto min-h-[18rem] max-h-[18rem]">
+				<TableBody className="overflow-y-auto min-h-[18rem] max-h-[18rem] ">
 					{table.getRowModel().rows?.length ? (
 						table.getRowModel().rows.map(row => (
-							<TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
+							<TableRow
+								className="bg-background"
+								key={row.id}
+								data-state={row.getIsSelected() && "selected"}>
 								{row.getVisibleCells().map(cell => (
 									<TableCell key={cell.id}>
 										{flexRender(cell.column.columnDef.cell, cell.getContext())}

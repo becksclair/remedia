@@ -30,7 +30,7 @@ import { SettingsDialog } from "./components/settings-dialog"
 
 import "./App.css"
 
-import { useAtom } from 'jotai'
+import { useAtom } from "jotai"
 import { downloadLocationAtom } from "@/state/settings-atoms"
 
 type VideoInfo = {
@@ -325,7 +325,6 @@ function App() {
 			})
 	}, [setOutputLocation])
 
-
 	// You could alternatively use the new useTauriEvents hook, uncomment this to try it:
 	useTauriEvents({
 		"update-media-info": handleMediaInfo,
@@ -344,7 +343,7 @@ function App() {
 
 	return (
 		<main className="container" onDragOver={handleDragOver} onDragLeave={handleDragLeave}>
-			<div className="app-container compact flex flex-col justify-between gap-y-4 h-screen">
+			<div className="app-container compact flex flex-col justify-between gap-y-4 h-screen ">
 				<DropZone
 					className="flex-auto grow overflow-y-auto"
 					dropHandler={dropHandler}
@@ -354,11 +353,11 @@ function App() {
 				<DataTable className="flex-auto grow overflow-y-auto" columns={MediaListColumns} data={mediaList} />
 
 				<section className="flex-none flex flex-col gap-y-4">
-					<div className="my-2">
+					<div className="my-3">
 						<Progress value={globalProgress} max={100} className="w-[100%]" />
 					</div>
 
-					<div className="flex justify-center gap-x-4">
+					<div className="flex justify-center gap-x-4 mb-3">
 						<Button
 							type="button"
 							className="min-w-[8rem]"
@@ -388,10 +387,7 @@ function App() {
 					</div>
 				</section>
 			</div>
-			<SettingsDialog
-				open={settingsOpen}
-				onOpenChange={setSettingsOpen}
-			/>
+			<SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
 		</main>
 	)
 }
