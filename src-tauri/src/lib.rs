@@ -35,6 +35,7 @@ pub fn run() {
         downloader::download_media,
         remedia::set_always_on_top,
         remedia::is_wayland,
+        remedia::open_preview_window,
         quit
     ]);
 

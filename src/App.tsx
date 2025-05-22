@@ -189,10 +189,12 @@ function App() {
 	}
 
 	async function preview() {
+		invoke("open_preview_window", { url: "/player?url=https://www.youtube.com/watch?v=Fe2adi-OWV0" })
+
 		if (notificationPermission) {
 			sendNotification({
-				body: "Your video title finished downloading",
-				title: "Download complete"
+				body: "Loading media preview...",
+				title: "Remedia",
 			})
 		}
 	}
@@ -208,6 +210,12 @@ function App() {
 	const isUrl = (input: string) => /^https?:\/\//.test(input)
 
 	function addMediaUrl(url: string) {
+		// Check if the URL is already in the list and return if it is
+		if (mediaList.some(media => media.url === url)) {
+			console.log("URL already exists in the list")
+			return
+		}
+
 		const newMedia = {
 			audioOnly: false,
 			progress: 0,

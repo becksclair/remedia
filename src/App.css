@@ -158,7 +158,7 @@ button {
 	* {
 		@apply border-border outline-ring/50;
 	}
-	body {
+	body, #root {
 		@apply bg-background text-foreground;
 		height: 100vh;
 		cursor: default;

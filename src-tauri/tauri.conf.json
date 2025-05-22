@@ -7,14 +7,15 @@
 		"beforeDevCommand": "bun run dev",
 		"devUrl": "http://localhost:1420",
 		"beforeBuildCommand": "bun run build",
-		"frontendDist": "../dist"
+		"frontendDist": "../dist",
+		"removeUnusedCommands": false
 	},
 	"app": {
 		"windows": [
 			{
 				"title": "remedia",
 				"width": 750,
-				"height": 505,
+				"height": 510,
 				"dragDropEnabled": false
 			}
 		],
