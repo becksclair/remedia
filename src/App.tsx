@@ -31,6 +31,7 @@ import { Checkbox } from "./components/ui/checkbox.tsx"
 
 import "./App.css"
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
+import { SettingsDialog } from "./components/settings-dialog"
 
 type VideoInfo = {
 	url: string
@@ -148,6 +149,7 @@ function App() {
 	const [globalDownloading, setGlobalDownloading] = useState(false)
 	const [alwaysOnTop, setAlwaysOnTop] = useState(false)
 	const [isWayland, setIsWayland] = useState(false)
+	const [settingsOpen, setSettingsOpen] = useState(false)
 
 	const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
 		event.preventDefault()
@@ -210,7 +212,7 @@ function App() {
 	}
 
 	async function showSettings() {
-		// Open the settings window
+		setSettingsOpen(true)
 	}
 
 	async function quit() {
@@ -452,6 +454,7 @@ function App() {
 					</div>
 				</section>
 			</div>
+			<SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
 		</main>
 	)
 }
