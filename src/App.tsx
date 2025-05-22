@@ -140,6 +140,7 @@ function debounce(callback: () => void, delay: number) {
 }
 
 function App() {
+	const [notificationPermission, setNotificationPermission] = useState(false)
 	const [dragHovering, setDragHovering] = useState(false)
 	const [mediaList, setMediaList] = useState<VideoInfo[]>([])
 	const [outputLocation, setOutputLocation] = useState<string>("")
@@ -158,13 +159,10 @@ function App() {
 		debounce(() => setDragHovering(false), 300)
 	}
 
-	// Do you have permission to send a notification?
-	let notificationPermission = false
-
 	isPermissionGranted().then(granted => {
 		if (!granted) {
 			requestPermission().then(permission => {
-				notificationPermission = permission === "granted"
+				setNotificationPermission(permission === "granted")
 			})
 		}
 	})
@@ -209,6 +207,10 @@ function App() {
 				title: "Download complete"
 			})
 		}
+	}
+
+	async function showSettings() {
+		// Open the settings window
 	}
 
 	async function quit() {
@@ -321,6 +323,17 @@ function App() {
 	useWindowFocus(handleWindowFocus)
 
 	useEffect(() => {
+		isPermissionGranted().then(granted => {
+			if (!granted) {
+				requestPermission().then(permission => {
+					setNotificationPermission(permission === "granted")
+				})
+			}
+			setNotificationPermission(granted)
+		})
+	}, [])
+
+	useEffect(() => {
 		// Set the default download directory to the user's download folder
 		downloadDir()
 			.then(dir => setOutputLocation(dir))
@@ -429,6 +442,9 @@ function App() {
 
 						<Button type="button" className="min-w-[8rem]" onClick={preview}>
 							Preview
+						</Button>
+						<Button type="button" className="min-w-[8rem]" onClick={showSettings}>
+							Settings
 						</Button>
 						<Button type="button" className="min-w-[8rem]" onClick={quit}>
 							Quit
