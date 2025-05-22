@@ -369,12 +369,15 @@ function App() {
 
 				<section className="flex-none flex flex-col gap-y-4">
 					<div>
-						<PLabel>Select the location where you want to save the downloaded files</PLabel>
+						<PLabel className="text-lg mt-3 mb-2">
+							Select the location where you want to save the downloaded files
+						</PLabel>
 
-						<div className="flex gap-x-4">
+						<div className="flex gap-x-4 mb-3">
 							<Input
 								type="text"
 								id="output-location-input"
+								className="text-sm"
 								placeholder="Download location..."
 								value={outputLocation}
 								onChange={e => setOutputLocation(e.target.value)}

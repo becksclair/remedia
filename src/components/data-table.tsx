@@ -25,7 +25,7 @@ export function DataTable<TData, TValue>({ className, columns, data }: DataTable
 	})
 
 	return (
-		<div className={cn('rounded-md border', className)}>
+		<div className={cn("rounded-md border", className)}>
 			<Table>
 				<TableHeader>
 					{table.getHeaderGroups().map(headerGroup => (
@@ -42,7 +42,7 @@ export function DataTable<TData, TValue>({ className, columns, data }: DataTable
 						</TableRow>
 					))}
 				</TableHeader>
-				<TableBody className='overflow-y-auto min-h-[18rem] max-h-[18rem]'>
+				<TableBody className="overflow-y-auto min-h-[18rem] max-h-[18rem]">
 					{table.getRowModel().rows?.length ? (
 						table.getRowModel().rows.map(row => (
 							<TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
@@ -55,8 +55,8 @@ export function DataTable<TData, TValue>({ className, columns, data }: DataTable
 						))
 					) : (
 						<TableRow>
-							<TableCell colSpan={columns.length} className='h-24 text-center'>
-								No results.
+							<TableCell colSpan={columns.length} className="h-24 text-center">
+								{/* No data available */}
 							</TableCell>
 						</TableRow>
 					)}
