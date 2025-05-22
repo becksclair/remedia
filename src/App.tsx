@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core"
 import type { Event } from "@tauri-apps/api/event"
 import { downloadDir } from "@tauri-apps/api/path"
 import { readText } from "@tauri-apps/plugin-clipboard-manager"
-import { open } from "@tauri-apps/plugin-dialog"
+import { open as openDialog } from "@tauri-apps/plugin-dialog"
 import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification"
 
 import { useEffect, useState } from "react"
@@ -29,8 +29,12 @@ import { type MediaInfoEvent, type MediaProgressEvent, useTauriEvents } from "@/
 import { DataTable } from "./components/data-table.tsx"
 import { Checkbox } from "./components/ui/checkbox.tsx"
 
-import "./App.css"
 import { SettingsDialog } from "./components/settings-dialog"
+
+import "./App.css"
+
+import { useAtom } from 'jotai'
+import { downloadLocationAtom } from "@/state/settings-atoms"
 
 type VideoInfo = {
 	url: string
@@ -143,10 +147,9 @@ function App() {
 	const [notificationPermission, setNotificationPermission] = useState(false)
 	const [dragHovering, setDragHovering] = useState(false)
 	const [mediaList, setMediaList] = useState<VideoInfo[]>([])
-	const [outputLocation, setOutputLocation] = useState<string>("")
+	const [outputLocation, setOutputLocation] = useAtom(downloadLocationAtom)
 	const [globalProgress, setGlobalProgress] = useState(0)
 	const [globalDownloading, setGlobalDownloading] = useState(false)
-	const [alwaysOnTop, setAlwaysOnTop] = useState(false)
 	const [settingsOpen, setSettingsOpen] = useState(false)
 
 	const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
@@ -168,13 +171,13 @@ function App() {
 	})
 
 	async function chooseOutputLocation() {
-		const directory = await open({
+		const directory = await openDialog({
 			defaultPath: outputLocation,
 			directory: true,
 			multiple: false,
 			title: "Choose location to save downloads"
 		})
-		if (directory) {
+		if (directory && typeof directory === 'string') {
 			setOutputLocation(directory)
 		}
 	}
@@ -315,11 +318,6 @@ function App() {
 		updateMediaItem({ status: "Error" })
 	}
 
-
-	const handleAlwaysOnTopChange = (checked: boolean) => {
-		setAlwaysOnTop(checked);
-	}
-
 	useWindowFocus(handleWindowFocus)
 
 	useEffect(() => {
@@ -340,8 +338,7 @@ function App() {
 			.catch(error => {
 				console.error("Failed to get download directory:", error)
 			})
-	}, [])
-
+	}, [setOutputLocation])
 
 
 	// You could alternatively use the new useTauriEvents hook, uncomment this to try it:
@@ -426,11 +423,9 @@ function App() {
 					</div>
 				</section>
 			</div>
-			<SettingsDialog 
-				open={settingsOpen} 
-				onOpenChange={setSettingsOpen} 
-				alwaysOnTop={alwaysOnTop}
-				onAlwaysOnTopChange={handleAlwaysOnTopChange}
+			<SettingsDialog
+				open={settingsOpen}
+				onOpenChange={setSettingsOpen}
 			/>
 		</main>
 	)

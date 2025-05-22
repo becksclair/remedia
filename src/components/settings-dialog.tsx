@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core"
+import { open as openDialog } from "@tauri-apps/plugin-dialog"
 import { useEffect, useState } from "react"
 import { AlertCircle } from "lucide-react"
 
@@ -16,18 +17,19 @@ import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 
+import { useAtom } from 'jotai'
+import { alwaysOnTopAtom, downloadLocationAtom } from "@/state/settings-atoms"
+
 export function SettingsDialog({
 	open,
 	onOpenChange,
-	alwaysOnTop = false,
-	onAlwaysOnTopChange
 }: {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-	alwaysOnTop?: boolean;
-	onAlwaysOnTopChange?: (checked: boolean) => void;
 }) {
-	const [isWayland, setIsWayland] = useState(false)
+  const [alwaysOnTop, setAlwaysOnTop] = useAtom(alwaysOnTopAtom)
+  const [isWayland, setIsWayland] = useState(false)
+	const [outputLocation, setOutputLocation] = useAtom(downloadLocationAtom)
 
 	useEffect(() => {
 		// Check if we're running on Wayland using the Rust backend
@@ -40,15 +42,27 @@ export function SettingsDialog({
 			})
 	}, [])
 
-	const handleAlwaysOnTopChange = async (checked: boolean) => {
-		if (onAlwaysOnTopChange) {
-			onAlwaysOnTopChange(checked)
-		}
-		await invoke("set_always_on_top", { alwaysOnTop: checked })
+	const handleAlwaysOnTopChange = async (checked: boolean | unknown) => {
+		const boolValue = Boolean(checked)
+		setAlwaysOnTop(boolValue)
+		await invoke("set_always_on_top", { alwaysOnTop: boolValue })
 	}
+
+	const chooseOutputLocation = async () => {
+		const directory = await openDialog({
+			defaultPath: outputLocation,
+			directory: true,
+			multiple: false,
+			title: "Choose location to save downloads"
+		})
+		if (directory && typeof directory === 'string') {
+			setOutputLocation(directory)
+		}
+	}
+
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="sm:max-w-[425px]">
+			<DialogContent className="sm:max-w-[525px]">
 				<DialogHeader>
 					<DialogTitle>Settings</DialogTitle>
 					<DialogDescription>
@@ -73,6 +87,25 @@ export function SettingsDialog({
 							<label htmlFor="always-on-top-checkbox">Stay on top</label>
 						</div>
 					)}
+
+					<div className="grid grid-cols-4 items-center gap-4">
+  					<Label htmlFor="download-location" className="text-right">
+  						Download location
+  					</Label>
+
+  					<Input
+  						type="text"
+  						id="download-location"
+  						className="text-sm col-span-2"
+  						placeholder="Download location..."
+  						value={outputLocation}
+  						onChange={e => setOutputLocation(e.target.value)}
+  					/>
+
+            <Button type="button" className="min-w-[8rem]" onClick={chooseOutputLocation}>
+							Browse...
+						</Button>
+					</div>
 
 					<div className="grid grid-cols-4 items-center gap-4">
 						<Label htmlFor="name" className="text-right">
