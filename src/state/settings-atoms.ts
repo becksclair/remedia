@@ -1,4 +1,4 @@
-import { atom } from 'jotai'
+import { atomWithStorage } from "jotai/utils"
 
-export const alwaysOnTopAtom = atom(false)
-export const downloadLocationAtom = atom<string>("")
+export const alwaysOnTopAtom = atomWithStorage("alwaysOnTop", false)
+export const downloadLocationAtom = atomWithStorage<string>("downloadLocation", "")

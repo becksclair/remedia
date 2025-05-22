@@ -123,7 +123,7 @@ export function SettingsDialog({
 
 				<DialogFooter>
 					<Button type="submit" onClick={() => onOpenChange(false)}>
-						Save changes
+						Done
 					</Button>
 				</DialogFooter>
 			</DialogContent>
