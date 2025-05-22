@@ -2,14 +2,11 @@ import { invoke } from "@tauri-apps/api/core"
 import type { Event } from "@tauri-apps/api/event"
 import { downloadDir } from "@tauri-apps/api/path"
 import { readText } from "@tauri-apps/plugin-clipboard-manager"
-import { open as openDialog } from "@tauri-apps/plugin-dialog"
 import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification"
 
 import { useEffect, useState } from "react"
 import { DropZone } from "./components/drop-zone.tsx"
-import { PLabel } from "./components/p-label.tsx"
 import { Button } from "./components/ui/button.tsx"
-import { Input } from "./components/ui/input.tsx"
 import { Progress } from "./components/ui/progress.tsx"
 import {
 	DropdownMenu,
@@ -169,18 +166,6 @@ function App() {
 			})
 		}
 	})
-
-	async function chooseOutputLocation() {
-		const directory = await openDialog({
-			defaultPath: outputLocation,
-			directory: true,
-			multiple: false,
-			title: "Choose location to save downloads"
-		})
-		if (directory && typeof directory === 'string') {
-			setOutputLocation(directory)
-		}
-	}
 
 	async function startDownload() {
 		setGlobalProgress(0)
@@ -369,26 +354,6 @@ function App() {
 				<DataTable className="flex-auto grow overflow-y-auto" columns={MediaListColumns} data={mediaList} />
 
 				<section className="flex-none flex flex-col gap-y-4">
-					<div>
-						<PLabel className="text-lg mt-3 mb-2">
-							Select the location where you want to save the downloaded files
-						</PLabel>
-
-						<div className="flex gap-x-4 mb-3">
-							<Input
-								type="text"
-								id="output-location-input"
-								className="text-sm"
-								placeholder="Download location..."
-								value={outputLocation}
-								onChange={e => setOutputLocation(e.target.value)}
-							/>
-							<Button type="button" className="min-w-[8rem]" onClick={chooseOutputLocation}>
-								Browse...
-							</Button>
-						</div>
-					</div>
-
 					<div className="my-2">
 						<Progress value={globalProgress} max={100} className="w-[100%]" />
 					</div>
