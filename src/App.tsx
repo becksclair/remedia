@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 
 import type { ColumnDef } from "@tanstack/react-table"
-import { AlertCircle, MoreHorizontal } from "lucide-react"
+import { MoreHorizontal } from "lucide-react"
 
 import { useWindowFocus } from "@/hooks/use-window-focus"
 import { type MediaInfoEvent, type MediaProgressEvent, useTauriEvents } from "@/hooks/useTauriEvent"
@@ -30,7 +30,6 @@ import { DataTable } from "./components/data-table.tsx"
 import { Checkbox } from "./components/ui/checkbox.tsx"
 
 import "./App.css"
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 import { SettingsDialog } from "./components/settings-dialog"
 
 type VideoInfo = {
@@ -148,7 +147,6 @@ function App() {
 	const [globalProgress, setGlobalProgress] = useState(0)
 	const [globalDownloading, setGlobalDownloading] = useState(false)
 	const [alwaysOnTop, setAlwaysOnTop] = useState(false)
-	const [isWayland, setIsWayland] = useState(false)
 	const [settingsOpen, setSettingsOpen] = useState(false)
 
 	const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
@@ -317,9 +315,9 @@ function App() {
 		updateMediaItem({ status: "Error" })
 	}
 
-	const handleAlwaysOnTopChange = async (checked: boolean) => {
-		setAlwaysOnTop(checked)
-		await invoke("set_always_on_top", { alwaysOnTop: checked })
+
+	const handleAlwaysOnTopChange = (checked: boolean) => {
+		setAlwaysOnTop(checked);
 	}
 
 	useWindowFocus(handleWindowFocus)
@@ -344,16 +342,7 @@ function App() {
 			})
 	}, [])
 
-	useEffect(() => {
-		// Check if we're running on Wayland using the Rust backend
-		invoke("is_wayland")
-			.then((value: unknown) => {
-				setIsWayland(Boolean(value))
-			})
-			.catch(err => {
-				console.error("Failed to check Wayland status:", err)
-			})
-	}, [])
+
 
 	// You could alternatively use the new useTauriEvents hook, uncomment this to try it:
 	useTauriEvents({
@@ -407,23 +396,6 @@ function App() {
 						<Progress value={globalProgress} max={100} className="w-[100%]" />
 					</div>
 
-					{isWayland ? (
-						<Alert variant="destructive" className="text-left">
-							<AlertCircle className="h-4 w-4" />
-							<AlertTitle>"Stay on top" is not supported on Wayland yet.</AlertTitle>
-							<AlertDescription>Try X11 or watch for Tauri updates.</AlertDescription>
-						</Alert>
-					) : (
-						<div className="flex items-center gap-x-2">
-							<Checkbox
-								checked={alwaysOnTop}
-								onCheckedChange={handleAlwaysOnTopChange}
-								id="always-on-top-checkbox"
-							/>
-							<label htmlFor="always-on-top-checkbox">Stay on top</label>
-						</div>
-					)}
-
 					<div className="flex justify-center gap-x-4">
 						<Button
 							type="button"
@@ -454,7 +426,12 @@ function App() {
 					</div>
 				</section>
 			</div>
-			<SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+			<SettingsDialog 
+				open={settingsOpen} 
+				onOpenChange={setSettingsOpen} 
+				alwaysOnTop={alwaysOnTop}
+				onAlwaysOnTopChange={handleAlwaysOnTopChange}
+			/>
 		</main>
 	)
 }
