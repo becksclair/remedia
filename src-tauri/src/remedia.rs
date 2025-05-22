@@ -7,10 +7,17 @@ pub(crate) fn quit(app: AppHandle) {
 
 #[tauri::command]
 pub async fn set_always_on_top(window: Window, always_on_top: bool) -> Result<(), String> {
-    println!("Should be on top: {always_on_top}");
+    #[cfg(not(any(target_os = "ios", target_os = "android")))]
+    {
+	    println!("Should be on top: {always_on_top}");
+        return window.set_always_on_top(always_on_top).map_err(|e| e.to_string());
+    }
 
-    // Note: set_always_on_top is async in Tauri 2.x
-    window.set_always_on_top(always_on_top).map_err(|e| e.to_string())
+    #[cfg(any(target_os = "ios", target_os = "android"))]
+    {
+	    // No-op on iOS and Android
+	    Ok(())
+    }
 }
 
 #[tauri::command]
