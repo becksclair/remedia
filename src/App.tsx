@@ -43,95 +43,7 @@ type VideoInfo = {
 	status: "Pending" | "Downloading" | "Done" | "Error"
 }
 
-const MediaListColumns: ColumnDef<VideoInfo>[] = [
-	{
-		cell: ({ row }) => (
-			<Checkbox
-				checked={row.getIsSelected()}
-				onCheckedChange={value => row.toggleSelected(!!value)}
-				aria-label="Select row"
-			/>
-		),
-		enableHiding: false,
-		enableSorting: false,
-		header: ({ table }) => (
-			<Checkbox
-				checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")}
-				onCheckedChange={value => table.toggleAllPageRowsSelected(!!value)}
-				aria-label="Select all"
-			/>
-		),
-		id: "select"
-	},
-	{
-		accessorKey: "thumbnail",
-		cell: ({ row }) => {
-			const thumbnail = row.getValue("thumbnail")
-			if (!thumbnail) return <div className="h-[72px] w-auto" />
 
-			return <img className="h-[72px] w-auto" alt="Media thumbnail" src={thumbnail as string} />
-		},
-		header: () => <div className="text-left">Preview</div>
-	},
-	{
-		accessorKey: "title",
-		header: () => <div className="text-left">Title</div>,
-		cell: ({ row }) => (
-			<div className="text-left w-full whitespace-pre-line break-words overflow-hidden text-ellipsis">
-				{row.getValue("title")}
-			</div>
-		)
-	},
-	{
-		accessorKey: "audioOnly",
-		cell: ({ row }) => {
-			return (
-				<Checkbox
-					checked={row.getValue("audioOnly")}
-					aria-label="Audio only"
-					// Optionally, add onCheckedChange if you want to allow toggling
-					// onCheckedChange={(value) => ...}
-				/>
-			)
-		},
-		header: () => <div className="text-center">Audio</div>
-	},
-	{
-		accessorKey: "progress",
-		cell: ({ row }) => {
-			return <Progress value={row.getValue("progress")} />
-		},
-		header: () => <div className="text-center">Progress</div>
-	},
-	{
-		accessorKey: "status",
-		header: () => <div className="text-right">Status</div>
-	},
-	{
-		cell: ({ row }) => {
-			return (
-				<DropdownMenu>
-					<DropdownMenuTrigger asChild>
-						<Button variant="ghost" className="h-8 w-8 p-0">
-							<span className="sr-only">Open menu</span>
-							<MoreHorizontal className="h-4 w-4" />
-						</Button>
-					</DropdownMenuTrigger>
-					<DropdownMenuContent align="end">
-						<DropdownMenuLabel>Actions</DropdownMenuLabel>
-						<DropdownMenuItem onClick={() => navigator.clipboard.writeText(row.getValue("url"))}>
-							Copy URL
-						</DropdownMenuItem>
-						<DropdownMenuSeparator />
-						<DropdownMenuItem>View customer</DropdownMenuItem>
-						<DropdownMenuItem>View payment details</DropdownMenuItem>
-					</DropdownMenuContent>
-				</DropdownMenu>
-			)
-		},
-		id: "actions"
-	}
-]
 
 function debounce(callback: () => void, delay: number) {
 	let timer: NodeJS.Timeout
@@ -150,6 +62,102 @@ function App() {
 	const [globalProgress, setGlobalProgress] = useState(0)
 	const [globalDownloading, setGlobalDownloading] = useState(false)
 	const [settingsOpen, setSettingsOpen] = useState(false)
+
+	const MediaListColumns: ColumnDef<VideoInfo>[] = [
+		{
+			cell: ({ row }) => (
+				<Checkbox
+					checked={row.getIsSelected()}
+					onCheckedChange={value => row.toggleSelected(!!value)}
+					aria-label="Select row"
+				/>
+			),
+			enableHiding: false,
+			enableSorting: false,
+			header: ({ table }) => (
+				<Checkbox
+					checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")}
+					onCheckedChange={value => table.toggleAllPageRowsSelected(!!value)}
+					aria-label="Select all"
+				/>
+			),
+			id: "select"
+		},
+		{
+			accessorKey: "thumbnail",
+			cell: ({ row }) => {
+				const thumbnail = row.getValue("thumbnail")
+				if (!thumbnail) return <div className="h-[72px] w-auto" />
+
+				return <img className="h-[72px] w-auto" alt="Media thumbnail" src={thumbnail as string} />
+			},
+			header: () => <div className="text-left">Preview</div>
+		},
+		{
+			accessorKey: "title",
+			header: () => <div className="text-left">Title</div>,
+			cell: ({ row }) => (
+				<div className="text-left w-full whitespace-pre-line break-words overflow-hidden text-ellipsis">
+					{row.getValue("title")}
+				</div>
+			)
+		},
+		{
+			accessorKey: "audioOnly",
+			cell: ({ row }) => {
+				return (
+					<Checkbox
+						checked={row.getValue("audioOnly")}
+						aria-label="Audio only"
+						// Optionally, add onCheckedChange if you want to allow toggling
+						// onCheckedChange={(value) => ...}
+					/>
+				)
+			},
+			header: () => <div className="text-center">Audio</div>
+		},
+		{
+			accessorKey: "progress",
+			cell: ({ row }) => {
+				return <Progress value={row.getValue("progress")} />
+			},
+			header: () => <div className="text-center">Progress</div>
+		},
+		{
+			accessorKey: "status",
+			header: () => <div className="text-right">Status</div>
+		},
+		{
+			cell: ({ row }) => {
+				return (
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<Button variant="ghost" className="h-8 w-8 p-0">
+								<span className="sr-only">Open menu</span>
+								<MoreHorizontal className="h-4 w-4" />
+							</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="end">
+							<DropdownMenuLabel>Actions</DropdownMenuLabel>
+							<DropdownMenuItem onClick={() => navigator.clipboard.writeText(row.getValue("url"))}>
+								Copy URL
+							</DropdownMenuItem>
+							<DropdownMenuItem onClick={() => {
+							    // Remove the row from the mediaList
+									setMediaList(prevList => prevList.filter(item => item.title !== row.getValue("title")))
+    				  }}>
+								Delete
+							</DropdownMenuItem>
+							<DropdownMenuSeparator />
+							<DropdownMenuItem>View customer</DropdownMenuItem>
+							<DropdownMenuItem>View payment details</DropdownMenuItem>
+						</DropdownMenuContent>
+					</DropdownMenu>
+				)
+			},
+			id: "actions"
+		}
+]
 
 	const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
 		event.preventDefault()
