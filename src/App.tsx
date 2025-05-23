@@ -367,7 +367,7 @@ function App() {
 	}, [mediaList, globalDownloading])
 
 	return (
-		<main className="container rounded-md border border-sidebar-ring shadow-md" onDragOver={handleDragOver} onDragLeave={handleDragLeave}>
+		<main className="container" onDragOver={handleDragOver} onDragLeave={handleDragLeave}>
 			{/* <CustomTitleBar /> */}
 
 			<div className="app-container compact flex flex-col justify-between gap-y-4 h-screen ">
