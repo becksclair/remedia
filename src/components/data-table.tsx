@@ -1,7 +1,8 @@
 import { type ColumnDef, flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table"
-import { useState } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { cn } from "@/lib/utils"
+import { useAtom } from "jotai"
+import { tableRowSelectionAtom } from "@/state/app-atoms"
 
 interface DataTableProps<TData, TValue> {
 	className?: string
@@ -12,7 +13,7 @@ interface DataTableProps<TData, TValue> {
 export function DataTable<TData, TValue>({ className, columns, data }: DataTableProps<TData, TValue>) {
 	"use no memo"
 
-	const [rowSelection, setRowSelection] = useState({})
+	const [rowSelection, setRowSelection] = useAtom(tableRowSelectionAtom)
 
 	const table = useReactTable({
 		columns,
@@ -57,11 +58,13 @@ export function DataTable<TData, TValue>({ className, columns, data }: DataTable
 							</TableRow>
 						))
 					) : (
-						<TableRow>
-							<TableCell colSpan={columns.length} className="h-24 text-center">
+						<>
+						{/* <TableRow> */}
+							{/* <TableCell colSpan={columns.length} className="h-24 text-center"> */}
 								{/* No data available */}
-							</TableCell>
-						</TableRow>
+							{/* </TableCell> */}
+						{/* </TableRow> */}
+						</>
 					)}
 				</TableBody>
 			</Table>
