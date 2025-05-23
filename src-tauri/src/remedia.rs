@@ -32,6 +32,7 @@ pub fn is_wayland() -> bool {
 #[tauri::command]
 pub fn open_preview_window(
     app: tauri::AppHandle,
+    idx: usize,
     url: String,
     title: Option<String>,
     width: Option<f64>,
@@ -47,7 +48,7 @@ pub fn open_preview_window(
 
     WebviewWindowBuilder::new(
         &app,
-        "preview-win", // Unique label for the new window
+        format!("preview-win-{idx}"), // Unique label for the new window
         webview_url,   // This is where the magic happens!
     )
     .title(title.unwrap_or_else(|| "Preview".to_string()))

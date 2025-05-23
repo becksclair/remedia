@@ -1,3 +1,5 @@
 import { atom } from "jotai";
 
-export const tableRowSelectionAtom = atom({})
+type RowSelectionState = Record<string, boolean>
+
+export const tableRowSelectionAtom = atom<RowSelectionState>({})

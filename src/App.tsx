@@ -32,6 +32,7 @@ import "./App.css"
 
 import { useAtom } from "jotai"
 import { downloadLocationAtom } from "@/state/settings-atoms"
+import { tableRowSelectionAtom } from "@/state/app-atoms"
 
 type VideoInfo = {
 	url: string
@@ -145,6 +146,7 @@ function App() {
 	const [dragHovering, setDragHovering] = useState(false)
 	const [mediaList, setMediaList] = useState<VideoInfo[]>([])
 	const [outputLocation, setOutputLocation] = useAtom(downloadLocationAtom)
+	const [rowSelection] = useAtom(tableRowSelectionAtom)
 	const [globalProgress, setGlobalProgress] = useState(0)
 	const [globalDownloading, setGlobalDownloading] = useState(false)
 	const [settingsOpen, setSettingsOpen] = useState(false)
@@ -189,11 +191,26 @@ function App() {
 	}
 
 	async function preview() {
-		invoke("open_preview_window", { url: "/player?url=https://www.youtube.com/watch?v=Fe2adi-OWV0" })
+		const selectedRowIndices = Object.keys(rowSelection).filter(key => rowSelection[key] === true)
+
+		if (selectedRowIndices.length === 0) {
+			alert("Please select one or more items to preview")
+			return
+		}
+
+		for (const rowIndex of selectedRowIndices) {
+			const selectedItem = mediaList[Number.parseInt(rowIndex)]
+			if (selectedItem?.url) {
+				invoke("open_preview_window", {
+  				idx: Number.parseInt(rowIndex),
+          url: `/player?url=${encodeURIComponent(selectedItem.url)}`
+				})
+			}
+		}
 
 		if (notificationPermission) {
 			sendNotification({
-				body: "Loading media preview...",
+				body: `Loading ${selectedRowIndices.length} media preview(s)...`,
 				title: "Remedia",
 			})
 		}
