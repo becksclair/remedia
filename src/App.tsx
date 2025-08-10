@@ -33,6 +33,7 @@ import "./App.css"
 import { useAtom } from "jotai"
 import { downloadLocationAtom } from "@/state/settings-atoms"
 import { tableRowSelectionAtom } from "@/state/app-atoms"
+import { WebviewWindow } from "@tauri-apps/api/webviewWindow"
 
 type VideoInfo = {
 	url: string
@@ -215,11 +216,29 @@ function App() {
 				if (selectedItem?.url) {
 					console.log(`Opening preview for item ${rowIndex}:`, selectedItem)
 
-					await invoke("open_preview_window", {
-						// Ensure leading slash so pathname === "/player" in src/main.tsx
+					const win = new WebviewWindow("preview-win", {
 						url: `/player?url=${encodeURIComponent(selectedItem.url)}`,
+						width: 760,
+						height: 560,
 						title: selectedItem.title ? `Preview: ${selectedItem.title}` : "ReMedia Preview"
-					})
+					});
+
+					win.once('tauri://created', () => {
+						// webview successfully created
+					});
+					win.once('tauri://error', (error) => {
+						console.error("Error creating webview:", error);
+						// an error happened creating the webview
+					});
+
+					// NOTE rc(08/2025): Disable creating the window in the Rust side for now
+					// so far, unable to get the window loading without crashing.
+
+					// await invoke("open_preview_window", {
+					// 	// Ensure leading slash so pathname === "/player" in src/main.tsx
+					// 	url: `/player?url=${encodeURIComponent(selectedItem.url)}`,
+					// 	title: selectedItem.title ? `Preview: ${selectedItem.title}` : "ReMedia Preview"
+					// })
 				} else {
 					console.warn(`No URL found for selected item at index ${rowIndex}`)
 				}
