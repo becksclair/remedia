@@ -304,7 +304,7 @@ function App() {
 				}
 			})
 			.catch(err => {
-				console.error("Error reading clipboard:", err)
+				console.log("Error reading clipboard:", err)
 			})
 	}
 
