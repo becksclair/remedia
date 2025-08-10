@@ -354,10 +354,13 @@ function App() {
 	useEffect(() => {
 		isPermissionGranted().then(granted => {
 			if (!granted) {
+				console.log("Requesting notification permission")
 				requestPermission().then(permission => {
+					console.log("Notification permission:", permission)
 					setNotificationPermission(permission === "granted")
 				})
 			}
+			console.log("Notification permission already granted:", granted)
 			setNotificationPermission(granted)
 		})
 	}, [])
