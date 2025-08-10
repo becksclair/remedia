@@ -207,21 +207,33 @@ function App() {
 			return
 		}
 
-		for (const rowIndex of selectedRowIndices) {
-			const selectedItem = mediaList[Number.parseInt(rowIndex)]
-			if (selectedItem?.url) {
-				invoke("open_preview_window", {
-					idx: Number.parseInt(rowIndex),
-					url: `/player?url=${encodeURIComponent(selectedItem.url)}`
+		console.log("Selected rows for preview:", selectedRowIndices)
+
+		try {
+			for (const rowIndex of selectedRowIndices) {
+				const selectedItem = mediaList[Number.parseInt(rowIndex)]
+				if (selectedItem?.url) {
+					console.log(`Opening preview for item ${rowIndex}:`, selectedItem)
+
+					await invoke("open_preview_window", {
+						idx: Number.parseInt(rowIndex),
+						url: `player?url=${encodeURIComponent(selectedItem.url)}`,
+						title: selectedItem.title ? `Preview: ${selectedItem.title}` : "ReMedia Preview"
+					})
+				} else {
+					console.warn(`No URL found for selected item at index ${rowIndex}`)
+				}
+			}
+
+			if (notificationPermission) {
+				sendNotification({
+					body: `Loading ${selectedRowIndices.length} media preview(s)...`,
+					title: "Remedia"
 				})
 			}
-		}
-
-		if (notificationPermission) {
-			sendNotification({
-				body: `Loading ${selectedRowIndices.length} media preview(s)...`,
-				title: "Remedia"
-			})
+		} catch (error) {
+			console.error("Error opening preview window:", error)
+			alert(`Failed to open preview: ${error}`)
 		}
 	}
 
