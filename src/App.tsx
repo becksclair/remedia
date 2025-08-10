@@ -216,8 +216,8 @@ function App() {
 					console.log(`Opening preview for item ${rowIndex}:`, selectedItem)
 
 					await invoke("open_preview_window", {
-						idx: Number.parseInt(rowIndex),
-						url: `player?url=${encodeURIComponent(selectedItem.url)}`,
+						// Ensure leading slash so pathname === "/player" in src/main.tsx
+						url: `/player?url=${encodeURIComponent(selectedItem.url)}`,
 						title: selectedItem.title ? `Preview: ${selectedItem.title}` : "ReMedia Preview"
 					})
 				} else {
