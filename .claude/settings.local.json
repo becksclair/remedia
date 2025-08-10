@@ -1,12 +1,12 @@
 {
-  "permissions": {
-    "allow": [
-      "Bash(bun run:*)",
-      "Bash(bun tauri build:*)",
-      "Bash(bun tauri dev:*)",
-      "mcp__cargo-mcp__set_working_directory",
-      "mcp__cargo-mcp__cargo_check"
-    ],
-    "deny": []
-  }
+	"permissions": {
+		"allow": [
+			"Bash(bun run:*)",
+			"Bash(bun tauri build:*)",
+			"Bash(bun tauri dev:*)",
+			"mcp__cargo-mcp__set_working_directory",
+			"mcp__cargo-mcp__cargo_check"
+		],
+		"deny": []
+	}
 }
