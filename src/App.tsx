@@ -43,8 +43,6 @@ type VideoInfo = {
 	status: "Pending" | "Downloading" | "Done" | "Error"
 }
 
-
-
 function debounce(callback: () => void, delay: number) {
 	let timer: NodeJS.Timeout
 	return () => {
@@ -142,10 +140,13 @@ function App() {
 							<DropdownMenuItem onClick={() => navigator.clipboard.writeText(row.getValue("url"))}>
 								Copy URL
 							</DropdownMenuItem>
-							<DropdownMenuItem onClick={() => {
-							    // Remove the row from the mediaList
-									setMediaList(prevList => prevList.filter(item => item.title !== row.getValue("title")))
-    				  }}>
+							<DropdownMenuItem
+								onClick={() => {
+									// Remove the row from the mediaList
+									setMediaList(prevList =>
+										prevList.filter(item => item.title !== row.getValue("title"))
+									)
+								}}>
 								Delete
 							</DropdownMenuItem>
 							<DropdownMenuSeparator />
@@ -157,7 +158,7 @@ function App() {
 			},
 			id: "actions"
 		}
-]
+	]
 
 	const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
 		event.preventDefault()
@@ -210,8 +211,8 @@ function App() {
 			const selectedItem = mediaList[Number.parseInt(rowIndex)]
 			if (selectedItem?.url) {
 				invoke("open_preview_window", {
-  				idx: Number.parseInt(rowIndex),
-          url: `/player?url=${encodeURIComponent(selectedItem.url)}`
+					idx: Number.parseInt(rowIndex),
+					url: `/player?url=${encodeURIComponent(selectedItem.url)}`
 				})
 			}
 		}
@@ -219,7 +220,7 @@ function App() {
 		if (notificationPermission) {
 			sendNotification({
 				body: `Loading ${selectedRowIndices.length} media preview(s)...`,
-				title: "Remedia",
+				title: "Remedia"
 			})
 		}
 	}

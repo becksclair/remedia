@@ -17,10 +17,19 @@ pub fn run() {
     #[cfg(desktop)]
     {
         builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            let _ = app
-                .get_webview_window("main")
-                .expect("no main window")
-                .set_focus();
+            if let Some(window) = app.get_webview_window("main") {
+                if let Err(e) = window.set_focus() {
+                    eprintln!("Failed to set focus on main window: {}", e);
+                }
+                if let Err(e) = window.show() {
+                    eprintln!("Failed to show main window: {}", e);
+                }
+                if let Err(e) = window.unminimize() {
+                    eprintln!("Failed to unminimize main window: {}", e);
+                }
+            } else {
+                eprintln!("Main window not found when trying to focus on single instance");
+            }
         }));
     }
 

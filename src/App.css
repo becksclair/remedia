@@ -4,8 +4,23 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-	font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Noto Sans, Roboto, Oxygen, Ubuntu, Cantarell, Inter, Avenir, Helvetica, Arial, sans-serif;
-	--font-sans: -apple-system, BlinkMacSystemFont, Segoe UI, Noto Sans, Roboto, Oxygen, Ubuntu, Cantarell, Inter, Avenir, Helvetica, Arial, sans-serif;
+	font-family:
+		-apple-system,
+		BlinkMacSystemFont,
+		Segoe UI,
+		Noto Sans,
+		Roboto,
+		Oxygen,
+		Ubuntu,
+		Cantarell,
+		Inter,
+		Avenir,
+		Helvetica,
+		Arial,
+		sans-serif;
+	--font-sans:
+		-apple-system, BlinkMacSystemFont, Segoe UI, Noto Sans, Roboto, Oxygen, Ubuntu, Cantarell, Inter, Avenir,
+		Helvetica, Arial, sans-serif;
 	font-size: 14px;
 	--text-base: 14px;
 	--text-lg: 14px;
@@ -158,7 +173,8 @@ button {
 	* {
 		@apply border-border outline-ring/50;
 	}
-	body, #root {
+	body,
+	#root {
 		@apply bg-background text-foreground;
 		height: 100vh;
 		cursor: default;
@@ -212,10 +228,12 @@ button {
 
 	.grad-background {
 		position: relative;
-		background-image: linear-gradient(135deg,
+		background-image: linear-gradient(
+			135deg,
 			rgba(255, 105, 180, 0.1) 0%,
 			rgba(135, 206, 235, 0.1) 50%,
-			rgba(255, 255, 0, 0.1) 100%);
+			rgba(255, 255, 0, 0.1) 100%
+		);
 		background-size: 400% 400%;
 		animation: gradient-animation 15s ease infinite;
 	}

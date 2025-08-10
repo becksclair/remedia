@@ -10,14 +10,9 @@ function CustomTitleBar() {
 		<div
 			data-tauri-drag-region
 			className="custom-titlebar h-8 bg-primary text-white flex justify-between items-center px-2 py-2">
-			<div className="title text-white font-bold">
-				ReMedia
-			</div>
+			<div className="title text-white font-bold">ReMedia</div>
 			<div className="window-controls">
-				<button
-					type="button"
-          className="mr-2 border-white border-1 rounded-md p-1"
-					onClick={handleMinimize}>
+				<button type="button" className="mr-2 border-white border-1 rounded-md p-1" onClick={handleMinimize}>
 					_
 				</button>
 				<button
@@ -26,10 +21,7 @@ function CustomTitleBar() {
 					onClick={handleToggleMaximize}>
 					[]
 				</button>
-				<button
-					type="button"
-					className="mr-2 border-white border-1 rounded-md p-1"
-					onClick={handleClose}>
+				<button type="button" className="mr-2 border-white border-1 rounded-md p-1" onClick={handleClose}>
 					X
 				</button>
 			</div>
