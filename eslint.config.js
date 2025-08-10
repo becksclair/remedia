@@ -1,4 +1,4 @@
-import * as reactHooks from "eslint-plugin-react-hooks"
+import * as reactHooks from "eslint-plugin-react-hooks";
 
 export default [
 	// Flat Config (eslint 9+)
@@ -6,4 +6,4 @@ export default [
 
 	// // Legacy Config
 	// reactHooks.configs['recommended-latest']
-]
+];

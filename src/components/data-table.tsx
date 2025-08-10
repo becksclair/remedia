@@ -1,19 +1,19 @@
-import { type ColumnDef, flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { cn } from "@/lib/utils"
-import { useAtom } from "jotai"
-import { tableRowSelectionAtom } from "@/state/app-atoms"
+import { type ColumnDef, flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
+import { useAtom } from "jotai";
+import { tableRowSelectionAtom } from "@/state/app-atoms";
 
 interface DataTableProps<TData, TValue> {
-	className?: string
-	columns: ColumnDef<TData, TValue>[]
-	data: TData[]
+	className?: string;
+	columns: ColumnDef<TData, TValue>[];
+	data: TData[];
 }
 
 export function DataTable<TData, TValue>({ className, columns, data }: DataTableProps<TData, TValue>) {
-	"use no memo"
+	"use no memo";
 
-	const [rowSelection, setRowSelection] = useAtom(tableRowSelectionAtom)
+	const [rowSelection, setRowSelection] = useAtom(tableRowSelectionAtom);
 
 	const table = useReactTable({
 		columns,
@@ -23,7 +23,7 @@ export function DataTable<TData, TValue>({ className, columns, data }: DataTable
 		state: {
 			rowSelection
 		}
-	})
+	});
 
 	return (
 		<div className={cn("rounded-md border border-sidebar-ring shadow-md grad-background", className)}>
@@ -38,7 +38,7 @@ export function DataTable<TData, TValue>({ className, columns, data }: DataTable
 											? null
 											: flexRender(header.column.columnDef.header, header.getContext())}
 									</TableHead>
-								)
+								);
 							})}
 						</TableRow>
 					))}
@@ -69,5 +69,5 @@ export function DataTable<TData, TValue>({ className, columns, data }: DataTable
 				</TableBody>
 			</Table>
 		</div>
-	)
+	);
 }

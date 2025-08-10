@@ -50,7 +50,7 @@
 			"bracketSpacing": true,
 			"jsxQuoteStyle": "double",
 			"quoteProperties": "asNeeded",
-			"semicolons": "asNeeded",
+			"semicolons": "always",
 			"trailingCommas": "none"
 		}
 	},

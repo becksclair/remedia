@@ -1,37 +1,37 @@
-import React from "react"
+import React from "react";
 
 interface ErrorBoundaryState {
-	hasError: boolean
-	error: Error | null
-	errorInfo: React.ErrorInfo | null
+	hasError: boolean;
+	error: Error | null;
+	errorInfo: React.ErrorInfo | null;
 }
 
 interface ErrorBoundaryProps {
-	children: React.ReactNode
-	fallback?: React.ComponentType<ErrorFallbackProps>
+	children: React.ReactNode;
+	fallback?: React.ComponentType<ErrorFallbackProps>;
 }
 
-type ErrorFallbackProps = Readonly<{ error: Error; errorInfo: React.ErrorInfo }>
+type ErrorFallbackProps = Readonly<{ error: Error; errorInfo: React.ErrorInfo }>;
 
 class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
 	constructor(props: ErrorBoundaryProps) {
-		super(props)
-		this.state = { hasError: false, error: null, errorInfo: null }
+		super(props);
+		this.state = { hasError: false, error: null, errorInfo: null };
 	}
 
 	static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
-		return { hasError: true, error }
+		return { hasError: true, error };
 	}
 
 	componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-		console.error("ErrorBoundary caught an error:", error, errorInfo)
-		this.setState({ error, errorInfo })
+		console.error("ErrorBoundary caught an error:", error, errorInfo);
+		this.setState({ error, errorInfo });
 	}
 
 	render() {
 		if (this.state.hasError && this.state.error && this.state.errorInfo) {
-			const FallbackComponent = this.props.fallback || DefaultErrorFallback
-			return <FallbackComponent error={this.state.error} errorInfo={this.state.errorInfo} />
+			const FallbackComponent = this.props.fallback || DefaultErrorFallback;
+			return <FallbackComponent error={this.state.error} errorInfo={this.state.errorInfo} />;
 		}
 
 		if (this.state.hasError) {
@@ -39,10 +39,10 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
 				<div className="flex h-screen items-center justify-center bg-red-600 p-5 text-center text-white">
 					<h2>Something went wrong, but error details are not available</h2>
 				</div>
-			)
+			);
 		}
 
-		return this.props.children
+		return this.props.children;
 	}
 }
 
@@ -58,7 +58,7 @@ function DefaultErrorFallback({ error, errorInfo }: ErrorFallbackProps) {
 				<pre className="max-h-52 overflow-auto text-xs">{errorInfo.componentStack}</pre>
 			</details>
 		</div>
-	)
+	);
 }
 
-export default ErrorBoundary
+export default ErrorBoundary;

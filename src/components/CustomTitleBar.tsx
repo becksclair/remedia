@@ -1,10 +1,10 @@
 // src/App.tsx or a dedicated TitleBar.tsx component
-import { Window } from "@tauri-apps/api/window"
+import { Window } from "@tauri-apps/api/window";
 
 function CustomTitleBar() {
-	const handleMinimize = () => Window.getCurrent().minimize()
-	const handleToggleMaximize = () => Window.getCurrent().toggleMaximize()
-	const handleClose = () => Window.getCurrent().close()
+	const handleMinimize = () => Window.getCurrent().minimize();
+	const handleToggleMaximize = () => Window.getCurrent().toggleMaximize();
+	const handleClose = () => Window.getCurrent().close();
 
 	return (
 		<div
@@ -26,7 +26,7 @@ function CustomTitleBar() {
 				</button>
 			</div>
 		</div>
-	)
+	);
 }
 
-export { CustomTitleBar }
+export { CustomTitleBar };

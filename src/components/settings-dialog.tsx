@@ -1,9 +1,9 @@
-import { invoke } from "@tauri-apps/api/core"
-import { open as openDialog } from "@tauri-apps/plugin-dialog"
-import { useEffect, useState } from "react"
-import { AlertCircle } from "lucide-react"
+import { invoke } from "@tauri-apps/api/core";
+import { open as openDialog } from "@tauri-apps/plugin-dialog";
+import { useEffect, useState } from "react";
+import { AlertCircle } from "lucide-react";
 
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/ui/button";
 import {
 	Dialog,
 	DialogContent,
@@ -11,36 +11,36 @@ import {
 	DialogFooter,
 	DialogHeader,
 	DialogTitle
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
-import { useAtom } from "jotai"
-import { alwaysOnTopAtom, downloadLocationAtom } from "@/state/settings-atoms"
+import { useAtom } from "jotai";
+import { alwaysOnTopAtom, downloadLocationAtom } from "@/state/settings-atoms";
 
 export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
-	const [alwaysOnTop, setAlwaysOnTop] = useAtom(alwaysOnTopAtom)
-	const [isWayland, setIsWayland] = useState(false)
-	const [outputLocation, setOutputLocation] = useAtom(downloadLocationAtom)
+	const [alwaysOnTop, setAlwaysOnTop] = useAtom(alwaysOnTopAtom);
+	const [isWayland, setIsWayland] = useState(false);
+	const [outputLocation, setOutputLocation] = useAtom(downloadLocationAtom);
 
 	useEffect(() => {
 		// Check if we're running on Wayland using the Rust backend
 		invoke("is_wayland")
 			.then((value: unknown) => {
-				setIsWayland(Boolean(value))
+				setIsWayland(Boolean(value));
 			})
 			.catch(err => {
-				console.error("Failed to check Wayland status:", err)
-			})
-	}, [])
+				console.error("Failed to check Wayland status:", err);
+			});
+	}, []);
 
 	const handleAlwaysOnTopChange = async (checked: boolean | unknown) => {
-		const boolValue = Boolean(checked)
-		setAlwaysOnTop(boolValue)
-		await invoke("set_always_on_top", { alwaysOnTop: boolValue })
-	}
+		const boolValue = Boolean(checked);
+		setAlwaysOnTop(boolValue);
+		await invoke("set_always_on_top", { alwaysOnTop: boolValue });
+	};
 
 	const chooseOutputLocation = async () => {
 		const directory = await openDialog({
@@ -48,11 +48,11 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
 			directory: true,
 			multiple: false,
 			title: "Choose location to save downloads"
-		})
+		});
 		if (directory && typeof directory === "string") {
-			setOutputLocation(directory)
+			setOutputLocation(directory);
 		}
-	}
+	};
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
@@ -122,5 +122,5 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
 				</DialogFooter>
 			</DialogContent>
 		</Dialog>
-	)
+	);
 }
