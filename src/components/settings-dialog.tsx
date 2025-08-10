@@ -10,25 +10,19 @@ import {
 	DialogDescription,
 	DialogFooter,
 	DialogHeader,
-	DialogTitle,
+	DialogTitle
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 
-import { useAtom } from 'jotai'
+import { useAtom } from "jotai"
 import { alwaysOnTopAtom, downloadLocationAtom } from "@/state/settings-atoms"
 
-export function SettingsDialog({
-	open,
-	onOpenChange,
-}: {
-	open: boolean;
-	onOpenChange: (open: boolean) => void;
-}) {
-  const [alwaysOnTop, setAlwaysOnTop] = useAtom(alwaysOnTopAtom)
-  const [isWayland, setIsWayland] = useState(false)
+export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+	const [alwaysOnTop, setAlwaysOnTop] = useAtom(alwaysOnTopAtom)
+	const [isWayland, setIsWayland] = useState(false)
 	const [outputLocation, setOutputLocation] = useAtom(downloadLocationAtom)
 
 	useEffect(() => {
@@ -55,7 +49,7 @@ export function SettingsDialog({
 			multiple: false,
 			title: "Choose location to save downloads"
 		})
-		if (directory && typeof directory === 'string') {
+		if (directory && typeof directory === "string") {
 			setOutputLocation(directory)
 		}
 	}
@@ -89,20 +83,20 @@ export function SettingsDialog({
 					)}
 
 					<div className="grid grid-cols-4 items-center gap-4">
-  					<Label htmlFor="download-location" className="text-right">
-  						Download location
-  					</Label>
+						<Label htmlFor="download-location" className="text-right">
+							Download location
+						</Label>
 
-  					<Input
-  						type="text"
-  						id="download-location"
-  						className="text-sm col-span-2"
-  						placeholder="Download location..."
-  						value={outputLocation}
-  						onChange={e => setOutputLocation(e.target.value)}
-  					/>
+						<Input
+							type="text"
+							id="download-location"
+							className="text-sm col-span-2"
+							placeholder="Download location..."
+							value={outputLocation}
+							onChange={e => setOutputLocation(e.target.value)}
+						/>
 
-            <Button type="button" className="min-w-[8rem]" onClick={chooseOutputLocation}>
+						<Button type="button" className="min-w-[8rem]" onClick={chooseOutputLocation}>
 							Browse...
 						</Button>
 					</div>

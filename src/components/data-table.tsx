@@ -59,11 +59,11 @@ export function DataTable<TData, TValue>({ className, columns, data }: DataTable
 						))
 					) : (
 						<>
-						{/* <TableRow> */}
+							{/* <TableRow> */}
 							{/* <TableCell colSpan={columns.length} className="h-24 text-center"> */}
-								{/* No data available */}
+							{/* No data available */}
 							{/* </TableCell> */}
-						{/* </TableRow> */}
+							{/* </TableRow> */}
 						</>
 					)}
 				</TableBody>
