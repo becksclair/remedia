@@ -42,6 +42,15 @@ export default defineConfig(async () => ({
 		host: host || false,
 		port: 1420,
 		strictPort: true,
+		cors: {
+			origin: true, // Allow all origins
+			credentials: true
+		},
+		headers: {
+			"Access-Control-Allow-Origin": "*",
+			"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+			"Access-Control-Allow-Headers": "*"
+		},
 		watch: {
 			// 3. tell vite to ignore watching `src-tauri`
 			ignored: ["**/src-tauri/**"]
