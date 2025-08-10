@@ -38,24 +38,33 @@ pub fn open_preview_window(
     width: Option<f64>,
     height: Option<f64>,
 ) -> Result<(), String> {
-    // Determine if it's an internal asset or an external URL
+    println!("Opening preview window with URL: {}", url);
+
+    // Create the webview URL - if it starts with http/https, use external, otherwise use app routing
     let webview_url = if url.starts_with("http://") || url.starts_with("https://") {
-        WebviewUrl::External(url.parse().map_err(|e| format!("Failed to parse URL: {e}"))?)
+        WebviewUrl::External(url.parse().map_err(|e| format!("Invalid URL: {}", e))?)
     } else {
-        // Assume it's an app asset if not an external URL (e.g., "index.html", "dashboard.html")
-        WebviewUrl::App(url.into())
+        // For relative paths like "player?url=...", use app routing
+        WebviewUrl::App(format!("/{}", url.trim_start_matches('/')).into())
     };
 
-    WebviewWindowBuilder::new(
+    let window = WebviewWindowBuilder::new(
         &app,
         format!("preview-win-{idx}"), // Unique label for the new window
-        webview_url,   // This is where the magic happens!
+        webview_url,
     )
-    .title(title.unwrap_or_else(|| "Preview".to_string()))
+    .title(title.unwrap_or_else(|| "ReMedia Preview".to_string()))
     .inner_size(width.unwrap_or(800.0), height.unwrap_or(600.0))
     .min_inner_size(320.0, 200.0) // Minimum size for resizing
+    .closable(true)
+    .resizable(true)
+    .decorations(true)
     .build()
-    .map_err(|e| e.to_string())?;
+    .map_err(|e| format!("Failed to build preview window: {}", e))?;
 
+    // Open web inspector for debugging (always open for preview windows)
+    window.open_devtools();
+
+    println!("Preview window opened successfully");
     Ok(())
 }

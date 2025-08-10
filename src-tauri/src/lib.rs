@@ -1,4 +1,5 @@
 use remedia::quit;
+#[cfg(debug_assertions)]
 use tauri::Manager;
 
 mod downloader;
@@ -36,9 +37,9 @@ pub fn run() {
         }
     }
 
-    builder = builder.setup(|_app| {
-        // #[cfg(debug_assertions)] // only include this code on debug builds
-        // app.get_webview_window("main").unwrap().open_devtools();
+    builder = builder.setup(|app| {
+        #[cfg(debug_assertions)] // only include this code on debug builds
+        app.get_webview_window("main").unwrap().open_devtools();
         Ok(())
     });
 
