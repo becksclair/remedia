@@ -11,15 +11,20 @@ let tauriEventHandlers: Record<string, unknown> = {};
 declare global {
 	interface Window {
 		__E2E_emitTauriEvent?: (eventName: string, payload: unknown) => void;
+		__E2E_TESTS__?: boolean;
 	}
 }
-if (typeof window !== "undefined") {
+const __isE2E =
+	typeof window !== "undefined"
+	&& (import.meta.env?.MODE === "test"
+		|| process.env.NODE_ENV === "test"
+		|| window.__E2E_TESTS__ === true);
+if (__isE2E) {
 	window.__E2E_emitTauriEvent = (eventName: string, payload: unknown) => {
 		const handler = tauriEventHandlers[eventName] as EventCallback<unknown> | undefined;
 		if (typeof handler === "function") {
-			// Pass an object shaped like Tauri's Event<T>
-			// @ts-expect-error Minimal shape for tests
-			handler({ payload });
+			// Pass an object shaped like Tauri's Event<T> (minimal shape for tests)
+			handler({ payload } as unknown as Parameters<EventCallback<unknown>>[0]);
 		}
 	};
 }

@@ -31,7 +31,7 @@ pub fn is_wayland() -> bool {
 
 #[tauri::command]
 pub fn open_preview_window(
-    app: tauri::AppHandle,
+    app: AppHandle,
     url: String,
     title: Option<String>,
     width: Option<f64>,

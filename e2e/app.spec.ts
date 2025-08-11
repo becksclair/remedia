@@ -1,5 +1,14 @@
 import { test, expect } from "@playwright/test";
 
+// Type declarations for Tauri globals
+declare global {
+	interface Window {
+		__TAURI__?: unknown;
+		__E2E_emitTauriEvent?: (eventName: string, payload: unknown) => void;
+		__E2E_addUrl?: (url: string) => void;
+	}
+}
+
 // Helper to emit events inside the Tauri webview from tests
 async function emitTauriEvent(page: import("@playwright/test").Page, eventName: string, payload: unknown) {
 	await page.evaluate(
@@ -39,7 +48,7 @@ test.describe("ReMedia app", () => {
 		await expect(page.locator("role=progressbar").first()).toBeVisible();
 	});
 
-	test("settings persistence via Jotai storage", async ({ page, context }) => {
+	test("settings persistence via Jotai storage", async ({ page }) => {
 		await page.goto("/");
 		await page.getByRole("button", { name: "Settings" }).click();
 		await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
@@ -57,7 +66,7 @@ test.describe("ReMedia app", () => {
 	test("opens player window route for selected item (Tauri only)", async ({ page, context }) => {
 		await page.goto("/");
 
-		const isTauri = await page.evaluate(() => Boolean((window as any).__TAURI__));
+		const isTauri = await page.evaluate(() => Boolean(window.__TAURI__));
 		if (!isTauri) test.skip(true, "Skipping multi-window test outside Tauri runtime");
 
 		const url = "https://example.com/preview.mp4";
@@ -70,7 +79,7 @@ test.describe("ReMedia app", () => {
 		// Wait for a new WebView page; Playwright may see it as a new page
 		const newPage = await context.waitForEvent("page", { timeout: 10000 });
 		await newPage.waitForLoadState();
-		await expect(newPage.url()).toContain("/player?url=");
+		expect(newPage.url()).toContain("/player?url=");
 	});
 
 	test("always-on-top setting persists", async ({ page }) => {
