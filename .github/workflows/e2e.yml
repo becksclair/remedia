@@ -20,8 +20,6 @@ jobs:
 
       - name: Install dependencies
         run: bun install
-        env:
-          CI: true
 
       - name: Install Tauri dependencies for ubuntu
         if: runner.os == 'Linux'
@@ -47,6 +45,7 @@ jobs:
         run: bunx playwright install
 
       - name: Run Playwright tests
+        timeout-minutes: 30
         run: bun run test:e2e:web
 
       - name: Upload Playwright report
@@ -58,3 +57,4 @@ jobs:
             test-results
             playwright-report
           if-no-files-found: ignore
+          retention-days: 7

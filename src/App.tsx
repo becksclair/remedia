@@ -176,7 +176,7 @@ function App(): JSX.Element {
 
 	const handleDragLeave = (event: React.DragEvent<HTMLDivElement>): void => {
 		event.preventDefault();
-		debounce(() => setDragHovering(false), 300);
+		debounce(() => setDragHovering(false), 300)();
 	};
 
 	isPermissionGranted().then(granted => {
