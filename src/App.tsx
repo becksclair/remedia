@@ -35,6 +35,12 @@ import { downloadLocationAtom } from "@/state/settings-atoms";
 import { tableRowSelectionAtom } from "@/state/app-atoms";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 
+declare global {
+	interface Window {
+		__E2E_addUrl?: (url: string) => void;
+	}
+}
+
 type VideoInfo = {
 	url: string;
 	title: string;
@@ -292,6 +298,13 @@ function App() {
 			mediaIdx,
 			mediaSourceUrl: url
 		});
+	}
+
+	// Expose test helper to add URLs without drag and drop
+	if (typeof window !== "undefined") {
+		window.__E2E_addUrl = (url: string) => {
+			if (/^https?:\/\//.test(url)) addMediaUrl(url);
+		};
 	}
 
 	async function clipboardIsUrl() {

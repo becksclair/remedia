@@ -6,6 +6,24 @@ export type MediaInfoEvent = [number, string, string, string];
 
 let tauriEventHandlers: Record<string, unknown> = {};
 
+// Expose a minimal test helper to emit events during Playwright tests
+// This is safe in production; it only runs in the browser and does nothing unless called
+declare global {
+	interface Window {
+		__E2E_emitTauriEvent?: (eventName: string, payload: unknown) => void;
+	}
+}
+if (typeof window !== "undefined") {
+	window.__E2E_emitTauriEvent = (eventName: string, payload: unknown) => {
+		const handler = tauriEventHandlers[eventName] as EventCallback<unknown> | undefined;
+		if (typeof handler === "function") {
+			// Pass an object shaped like Tauri's Event<T>
+			// @ts-expect-error Minimal shape for tests
+			handler({ payload });
+		}
+	};
+}
+
 /**
  * A custom hook to easily set up multiple Tauri event listeners at once.
  *
