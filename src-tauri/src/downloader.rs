@@ -51,12 +51,12 @@ pub struct Thumbnail {
     pub preference: Option<i32>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Chapter {
-    pub title: String,
-    pub start_time: i32,
-    pub end_time: i32,
-}
+// #[derive(Debug, Serialize, Deserialize)]
+// pub struct Chapter {
+//     pub title: String,
+//     pub start_time: i32,
+//     pub end_time: i32,
+// }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Format {
@@ -81,11 +81,11 @@ pub struct Format {
     pub format: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Fragment {
-    pub url: Option<String>,
-    pub duration: Option<f64>,
-}
+// #[derive(Debug, Serialize, Deserialize)]
+// pub struct Fragment {
+//     pub url: Option<String>,
+//     pub duration: Option<f64>,
+// }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Subtitles {
