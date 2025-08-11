@@ -16,15 +16,23 @@ declare global {
 }
 const __isE2E =
 	typeof window !== "undefined"
-	&& (import.meta.env?.MODE === "test"
-		|| process.env.NODE_ENV === "test"
-		|| window.__E2E_TESTS__ === true);
+	&& (
+		(import.meta?.env?.MODE === "test"
+			|| import.meta?.env?.VITEST === "true")
+		|| (typeof process !== "undefined" && process?.env?.NODE_ENV === "test")
+		|| window.__E2E_TESTS__ === true
+	);
 if (__isE2E) {
 	window.__E2E_emitTauriEvent = (eventName: string, payload: unknown) => {
 		const handler = tauriEventHandlers[eventName] as EventCallback<unknown> | undefined;
 		if (typeof handler === "function") {
 			// Pass an object shaped like Tauri's Event<T> (minimal shape for tests)
-			handler({ payload } as unknown as Parameters<EventCallback<unknown>>[0]);
+			handler({
+				event: eventName,
+				id: Date.now(),
+				payload,
+				windowLabel: "main"
+			} as unknown as Parameters<EventCallback<unknown>>[0]);
 		}
 	};
 }
