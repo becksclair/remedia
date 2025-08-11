@@ -1,9 +1,6 @@
 import { type EventCallback, listen } from "@tauri-apps/api/event";
 import { useEffect } from "react";
 
-export type MediaProgressEvent = [number, number];
-export type MediaInfoEvent = [number, string, string, string];
-
 let tauriEventHandlers: Record<string, unknown> = {};
 
 // Expose a minimal test helper to emit events during Playwright tests
@@ -15,13 +12,11 @@ declare global {
 	}
 }
 const __isE2E =
-	typeof window !== "undefined"
-	&& (
-		(import.meta?.env?.MODE === "test"
-			|| import.meta?.env?.VITEST === "true")
-		|| (typeof process !== "undefined" && process?.env?.NODE_ENV === "test")
-		|| window.__E2E_TESTS__ === true
-	);
+	typeof window !== "undefined" &&
+	(import.meta?.env?.MODE === "test" ||
+		import.meta?.env?.VITEST === "true" ||
+		(typeof process !== "undefined" && process?.env?.NODE_ENV === "test") ||
+		window.__E2E_TESTS__ === true);
 if (__isE2E) {
 	window.__E2E_emitTauriEvent = (eventName: string, payload: unknown) => {
 		const handler = tauriEventHandlers[eventName] as EventCallback<unknown> | undefined;

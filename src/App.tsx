@@ -5,6 +5,7 @@ import { readText } from "@tauri-apps/plugin-clipboard-manager";
 import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
 
 import { useEffect, useState } from "react";
+import type { JSX } from "react";
 import { DropZone } from "./components/drop-zone.tsx";
 import { Button } from "./components/ui/button.tsx";
 import { Progress } from "./components/ui/progress.tsx";
@@ -21,7 +22,8 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontal } from "lucide-react";
 
 import { useWindowFocus } from "@/hooks/use-window-focus";
-import { type MediaInfoEvent, type MediaProgressEvent, useTauriEvents } from "@/hooks/useTauriEvent";
+import { useTauriEvents } from "@/hooks/useTauriEvent";
+import type { MediaInfoEvent, MediaProgressEvent } from "@/types";
 
 import { DataTable } from "./components/data-table.tsx";
 import { Checkbox } from "./components/ui/checkbox.tsx";
@@ -50,15 +52,15 @@ type VideoInfo = {
 	status: "Pending" | "Downloading" | "Done" | "Error";
 };
 
-function debounce(callback: () => void, delay: number) {
-	let timer: NodeJS.Timeout;
+function debounce(callback: () => void, delay: number): () => void {
+	let timer: ReturnType<typeof setTimeout> | undefined;
 	return () => {
-		clearTimeout(timer);
+		if (timer !== undefined) clearTimeout(timer);
 		timer = setTimeout(callback, delay);
 	};
 }
 
-function App() {
+function App(): JSX.Element {
 	const [notificationPermission, setNotificationPermission] = useState(false);
 	const [dragHovering, setDragHovering] = useState(false);
 	const [mediaList, setMediaList] = useState<VideoInfo[]>([]);
@@ -167,12 +169,12 @@ function App() {
 		}
 	];
 
-	const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+	const handleDragOver = (event: React.DragEvent<HTMLDivElement>): void => {
 		event.preventDefault();
 		setDragHovering(true);
 	};
 
-	const handleDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
+	const handleDragLeave = (event: React.DragEvent<HTMLDivElement>): void => {
 		event.preventDefault();
 		debounce(() => setDragHovering(false), 300);
 	};
@@ -185,7 +187,7 @@ function App() {
 		}
 	});
 
-	async function startDownload() {
+	async function startDownload(): Promise<void> {
 		setGlobalProgress(0);
 		setGlobalDownloading(true);
 
@@ -206,7 +208,7 @@ function App() {
 		}
 	}
 
-	async function preview() {
+	async function preview(): Promise<void> {
 		const selectedRowIndices = Object.keys(rowSelection).filter(key => rowSelection[key] === true);
 
 		if (selectedRowIndices.length === 0) {
@@ -262,17 +264,17 @@ function App() {
 		}
 	}
 
-	async function showSettings() {
+	async function showSettings(): Promise<void> {
 		setSettingsOpen(true);
 	}
 
-	async function quit() {
+	async function quit(): Promise<void> {
 		await invoke("quit");
 	}
 
-	const isUrl = (input: string) => /^https?:\/\//.test(input);
+	const isUrl = (input: string): boolean => /^https?:\/\//.test(input);
 
-	function addMediaUrl(url: string) {
+	function addMediaUrl(url: string): void {
 		// Check if the URL is already in the list and return if it is
 		if (mediaList.some(media => media.url === url)) {
 			console.log("URL already exists in the list");
@@ -307,7 +309,7 @@ function App() {
 		};
 	}
 
-	async function clipboardIsUrl() {
+	function clipboardIsUrl(): void {
 		// Check if the clipboard content is a URL
 		readText()
 			.then(text => {
@@ -321,7 +323,7 @@ function App() {
 			});
 	}
 
-	const updateMediaItem = (updates: Partial<VideoInfo>) => {
+	const updateMediaItem = (updates: Partial<VideoInfo>): void => {
 		if (!updates.url) return;
 
 		setMediaList(prevList => {
@@ -332,7 +334,7 @@ function App() {
 				audioOnly: false,
 				progress: 0,
 				status: "Pending",
-				title: updates.title,
+				title: updates.title ?? updates.url,
 				url: updates.url,
 				thumbnail: updates.thumbnail
 			} as VideoInfo;
@@ -341,10 +343,16 @@ function App() {
 			const idx = filtered.findIndex(item => item.title === updates.title);
 
 			if (idx !== -1) {
-				filtered[idx] = {
-					...filtered[idx],
-					...updates
-				};
+				const existing = filtered[idx];
+				if (existing) {
+					const merged: VideoInfo = {
+						...existing,
+						...updates,
+						url: existing.url,
+						title: updates.title ?? existing.title
+					};
+					filtered[idx] = merged;
+				}
 			} else {
 				filtered.push(newMedia);
 			}
@@ -353,7 +361,7 @@ function App() {
 		});
 	};
 
-	function dropHandler(input: string) {
+	function dropHandler(input: string): void {
 		setDragHovering(false);
 
 		if (isUrl(input)) {
@@ -361,23 +369,25 @@ function App() {
 		}
 	}
 
-	function handleWindowFocus() {
-		void clipboardIsUrl();
+	function handleWindowFocus(): void {
+		clipboardIsUrl();
 	}
 
-	const handleMediaInfo = ({ payload: [_mediaIdx, mediaSourceUrl, title, thumbnail] }: Event<MediaInfoEvent>) => {
+	const handleMediaInfo = ({
+		payload: [_mediaIdx, mediaSourceUrl, title, thumbnail]
+	}: Event<MediaInfoEvent>): void => {
 		updateMediaItem({ thumbnail, title, url: mediaSourceUrl });
 	};
 
-	const handleProgress = (event: Event<MediaProgressEvent>) => {
+	const handleProgress = (event: Event<MediaProgressEvent>): void => {
 		const [_mediaIdx, progress] = event.payload as MediaProgressEvent;
 		updateMediaItem({ progress });
 	};
 
-	const handleComplete = (_event: Event<number>) => {
+	const handleComplete = (_event: Event<number>): void => {
 		updateMediaItem({ progress: 100, status: "Done" });
 	};
-	const handleError = (_event: Event<number>) => {
+	const handleError = (_event: Event<number>): void => {
 		updateMediaItem({ status: "Error" });
 	};
 

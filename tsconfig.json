@@ -23,6 +23,9 @@
 
 		/* Linting */
 		"strict": true,
+		"noUncheckedIndexedAccess": true,
+		"noImplicitOverride": true,
+		"useUnknownInCatchVariables": true,
 		"target": "ES2020",
 		"useDefineForClassFields": true
 	},
