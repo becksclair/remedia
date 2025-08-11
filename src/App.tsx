@@ -447,7 +447,7 @@ function App(): JSX.Element {
 
 				<section className="flex-none flex flex-col gap-y-4">
 					<div className="my-3">
-						<Progress value={globalProgress} max={100} className="w-[100%]" />
+						<Progress data-testid="global-progress" value={globalProgress} max={100} className="w-[100%]" />
 					</div>
 
 					<div className="flex justify-center gap-x-4 mb-3">

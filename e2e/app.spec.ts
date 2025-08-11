@@ -45,7 +45,7 @@ test.describe("ReMedia app", () => {
 		// Inject progress
 		await emitTauriEvent(page, "download-progress", [0, 55]);
 		// We can't read progress bar value easily; assert presence of Progress elements
-		await expect(page.locator("role=progressbar").first()).toBeVisible();
+		expect(page.getByTestId("global-progress").waitFor({ state: "visible" }));
 	});
 
 	test("settings persistence via Jotai storage", async ({ page }) => {
