@@ -23,6 +23,18 @@ jobs:
         env:
           CI: true
 
+      - name: Install Tauri dependencies for ubuntu
+        if: runner.os == 'Linux'
+        run: sudo apt update && sudo apt install libwebkit2gtk-4.1-dev \
+          build-essential \
+          curl \
+          wget \
+          file \
+          libxdo-dev \
+          libssl-dev \
+          libayatana-appindicator3-dev \
+          librsvg2-dev
+
       - name: Install Playwright browsers (Linux)
         if: runner.os == 'Linux'
         run: bunx playwright install --with-deps
