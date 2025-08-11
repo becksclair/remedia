@@ -24,18 +24,18 @@ test.describe("ReMedia app", () => {
 		await page.goto("/");
 		await expect(page.locator(".drop-zone")).toBeVisible();
 
-		// Add URL using test helper to avoid drag-drop complexity in CI
-		const url = "https://example.com/video.mp4";
+		// Add URL using local asset served by Vite/Tauri dev server
+		const url = new URL("/daybreak.mp4", page.url()).toString();
 		await page.evaluate(url => window.__E2E_addUrl?.(url), url);
 
 		// After adding, the table should show the URL as title initially
-		await expect(page.locator("text=video.mp4")).toBeVisible();
+		await expect(page.locator("text=daybreak.mp4")).toBeVisible();
 	});
 
 	test("receives media info and progress events", async ({ page }) => {
 		await page.goto("/");
 
-		const url = "https://example.com/video2.mp4";
+		const url = new URL("/daybreak.mp4", page.url()).toString();
 		await page.evaluate(url => window.__E2E_addUrl?.(url), url);
 
 		// Inject media info event to update title and thumbnail
@@ -69,7 +69,7 @@ test.describe("ReMedia app", () => {
 		const isTauri = await page.evaluate(() => Boolean(window.__TAURI__));
 		if (!isTauri) test.skip(true, "Skipping multi-window test outside Tauri runtime");
 
-		const url = "https://example.com/preview.mp4";
+		const url = new URL("/daybreak.mp4", page.url()).toString();
 		await page.evaluate(url => window.__E2E_addUrl?.(url), url);
 
 		// Select first row via the header checkbox (select all)
@@ -87,7 +87,10 @@ test.describe("ReMedia app", () => {
 		await page.getByRole("button", { name: "Settings" }).click();
 
 		const checkbox = page.getByRole("checkbox", { name: "Stay on top" });
-		const initiallyChecked = await checkbox.isChecked().catch(() => false);
+		const initiallyChecked = await checkbox.isChecked().catch(err => {
+			console.warn("Failed to read checkbox state:", err);
+			return false;
+		});
 		await checkbox.click();
 		await page.getByRole("button", { name: "Done" }).click();
 

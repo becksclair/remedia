@@ -303,9 +303,9 @@ function App(): JSX.Element {
 	}
 
 	// Expose test helper to add URLs without drag and drop
-	if (typeof window !== "undefined") {
+	if (typeof window !== "undefined" && (process.env.NODE_ENV === "test" || process.env.NODE_ENV === "development")) {
 		window.__E2E_addUrl = (url: string) => {
-			if (/^https?:\/\//.test(url)) addMediaUrl(url);
+			if (/^https?:\/\/[^\s]{3,2000}$/.test(url)) addMediaUrl(url);
 		};
 	}
 
