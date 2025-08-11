@@ -1,5 +1,5 @@
 # This line needs to come before anything else in Cargo.toml
-cargo-features = ["codegen-backend"]
+# cargo-features = ["codegen-backend"]
 
 [package]
 name = "remedia"
@@ -28,10 +28,10 @@ name = "remedia_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { version = "2.3.1", features = [] }
+tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2.7", features = ["devtools", "unstable"] }
+tauri = { version = "2.7.0", features = ["devtools", "unstable"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
