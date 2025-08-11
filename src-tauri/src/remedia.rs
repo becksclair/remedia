@@ -1,4 +1,4 @@
-use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder, Window};
+use tauri::{AppHandle, WebviewUrl, WebviewWindowBuilder, Window};
 
 #[tauri::command]
 pub(crate) fn quit(app: AppHandle) {
