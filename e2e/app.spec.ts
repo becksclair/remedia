@@ -29,7 +29,7 @@ test.describe("ReMedia app", () => {
 		await page.evaluate(url => window.__E2E_addUrl?.(url), url);
 
 		// After adding, the table should show the URL as title initially
-		await expect(page.locator("text=daybreak.mp4")).toBeVisible();
+		await expect(page.getByRole("cell", { name: "daybreak.mp4" })).toBeVisible();
 	});
 
 	test("receives media info and progress events", async ({ page }) => {
@@ -87,10 +87,8 @@ test.describe("ReMedia app", () => {
 		await page.getByRole("button", { name: "Settings" }).click();
 
 		const checkbox = page.getByRole("checkbox", { name: "Stay on top" });
-		const initiallyChecked = await checkbox.isChecked().catch(err => {
-			console.warn("Failed to read checkbox state:", err);
-			return false;
-		});
+		await expect(checkbox).toBeVisible();
+		const initiallyChecked = await checkbox.isChecked();
 		await checkbox.click();
 		await page.getByRole("button", { name: "Done" }).click();
 
