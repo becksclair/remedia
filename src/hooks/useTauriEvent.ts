@@ -2,6 +2,22 @@ import { type EventCallback, listen } from "@tauri-apps/api/event";
 import { useEffect } from "react";
 
 let tauriEventHandlers: Record<string, unknown> = {};
+type PendingEvent = { eventName: string; payload: unknown };
+const pendingEvents: PendingEvent[] = [];
+
+function tryDeliverEvent(eventName: string, payload: unknown): boolean {
+	const handler = tauriEventHandlers[eventName] as EventCallback<unknown> | undefined;
+	if (typeof handler === "function") {
+		handler({
+			event: eventName,
+			id: Date.now(),
+			payload,
+			windowLabel: "main"
+		} as unknown as Parameters<EventCallback<unknown>>[0]);
+		return true;
+	}
+	return false;
+}
 
 // Expose a minimal test helper to emit events during Playwright tests
 // This is safe in production; it only runs in the browser and does nothing unless called
@@ -11,24 +27,13 @@ declare global {
 		__E2E_TESTS__?: boolean;
 	}
 }
-const __isE2E =
-	typeof window !== "undefined" &&
-	(import.meta?.env?.MODE === "test" ||
-		import.meta?.env?.VITEST === "true" ||
-		(typeof process !== "undefined" && process?.env?.NODE_ENV === "test") ||
-		window.__E2E_TESTS__ === true);
-if (__isE2E) {
+
+// Always expose an event injection helper. It is a no-op unless tests call it
+// and relevant handlers have been registered via useTauriEvents.
+if (typeof window !== "undefined") {
 	window.__E2E_emitTauriEvent = (eventName: string, payload: unknown) => {
-		const handler = tauriEventHandlers[eventName] as EventCallback<unknown> | undefined;
-		if (typeof handler === "function") {
-			// Pass an object shaped like Tauri's Event<T> (minimal shape for tests)
-			handler({
-				event: eventName,
-				id: Date.now(),
-				payload,
-				windowLabel: "main"
-			} as unknown as Parameters<EventCallback<unknown>>[0]);
-		}
+		const delivered = tryDeliverEvent(eventName, payload);
+		if (!delivered) pendingEvents.push({ eventName, payload });
 	};
 }
 
@@ -52,6 +57,14 @@ function useTauriEvents(eventHandlers: Record<string, unknown>) {
 					console.log(`Registered listener for ${eventName}`);
 				} catch (error) {
 					console.error(`Failed to listen to Tauri event '${eventName}':`, error);
+				}
+			}
+
+			// Flush any pending injected events from tests
+			if (pendingEvents.length > 0) {
+				const toProcess = pendingEvents.splice(0, pendingEvents.length);
+				for (const { eventName, payload } of toProcess) {
+					tryDeliverEvent(eventName, payload);
 				}
 			}
 		};
