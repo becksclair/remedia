@@ -36,8 +36,7 @@ jobs:
             libayatana-appindicator3-dev \
             librsvg2-dev
 
-      - name: Install Playwright browsers (Linux)
-        if: runner.os == 'Linux'
+      - name: Install Playwright browsers
         run: bunx playwright install --with-deps
 
       - name: Cache Playwright browsers
@@ -45,10 +44,6 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('package.json') }}
-
-      - name: Install Playwright browsers (Windows)
-        if: runner.os == 'Windows'
-        run: bunx playwright install
 
       - name: Run Playwright tests
         timeout-minutes: 30
