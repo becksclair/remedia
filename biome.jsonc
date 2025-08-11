@@ -12,7 +12,8 @@
 			"!**/src/components/ui/*",
 			"!**/src/components/ui/**/*",
 			"!**/src-tauri/gen/**/*",
-			"!**/src-tauri/.cargo/**/*"
+			"!**/src-tauri/.cargo/**/*",
+			"e2e/**/*.ts"
 		]
 	},
 	"formatter": {

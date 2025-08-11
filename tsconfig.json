@@ -23,9 +23,12 @@
 
 		/* Linting */
 		"strict": true,
+		"noUncheckedIndexedAccess": true,
+		"noImplicitOverride": true,
+		"useUnknownInCatchVariables": true,
 		"target": "ES2020",
 		"useDefineForClassFields": true
 	},
-	"include": ["src"],
+	"include": ["src", "e2e", "playwright.config.ts"],
 	"references": [{ "path": "./tsconfig.node.json" }]
 }

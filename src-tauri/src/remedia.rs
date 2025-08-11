@@ -1,4 +1,4 @@
-use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder, Window};
+use tauri::{AppHandle, WebviewUrl, WebviewWindowBuilder, Window};
 
 #[tauri::command]
 pub(crate) fn quit(app: AppHandle) {
@@ -31,7 +31,7 @@ pub fn is_wayland() -> bool {
 
 #[tauri::command]
 pub fn open_preview_window(
-    app: tauri::AppHandle,
+    app: AppHandle,
     url: String,
     title: Option<String>,
     width: Option<f64>,
