@@ -1,5 +1,5 @@
 // #[cfg(debug_assertions)]
-// use tauri::Manager;
+use tauri::Manager;
 use remedia::quit;
 
 mod downloader;
