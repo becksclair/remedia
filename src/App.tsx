@@ -361,6 +361,24 @@ function App(): JSX.Element {
 		});
 	};
 
+	// Index-based updater for progress + status events coming from Rust.
+	const updateMediaItemByIndex = (index: number, updates: Partial<VideoInfo>): void => {
+		setMediaList(prev => {
+			if (index < 0 || index >= prev.length) return prev;
+			const next = [...prev];
+			const existing = next[index];
+			if (!existing) return prev;
+			next[index] = {
+				...existing,
+				...updates,
+				// Preserve original identifying fields if not explicitly changed
+				title: updates.title ?? existing.title,
+				url: existing.url
+			};
+			return next;
+		});
+	};
+
 	function dropHandler(input: string): void {
 		setDragHovering(false);
 
@@ -380,15 +398,18 @@ function App(): JSX.Element {
 	};
 
 	const handleProgress = (event: Event<MediaProgressEvent>): void => {
-		const [_mediaIdx, progress] = event.payload as MediaProgressEvent;
-		updateMediaItem({ progress });
+		const [mediaIdx, progress] = event.payload as MediaProgressEvent;
+		// Clamp progress 0-100, set status to Downloading
+		updateMediaItemByIndex(mediaIdx, { progress: Math.min(100, Math.max(0, progress)), status: "Downloading" });
 	};
 
-	const handleComplete = (_event: Event<number>): void => {
-		updateMediaItem({ progress: 100, status: "Done" });
+	const handleComplete = (event: Event<number>): void => {
+		const mediaIdx = event.payload;
+		updateMediaItemByIndex(mediaIdx, { progress: 100, status: "Done" });
 	};
-	const handleError = (_event: Event<number>): void => {
-		updateMediaItem({ status: "Error" });
+	const handleError = (event: Event<number>): void => {
+		const mediaIdx = event.payload;
+		updateMediaItemByIndex(mediaIdx, { status: "Error" });
 	};
 
 	useWindowFocus(handleWindowFocus);
