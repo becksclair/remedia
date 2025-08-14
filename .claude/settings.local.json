@@ -1,13 +1,16 @@
 {
-	"permissions": {
-		"allow": [
-			"Bash(bun run:*)",
-			"Bash(bun tauri build:*)",
-			"Bash(bun tauri dev:*)",
-			"mcp__cargo-mcp__set_working_directory",
-			"mcp__cargo-mcp__cargo_check",
-			"mcp__context7__resolve-library-id"
-		],
-		"deny": []
-	}
+  "permissions": {
+    "allow": [
+      "Bash(bun run:*)",
+      "Bash(bun tauri build:*)",
+      "Bash(bun tauri dev:*)",
+      "mcp__cargo-mcp__set_working_directory",
+      "mcp__cargo-mcp__cargo_check",
+      "mcp__context7__resolve-library-id",
+      "mcp__screenshot__list_running_apps",
+      "mcp__screenshot__take_screenshot"
+    ],
+    "deny": [],
+    "defaultMode": "acceptEdits"
+  }
 }

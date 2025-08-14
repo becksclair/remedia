@@ -54,7 +54,7 @@ useTauriEvents({
 ### Commands
 
 - `bun run dev` - Start frontend dev server (port 1420)
-- `bun tauri dev` - Start full Tauri development with hot reload
+- `bun tauri dev` - Start full Tauri development with hot reload, required for testing and screenshots
 - `bun run build` - Build frontend for production
 - `bun tauri build` - Build complete application
 - `bun run check` - Run Biome linter/formatter
