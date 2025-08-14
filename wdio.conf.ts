@@ -1,7 +1,7 @@
-import { spawn, spawnSync } from "child_process";
-import { resolve } from "path";
-import { homedir } from "os";
-import type { ChildProcess } from "child_process";
+import { spawn } from "node:child_process";
+import { resolve } from "node:path";
+import { homedir } from "node:os";
+import type { ChildProcess } from "node:child_process";
 
 // keep track of the `tauri-driver` child process
 let tauriDriver: ChildProcess;
