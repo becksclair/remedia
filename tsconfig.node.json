@@ -1,6 +1,8 @@
 {
 	"compilerOptions": {
+		"strict": true,
 		"allowSyntheticDefaultImports": true,
+		"forceConsistentCasingInFileNames": true,
 		"composite": true,
 		"module": "ESNext",
 		"moduleResolution": "bundler",

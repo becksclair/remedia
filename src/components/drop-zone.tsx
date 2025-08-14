@@ -22,6 +22,7 @@ function DropZone({ className, dropHandler, dragHovering }: React.ComponentProps
 	return (
 		// biome-ignore lint/a11y/noStaticElementInteractions: This is a drop zone for drag-and-drop
 		<div
+			data-testid="drop-zone"
 			className={cn(
 				`min-h-[18rem] p-[4rem] text-center text-2xl drop-zone ${dragHovering ? "hover" : ""}`,
 				className
