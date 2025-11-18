@@ -47,6 +47,8 @@ pub fn run() {
     builder = builder.invoke_handler(tauri::generate_handler![
         downloader::get_media_info,
         downloader::download_media,
+        downloader::cancel_download,
+        downloader::cancel_all_downloads,
         remedia::set_always_on_top,
         remedia::is_wayland,
         remedia::open_preview_window,

@@ -1,16 +1,26 @@
+use std::collections::HashMap;
 use std::io::BufRead;
 use std::io::BufReader;
 use std::io::Read;
 use std::path;
-use std::process::Command;
+use std::process::{Child, Command};
 use std::process::Stdio;
+use std::sync::Mutex;
 
+use once_cell::sync::Lazy;
 use serde::Deserialize;
 use serde_json::Value;
 use tauri::async_runtime::spawn;
 use tauri::AppHandle;
 use tauri::Emitter;
 use tauri::Window;
+
+// Download Manager: Track cancellation flags for active downloads
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+
+static DOWNLOAD_CANCEL_FLAGS: Lazy<Mutex<HashMap<i32, Arc<AtomicBool>>>> =
+    Lazy::new(|| Mutex::new(HashMap::new()));
 
 // Download settings from frontend (Phase 3.3)
 #[derive(Debug, Deserialize)]
@@ -312,6 +322,13 @@ pub fn download_media(
     let window = window.clone();
 
     spawn(async move {
+        // Register cancellation flag for this download
+        let cancel_flag = Arc::new(AtomicBool::new(false));
+        {
+            let mut flags = DOWNLOAD_CANCEL_FLAGS.lock().unwrap();
+            flags.insert(media_idx, cancel_flag.clone());
+        }
+
         // Robust output template: include ID for uniqueness, handle playlists
         let output_format = format!(
             "{}{}{}",
@@ -403,28 +420,102 @@ pub fn download_media(
             }
         });
 
-        // Wait for the child process to exit
-        let status = match child.wait() {
-            Ok(status) => status,
-            Err(e) => {
-                eprintln!("Failed to wait on yt-dlp: {}", e);
-                if let Err(emit_err) = window.emit("download-error", media_idx) {
-                    eprintln!("Failed to emit download error: {}", emit_err);
+        // Wait for the child process to exit, checking for cancellation
+        use std::thread;
+        use std::time::Duration;
+
+        let mut cancelled = false;
+        let status = loop {
+            // Check cancellation flag
+            if cancel_flag.load(Ordering::Relaxed) {
+                eprintln!("Cancelling download for media_idx {}", media_idx);
+                cancelled = true;
+
+                // Kill the child process
+                if let Err(e) = child.kill() {
+                    eprintln!("Failed to kill yt-dlp process: {}", e);
                 }
-                return;
+
+                break None;
+            }
+
+            // Check if process has finished
+            match child.try_wait() {
+                Ok(Some(status)) => break Some(status),
+                Ok(None) => {
+                    // Still running, sleep briefly
+                    thread::sleep(Duration::from_millis(100));
+                }
+                Err(e) => {
+                    eprintln!("Error checking process status: {}", e);
+                    if let Err(emit_err) = window.emit("download-error", media_idx) {
+                        eprintln!("Failed to emit download error: {}", emit_err);
+                    }
+                    break None;
+                }
             }
         };
 
-        if status.success() {
-            if let Err(e) = window.emit("download-complete", media_idx) {
-                eprintln!("Failed to emit download-complete: {}", e);
+        // Clean up cancellation flag
+        {
+            let mut flags = DOWNLOAD_CANCEL_FLAGS.lock().unwrap();
+            flags.remove(&media_idx);
+        }
+
+        // Emit appropriate event based on outcome
+        if cancelled {
+            if let Err(e) = window.emit("download-cancelled", media_idx) {
+                eprintln!("Failed to emit download-cancelled: {}", e);
             }
-        } else {
-            if let Err(e) = window.emit("download-error", media_idx) {
-                eprintln!("Failed to emit download-error: {}", e);
+        } else if let Some(status) = status {
+            if status.success() {
+                if let Err(e) = window.emit("download-complete", media_idx) {
+                    eprintln!("Failed to emit download-complete: {}", e);
+                }
+            } else {
+                if let Err(e) = window.emit("download-error", media_idx) {
+                    eprintln!("Failed to emit download-error: {}", e);
+                }
             }
         }
     });
+}
+
+// Phase 4: Cancellation support
+#[tauri::command]
+pub fn cancel_download(window: Window, media_idx: i32) {
+    let mut flags = DOWNLOAD_CANCEL_FLAGS.lock().unwrap();
+
+    if let Some(flag) = flags.get(&media_idx) {
+        flag.store(true, Ordering::Relaxed);
+        eprintln!("Cancellation requested for media_idx {}", media_idx);
+
+        // Emit cancelled event immediately
+        if let Err(e) = window.emit("download-cancelled", media_idx) {
+            eprintln!("Failed to emit download-cancelled: {}", e);
+        }
+    } else {
+        eprintln!("No active download found for media_idx {}", media_idx);
+    }
+}
+
+#[tauri::command]
+pub fn cancel_all_downloads(window: Window) {
+    let mut flags = DOWNLOAD_CANCEL_FLAGS.lock().unwrap();
+
+    eprintln!("Cancelling all {} active downloads", flags.len());
+
+    for (media_idx, flag) in flags.iter() {
+        flag.store(true, Ordering::Relaxed);
+
+        // Emit cancelled event for each
+        if let Err(e) = window.emit("download-cancelled", *media_idx) {
+            eprintln!("Failed to emit download-cancelled for {}: {}", media_idx, e);
+        }
+    }
+
+    // Clear all flags
+    flags.clear();
 }
 
 #[cfg(test)]
