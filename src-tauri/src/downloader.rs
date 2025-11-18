@@ -236,10 +236,38 @@ pub fn download_media(
         cmd.stdout(Stdio::piped())
            .stderr(Stdio::piped());
 
-        let mut child = cmd.spawn().expect("Failed to spawn yt-dlp");
+        let mut child = match cmd.spawn() {
+            Ok(child) => child,
+            Err(e) => {
+                eprintln!("Failed to spawn yt-dlp: {}", e);
+                if let Err(emit_err) = window.emit("download-error", media_idx) {
+                    eprintln!("Failed to emit download error: {}", emit_err);
+                }
+                return;
+            }
+        };
 
-        let stdout = child.stdout.take().expect("Failed to open stdout");
-        let stderr = child.stderr.take().expect("Failed to open stderr");
+        let stdout = match child.stdout.take() {
+            Some(stdout) => stdout,
+            None => {
+                eprintln!("Failed to capture stdout from yt-dlp");
+                if let Err(e) = window.emit("download-error", media_idx) {
+                    eprintln!("Failed to emit download error: {}", e);
+                }
+                return;
+            }
+        };
+
+        let stderr = match child.stderr.take() {
+            Some(stderr) => stderr,
+            None => {
+                eprintln!("Failed to capture stderr from yt-dlp");
+                if let Err(e) = window.emit("download-error", media_idx) {
+                    eprintln!("Failed to emit download error: {}", e);
+                }
+                return;
+            }
+        };
 
         let out_reader = BufReader::new(stdout);
         let err_reader = BufReader::new(stderr);
@@ -268,11 +296,25 @@ pub fn download_media(
         });
 
         // Wait for the child process to exit
-        let status = child.wait().expect("Failed to wait on yt-dlp");
+        let status = match child.wait() {
+            Ok(status) => status,
+            Err(e) => {
+                eprintln!("Failed to wait on yt-dlp: {}", e);
+                if let Err(emit_err) = window.emit("download-error", media_idx) {
+                    eprintln!("Failed to emit download error: {}", emit_err);
+                }
+                return;
+            }
+        };
+
         if status.success() {
-            window.emit("download-complete", media_idx).unwrap();
+            if let Err(e) = window.emit("download-complete", media_idx) {
+                eprintln!("Failed to emit download-complete: {}", e);
+            }
         } else {
-            window.emit("download-error", media_idx).unwrap();
+            if let Err(e) = window.emit("download-error", media_idx) {
+                eprintln!("Failed to emit download-error: {}", e);
+            }
         }
     });
 }
