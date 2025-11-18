@@ -360,4 +360,69 @@ test.describe("ReMedia app", () => {
 		// Note: This test may need backend mocking for full validation
 		await expect(page.getByRole("cell", { name: "Downloading" }).first()).toBeVisible({ timeout: 3000 });
 	});
+
+	// Phase 4: Cancellation Tests
+	test("cancel button appears during download", async ({ page }) => {
+		await page.goto("/");
+
+		const url = "https://example.com/video1";
+		await page.evaluate(url => window.__E2E_addUrl?.(url), url);
+
+		// Start download by simulating progress event
+		await emitTauriEvent(page, "download-progress", [0, 25]);
+
+		// Cancel button should be visible
+		await expect(page.getByRole("button", { name: "Cancel" })).toBeVisible();
+		await expect(page.getByRole("button", { name: "Download" })).toBeDisabled();
+	});
+
+	test("cancel all stops all downloads", async ({ page }) => {
+		await page.goto("/");
+
+		// Add multiple URLs
+		const urls = ["https://example.com/video1", "https://example.com/video2"];
+		for (const url of urls) {
+			await page.evaluate(url => window.__E2E_addUrl?.(url), url);
+		}
+
+		// Simulate downloads in progress
+		await emitTauriEvent(page, "download-progress", [0, 25]);
+		await emitTauriEvent(page, "download-progress", [1, 50]);
+
+		// Click Cancel button (this should trigger cancel all)
+		await page.getByRole("button", { name: "Cancel" }).click();
+
+		// Both items should show "Cancelled" status
+		await expect(page.getByRole("cell", { name: "Cancelled" }).first()).toBeVisible({ timeout: 2000 });
+	});
+
+	test("cancel all menu item stops all downloads", async ({ page }) => {
+		await page.goto("/");
+
+		const url = "https://example.com/video1";
+		await page.evaluate(url => window.__E2E_addUrl?.(url), url);
+
+		// Simulate download in progress
+		await emitTauriEvent(page, "download-progress", [0, 25]);
+
+		// Right-click and select "Cancel All"
+		await page.getByRole("row").filter({ hasText: "video1" }).click({ button: "right" });
+		await page.getByRole("menuitem", { name: "Cancel All" }).click();
+
+		// Status should update to "Cancelled"
+		await expect(page.getByRole("cell", { name: "Cancelled" })).toBeVisible({ timeout: 2000 });
+	});
+
+	test("cancelled downloads emit cancelled event", async ({ page }) => {
+		await page.goto("/");
+
+		const url = "https://example.com/video1";
+		await page.evaluate(url => window.__E2E_addUrl?.(url), url);
+
+		// Emit download-cancelled event
+		await emitTauriEvent(page, "download-cancelled", 0);
+
+		// Status should update to "Cancelled"
+		await expect(page.getByRole("cell", { name: "Cancelled" })).toBeVisible();
+	});
 });
