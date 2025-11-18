@@ -44,6 +44,16 @@ export interface TauriCommands {
 	cancelAllDownloads(): Promise<void>;
 
 	/**
+	 * Set maximum number of concurrent downloads
+	 */
+	setMaxConcurrentDownloads(maxConcurrent: number): Promise<void>;
+
+	/**
+	 * Get current queue status (queued, active, max_concurrent)
+	 */
+	getQueueStatus(): Promise<[number, number, number]>;
+
+	/**
 	 * Quit the application
 	 */
 	quit(): Promise<void>;
@@ -177,6 +187,15 @@ class RealTauriApi implements TauriApi {
 
 		async cancelAllDownloads(): Promise<void> {
 			await tauriInvoke("cancel_all_downloads");
+		},
+
+		async setMaxConcurrentDownloads(maxConcurrent: number): Promise<void> {
+			await tauriInvoke("set_max_concurrent_downloads", { maxConcurrent });
+		},
+
+		async getQueueStatus(): Promise<[number, number, number]> {
+			const result = await tauriInvoke<[number, number, number]>("get_queue_status");
+			return result;
 		},
 
 		async quit(): Promise<void> {

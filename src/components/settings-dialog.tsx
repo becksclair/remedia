@@ -1,4 +1,3 @@
-import { invoke } from "@tauri-apps/api/core";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { useEffect, useState } from "react";
 import { AlertCircle } from "lucide-react";
@@ -34,10 +33,13 @@ import {
 	maxResolutionAtom,
 	videoFormatAtom,
 	audioFormatAtom,
-	audioQualityAtom
+	audioQualityAtom,
+	maxConcurrentDownloadsAtom
 } from "@/state/settings-atoms";
+import { useTauriApi } from "@/lib/TauriApiContext";
 
 export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+	const tauriApi = useTauriApi();
 	const [alwaysOnTop, setAlwaysOnTop] = useAtom(alwaysOnTopAtom);
 	const [isWayland, setIsWayland] = useState(false);
 	const [outputLocation, setOutputLocation] = useAtom(downloadLocationAtom);
@@ -49,22 +51,34 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
 	const [videoFormat, setVideoFormat] = useAtom(videoFormatAtom);
 	const [audioFormat, setAudioFormat] = useAtom(audioFormatAtom);
 	const [audioQuality, setAudioQuality] = useAtom(audioQualityAtom);
+	const [maxConcurrentDownloads, setMaxConcurrentDownloads] = useAtom(maxConcurrentDownloadsAtom);
 
 	useEffect(() => {
 		// Check if we're running on Wayland using the Rust backend
-		invoke("is_wayland")
-			.then((value: unknown) => {
-				setIsWayland(Boolean(value));
+		tauriApi.commands
+			.isWayland()
+			.then(value => {
+				setIsWayland(value);
 			})
 			.catch(err => {
 				console.error("Failed to check Wayland status:", err);
 			});
-	}, []);
+	}, [tauriApi.commands]);
 
 	const handleAlwaysOnTopChange = async (checked: unknown) => {
 		const boolValue = Boolean(checked);
 		setAlwaysOnTop(boolValue);
-		await invoke("set_always_on_top", { alwaysOnTop: boolValue });
+		await tauriApi.commands.setAlwaysOnTop(boolValue);
+	};
+
+	const handleMaxConcurrentChange = async (value: string) => {
+		const numValue = Number.parseInt(value, 10);
+		setMaxConcurrentDownloads(numValue);
+		try {
+			await tauriApi.commands.setMaxConcurrentDownloads(numValue);
+		} catch (err) {
+			console.error("Failed to update max concurrent downloads:", err);
+		}
 	};
 
 	const chooseOutputLocation = async () => {
@@ -124,6 +138,30 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
 						<Button type="button" className="min-w-32" onClick={chooseOutputLocation}>
 							Browse...
 						</Button>
+					</div>
+
+					{/* Max concurrent downloads */}
+					<div className="grid grid-cols-4 items-center gap-4">
+						<Label htmlFor="max-concurrent" className="text-right">
+							Concurrent downloads
+						</Label>
+						<Select
+							value={maxConcurrentDownloads.toString()}
+							onValueChange={handleMaxConcurrentChange}>
+							<SelectTrigger id="max-concurrent" className="col-span-3">
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="1">1 (Sequential)</SelectItem>
+								<SelectItem value="2">2</SelectItem>
+								<SelectItem value="3">3 (Default)</SelectItem>
+								<SelectItem value="4">4</SelectItem>
+								<SelectItem value="5">5</SelectItem>
+								<SelectItem value="6">6</SelectItem>
+								<SelectItem value="8">8</SelectItem>
+								<SelectItem value="10">10</SelectItem>
+							</SelectContent>
+						</Select>
 					</div>
 
 					<Separator />

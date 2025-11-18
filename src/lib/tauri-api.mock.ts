@@ -78,6 +78,10 @@ export const mockState = {
 	// Simulated dialog result
 	dialogResult: null as string | string[] | null,
 
+	// Download queue state
+	queuedDownloads: [] as number[],
+	maxConcurrentDownloads: 3,
+
 	/**
 	 * Reset mock state between tests
 	 */
@@ -89,6 +93,8 @@ export const mockState = {
 		this.isWayland = false;
 		this.notificationPermission = "granted";
 		this.dialogResult = null;
+		this.queuedDownloads = [];
+		this.maxConcurrentDownloads = 3;
 		mockEventListeners.clear();
 	},
 
@@ -166,6 +172,26 @@ class MockCommands implements TauriCommands {
 			mockState.emitEvent("download-cancelled", mediaIdx);
 		});
 		mockState.activeDownloads.clear();
+	}
+
+	async setMaxConcurrentDownloads(maxConcurrent: number): Promise<void> {
+		mockState.commandCalls.push({
+			command: "set_max_concurrent_downloads",
+			args: { maxConcurrent }
+		});
+		mockState.maxConcurrentDownloads = maxConcurrent;
+	}
+
+	async getQueueStatus(): Promise<[number, number, number]> {
+		mockState.commandCalls.push({
+			command: "get_queue_status",
+			args: {}
+		});
+		// Return [queued, active, max_concurrent]
+		const queued = mockState.queuedDownloads.length;
+		const active = mockState.activeDownloads.size;
+		const maxConcurrent = mockState.maxConcurrentDownloads;
+		return [queued, active, maxConcurrent];
 	}
 
 	async quit(): Promise<void> {

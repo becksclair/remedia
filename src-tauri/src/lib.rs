@@ -50,6 +50,8 @@ pub fn run() {
         downloader::download_media,
         downloader::cancel_download,
         downloader::cancel_all_downloads,
+        downloader::set_max_concurrent_downloads,
+        downloader::get_queue_status,
         remedia::set_always_on_top,
         remedia::is_wayland,
         remedia::open_preview_window,

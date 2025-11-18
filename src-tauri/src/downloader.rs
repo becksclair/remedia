@@ -8,12 +8,14 @@ use std::process::Stdio;
 use std::sync::Mutex;
 
 use once_cell::sync::Lazy;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tauri::async_runtime::spawn;
 use tauri::AppHandle;
 use tauri::Emitter;
 use tauri::Window;
+
+use crate::download_queue::{get_queue, QueuedDownload, DownloadStatus};
 
 // Download Manager: Track cancellation flags for active downloads
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -34,7 +36,7 @@ static DOWNLOAD_CANCEL_FLAGS: Lazy<Mutex<HashMap<i32, Arc<AtomicBool>>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
 
 // Download settings from frontend (Phase 3.3)
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct DownloadSettings {
     download_mode: String,    // "video" | "audio"
@@ -287,52 +289,53 @@ pub async fn get_media_info(
     Ok(())
 }
 
-// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-#[tauri::command]
-pub fn download_media(
-    _app: AppHandle,
+/// Process the queue and start next available download
+fn process_queue(window: Window) {
+    let mut queue = get_queue().lock().unwrap();
+
+    // Try to start next download if slots available
+    if let Some(queued_download) = queue.next_to_start() {
+        // Deserialize settings from JSON
+        let settings: DownloadSettings = match serde_json::from_str(&queued_download.settings) {
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!("Failed to deserialize settings for media {}: {}", queued_download.media_idx, e);
+                if let Err(emit_err) = window.emit("download-error", queued_download.media_idx) {
+                    eprintln!("Failed to emit download error: {}", emit_err);
+                }
+                queue.fail(queued_download.media_idx);
+                return;
+            }
+        };
+
+        // Emit download-started event
+        if let Err(e) = window.emit("download-started", queued_download.media_idx) {
+            eprintln!("Failed to emit download-started: {}", e);
+        }
+
+        // Start the download
+        execute_download(
+            window,
+            queued_download.media_idx,
+            queued_download.url,
+            queued_download.output_location,
+            settings,
+        );
+    }
+}
+
+/// Execute a download (called by queue processor)
+fn execute_download(
     window: Window,
     media_idx: i32,
     media_source_url: String,
     output_location: String,
     settings: DownloadSettings,
 ) {
-    // Validate inputs at boundary
-    if let Err(e) = validate_url(&media_source_url) {
-        eprintln!("URL validation failed: {}", e);
-        if let Err(emit_err) = window.emit("download-error", media_idx) {
-            eprintln!("Failed to emit download error: {}", emit_err);
-        }
-        return;
-    }
-
-    if let Err(e) = validate_output_location(&output_location) {
-        eprintln!("Output location validation failed: {}", e);
-        if let Err(emit_err) = window.emit("download-error", media_idx) {
-            eprintln!("Failed to emit download error: {}", emit_err);
-        }
-        return;
-    }
-
-    if let Err(e) = validate_settings(&settings) {
-        eprintln!("Settings validation failed: {}", e);
-        if let Err(emit_err) = window.emit("download-error", media_idx) {
-            eprintln!("Failed to emit download error: {}", emit_err);
-        }
-        return;
-    }
-
-    if media_idx < 0 {
-        eprintln!("Invalid media index: {}", media_idx);
-        if let Err(emit_err) = window.emit("download-error", media_idx) {
-            eprintln!("Failed to emit download error: {}", emit_err);
-        }
-        return;
-    }
-
-    let window = window.clone();
+    let window_clone = window.clone();
 
     spawn(async move {
+        let window = window_clone;
         // Register cancellation flag for this download
         let cancel_flag = Arc::new(AtomicBool::new(false));
         {
@@ -478,18 +481,112 @@ pub fn download_media(
             if let Err(e) = window.emit("download-cancelled", media_idx) {
                 eprintln!("Failed to emit download-cancelled: {}", e);
             }
+            // Mark as cancelled in queue
+            get_queue().lock().unwrap().cancel(media_idx);
         } else if let Some(status) = status {
             if status.success() {
                 if let Err(e) = window.emit("download-complete", media_idx) {
                     eprintln!("Failed to emit download-complete: {}", e);
                 }
+                // Mark as completed in queue
+                get_queue().lock().unwrap().complete(media_idx);
             } else {
                 if let Err(e) = window.emit("download-error", media_idx) {
                     eprintln!("Failed to emit download-error: {}", e);
                 }
+                // Mark as failed in queue
+                get_queue().lock().unwrap().fail(media_idx);
             }
         }
+
+        // Try to start next download from queue
+        process_queue(window);
     });
+}
+
+// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
+#[tauri::command]
+pub fn download_media(
+    _app: AppHandle,
+    window: Window,
+    media_idx: i32,
+    media_source_url: String,
+    output_location: String,
+    settings: DownloadSettings,
+) {
+    // Validate inputs at boundary
+    if let Err(e) = validate_url(&media_source_url) {
+        eprintln!("URL validation failed: {}", e);
+        if let Err(emit_err) = window.emit("download-error", media_idx) {
+            eprintln!("Failed to emit download error: {}", emit_err);
+        }
+        return;
+    }
+
+    if let Err(e) = validate_output_location(&output_location) {
+        eprintln!("Output location validation failed: {}", e);
+        if let Err(emit_err) = window.emit("download-error", media_idx) {
+            eprintln!("Failed to emit download error: {}", emit_err);
+        }
+        return;
+    }
+
+    if let Err(e) = validate_settings(&settings) {
+        eprintln!("Settings validation failed: {}", e);
+        if let Err(emit_err) = window.emit("download-error", media_idx) {
+            eprintln!("Failed to emit download error: {}", emit_err);
+        }
+        return;
+    }
+
+    if media_idx < 0 {
+        eprintln!("Invalid media index: {}", media_idx);
+        if let Err(emit_err) = window.emit("download-error", media_idx) {
+            eprintln!("Failed to emit download error: {}", emit_err);
+        }
+        return;
+    }
+
+    // Serialize settings to JSON for queue storage
+    let settings_json = match serde_json::to_string(&settings) {
+        Ok(json) => json,
+        Err(e) => {
+            eprintln!("Failed to serialize settings: {}", e);
+            if let Err(emit_err) = window.emit("download-error", media_idx) {
+                eprintln!("Failed to emit download error: {}", emit_err);
+            }
+            return;
+        }
+    };
+
+    // Create queued download
+    let queued_download = QueuedDownload {
+        media_idx,
+        url: media_source_url.clone(),
+        output_location: output_location.clone(),
+        settings: settings_json,
+        status: DownloadStatus::Queued,
+    };
+
+    // Enqueue the download
+    {
+        let mut queue = get_queue().lock().unwrap();
+        if let Err(e) = queue.enqueue(queued_download) {
+            eprintln!("Failed to enqueue download: {}", e);
+            if let Err(emit_err) = window.emit("download-error", media_idx) {
+                eprintln!("Failed to emit download error: {}", emit_err);
+            }
+            return;
+        }
+    }
+
+    // Emit download-queued event
+    if let Err(e) = window.emit("download-queued", media_idx) {
+        eprintln!("Failed to emit download-queued: {}", e);
+    }
+
+    // Try to start next download from queue
+    process_queue(window);
 }
 
 // Phase 4: Cancellation support
@@ -512,10 +609,18 @@ pub fn cancel_download(window: Window, media_idx: i32) {
 
 #[tauri::command]
 pub fn cancel_all_downloads(window: Window) {
+    // Cancel all downloads in queue (both queued and active)
+    let cancelled_indices = {
+        let mut queue = get_queue().lock().unwrap();
+        queue.cancel_all()
+    };
+
+    // Set cancellation flags for active downloads
     let mut flags = DOWNLOAD_CANCEL_FLAGS.lock().unwrap();
 
-    eprintln!("Cancelling all {} active downloads", flags.len());
+    eprintln!("Cancelling all {} active downloads and {} queued downloads", flags.len(), cancelled_indices.len());
 
+    // Set flags for active downloads
     for (media_idx, flag) in flags.iter() {
         flag.store(true, Ordering::Relaxed);
 
@@ -525,8 +630,40 @@ pub fn cancel_all_downloads(window: Window) {
         }
     }
 
+    // Emit cancelled events for queued downloads
+    for media_idx in cancelled_indices {
+        if !flags.contains_key(&media_idx) {
+            // Only emit if not already in active (to avoid duplicates)
+            if let Err(e) = window.emit("download-cancelled", media_idx) {
+                eprintln!("Failed to emit download-cancelled for {}: {}", media_idx, e);
+            }
+        }
+    }
+
     // Clear all flags
     flags.clear();
+}
+
+/// Update the maximum number of concurrent downloads
+#[tauri::command]
+pub fn set_max_concurrent_downloads(max_concurrent: usize) -> Result<(), String> {
+    if max_concurrent == 0 {
+        return Err("Max concurrent downloads must be at least 1".to_string());
+    }
+
+    let mut queue = get_queue().lock().unwrap();
+    queue.set_max_concurrent(max_concurrent);
+
+    eprintln!("Updated max concurrent downloads to {}", max_concurrent);
+    Ok(())
+}
+
+/// Get current queue status
+#[tauri::command]
+pub fn get_queue_status() -> (usize, usize, usize) {
+    let queue = get_queue().lock().unwrap();
+    let status = queue.status();
+    (status.queued, status.active, status.max_concurrent)
 }
 
 #[cfg(test)]
