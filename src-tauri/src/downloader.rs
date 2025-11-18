@@ -14,6 +14,7 @@ use tauri::Window;
 
 // Download settings from frontend (Phase 3.3)
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DownloadSettings {
     download_mode: String,    // "video" | "audio"
     video_quality: String,    // "best" | "high" | "medium" | "low"
@@ -21,6 +22,67 @@ pub struct DownloadSettings {
     video_format: String,     // "mp4" | "mkv" | "webm" | "best"
     audio_format: String,     // "mp3" | "m4a" | "opus" | "best"
     audio_quality: String,    // "0" | "2" | "5" | "9"
+}
+
+/// Parse progress percentage from yt-dlp progress line
+/// Returns None if line doesn't contain valid progress
+fn parse_progress_percent(line: &str) -> Option<f64> {
+    if !line.starts_with("remedia-") {
+        return None;
+    }
+
+    let parts: Vec<&str> = line.split('-').collect();
+    if parts.len() < 2 {
+        return None;
+    }
+
+    let percent_str = parts.get(1)?;
+    let percent_clean = percent_str.trim_end_matches('%');
+
+    if percent_clean == "N/A" {
+        return None;
+    }
+
+    percent_clean.parse::<f64>().ok()
+        .map(|p| p.max(0.0).min(100.0))
+}
+
+/// Build format selection arguments for yt-dlp based on settings
+fn build_format_args(settings: &DownloadSettings) -> Vec<String> {
+    let mut args = Vec::new();
+
+    if settings.download_mode == "audio" {
+        // Audio-only mode
+        args.push("-f".to_string());
+        args.push("bestaudio".to_string());
+        args.push("--extract-audio".to_string());
+
+        if settings.audio_format != "best" {
+            args.push("--audio-format".to_string());
+            args.push(settings.audio_format.clone());
+        }
+
+        args.push("--audio-quality".to_string());
+        args.push(settings.audio_quality.clone());
+    } else {
+        // Video mode
+        let format_str = if settings.max_resolution != "no-limit" {
+            let height = settings.max_resolution.trim_end_matches('p');
+            format!("bestvideo[height<={}]+bestaudio/best[height<={}]", height, height)
+        } else {
+            String::from("bestvideo+bestaudio/best")
+        };
+
+        args.push("-f".to_string());
+        args.push(format_str);
+
+        if settings.video_format != "best" {
+            args.push("--remux-video".to_string());
+            args.push(settings.video_format.clone());
+        }
+    }
+
+    args
 }
 
 async fn run_yt_dlp(cmd: &mut Command) -> Result<(String, String), std::io::Error> {
@@ -166,33 +228,9 @@ pub fn download_media(
                 .arg("--embed-chapters")
                 .arg("--windows-filenames");  // Safe filenames for Windows
 
-        // Phase 3.3: Apply settings-based format selection
-        if settings.download_mode == "audio" {
-            // Audio-only mode
-            cmd.arg("-f").arg("bestaudio")
-                .arg("--extract-audio");
-
-            if settings.audio_format != "best" {
-                cmd.arg("--audio-format").arg(&settings.audio_format);
-            }
-
-            cmd.arg("--audio-quality").arg(&settings.audio_quality);
-        } else {
-            // Video mode
-            let format_str = if settings.max_resolution != "no-limit" {
-                // Extract resolution height (e.g., "1080" from "1080p")
-                let height = settings.max_resolution.trim_end_matches('p');
-                format!("bestvideo[height<={}]+bestaudio/best[height<={}]", height, height)
-            } else {
-                String::from("bestvideo+bestaudio/best")
-            };
-
-            cmd.arg("-f").arg(&format_str);
-
-            // Apply video format remuxing if needed
-            if settings.video_format != "best" {
-                cmd.arg("--remux-video").arg(&settings.video_format);
-            }
+        // Apply settings-based format selection using extracted function
+        for arg in build_format_args(&settings) {
+            cmd.arg(arg);
         }
 
         cmd.stdout(Stdio::piped())
@@ -210,32 +248,10 @@ pub fn download_media(
             if let Ok(line) = line {
                 println!("{line}");
 
-                // Check if the line starts with 'remedia-'
-                if line.starts_with("remedia-") {
-                    // New format: remedia-<percent>-<eta>
-                    // Example: remedia-45.2%-2:30
-                    let parts: Vec<&str> = line.split('-').collect();
-
-                    // We expect at least 2 segments: ["remedia", "<percent>", ...]
-                    if parts.len() >= 2 {
-                        // Get the percent string (e.g., "45.2%" or "100%" or "N/A")
-                        if let Some(percent_str) = parts.get(1) {
-                            // Remove the '%' sign if present and parse as f64
-                            let percent_clean = percent_str.trim_end_matches('%');
-
-                            if let Ok(percent) = percent_clean.parse::<f64>() {
-                                // Emit event to frontend with clamped percent value
-                                let clamped_percent = percent.max(0.0).min(100.0);
-                                if let Err(e) = window.emit("download-progress", (media_idx, clamped_percent)) {
-                                    eprintln!("Failed to emit download progress: {}", e);
-                                }
-                            } else if percent_clean != "N/A" {
-                                // Only log if it's not the expected "N/A" value
-                                eprintln!("Failed to parse percent value: {}", percent_clean);
-                            }
-                        }
-                    } else {
-                        eprintln!("Invalid progress line format - expected at least 2 segments: {}", line);
+                // Parse progress using extracted function
+                if let Some(percent) = parse_progress_percent(&line) {
+                    if let Err(e) = window.emit("download-progress", (media_idx, percent)) {
+                        eprintln!("Failed to emit download progress: {}", e);
                     }
                 }
             }
@@ -259,4 +275,126 @@ pub fn download_media(
             window.emit("download-error", media_idx).unwrap();
         }
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_progress_percent_valid() {
+        assert_eq!(parse_progress_percent("remedia-45.2%-2:30"), Some(45.2));
+        assert_eq!(parse_progress_percent("remedia-100%-0:00"), Some(100.0));
+        assert_eq!(parse_progress_percent("remedia-0.5%-5:00"), Some(0.5));
+    }
+
+    #[test]
+    fn test_parse_progress_percent_clamping() {
+        // Should clamp to 0-100 range
+        assert_eq!(parse_progress_percent("remedia--5%-2:30"), Some(0.0));
+        assert_eq!(parse_progress_percent("remedia-150%-0:00"), Some(100.0));
+    }
+
+    #[test]
+    fn test_parse_progress_percent_na() {
+        assert_eq!(parse_progress_percent("remedia-N/A-2:30"), None);
+    }
+
+    #[test]
+    fn test_parse_progress_percent_invalid() {
+        assert_eq!(parse_progress_percent("not-a-progress-line"), None);
+        assert_eq!(parse_progress_percent("remedia-"), None);
+        assert_eq!(parse_progress_percent("remedia-abc-2:30"), None);
+    }
+
+    #[test]
+    fn test_build_format_args_audio_mode() {
+        let settings = DownloadSettings {
+            download_mode: "audio".to_string(),
+            video_quality: "best".to_string(),
+            max_resolution: "no-limit".to_string(),
+            video_format: "best".to_string(),
+            audio_format: "mp3".to_string(),
+            audio_quality: "0".to_string(),
+        };
+
+        let args = build_format_args(&settings);
+
+        assert!(args.contains(&"-f".to_string()));
+        assert!(args.contains(&"bestaudio".to_string()));
+        assert!(args.contains(&"--extract-audio".to_string()));
+        assert!(args.contains(&"--audio-format".to_string()));
+        assert!(args.contains(&"mp3".to_string()));
+        assert!(args.contains(&"--audio-quality".to_string()));
+        assert!(args.contains(&"0".to_string()));
+    }
+
+    #[test]
+    fn test_build_format_args_audio_best() {
+        let settings = DownloadSettings {
+            download_mode: "audio".to_string(),
+            video_quality: "best".to_string(),
+            max_resolution: "no-limit".to_string(),
+            video_format: "best".to_string(),
+            audio_format: "best".to_string(),
+            audio_quality: "0".to_string(),
+        };
+
+        let args = build_format_args(&settings);
+
+        // Should not include --audio-format when set to "best"
+        assert!(!args.contains(&"--audio-format".to_string()));
+    }
+
+    #[test]
+    fn test_build_format_args_video_mode_no_limit() {
+        let settings = DownloadSettings {
+            download_mode: "video".to_string(),
+            video_quality: "best".to_string(),
+            max_resolution: "no-limit".to_string(),
+            video_format: "best".to_string(),
+            audio_format: "best".to_string(),
+            audio_quality: "0".to_string(),
+        };
+
+        let args = build_format_args(&settings);
+
+        assert!(args.contains(&"-f".to_string()));
+        let format_idx = args.iter().position(|a| a == "-f").unwrap();
+        assert_eq!(args[format_idx + 1], "bestvideo+bestaudio/best");
+    }
+
+    #[test]
+    fn test_build_format_args_video_mode_1080p() {
+        let settings = DownloadSettings {
+            download_mode: "video".to_string(),
+            video_quality: "best".to_string(),
+            max_resolution: "1080p".to_string(),
+            video_format: "best".to_string(),
+            audio_format: "best".to_string(),
+            audio_quality: "0".to_string(),
+        };
+
+        let args = build_format_args(&settings);
+
+        let format_idx = args.iter().position(|a| a == "-f").unwrap();
+        assert_eq!(args[format_idx + 1], "bestvideo[height<=1080]+bestaudio/best[height<=1080]");
+    }
+
+    #[test]
+    fn test_build_format_args_video_remux() {
+        let settings = DownloadSettings {
+            download_mode: "video".to_string(),
+            video_quality: "best".to_string(),
+            max_resolution: "no-limit".to_string(),
+            video_format: "mp4".to_string(),
+            audio_format: "best".to_string(),
+            audio_quality: "0".to_string(),
+        };
+
+        let args = build_format_args(&settings);
+
+        assert!(args.contains(&"--remux-video".to_string()));
+        assert!(args.contains(&"mp4".to_string()));
+    }
 }
