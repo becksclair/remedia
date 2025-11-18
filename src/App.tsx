@@ -361,6 +361,27 @@ function App(): JSX.Element {
 		}
 	}
 
+	async function handleShowDebugConsole(): Promise<void> {
+		try {
+			const debugWindow = new WebviewWindow("debug-console", {
+				url: "/debug",
+				width: 900,
+				height: 600,
+				title: "ReMedia Debug Console"
+			});
+
+			void debugWindow.once("tauri://created", () => {
+				console.log("Debug console window created");
+			});
+
+			void debugWindow.once("tauri://error", (error) => {
+				console.error("Error creating debug console window:", error);
+			});
+		} catch (error) {
+			console.error("Failed to open debug console:", error);
+		}
+	}
+
 	const isUrl = (input: string): boolean => /^https?:\/\//.test(input);
 
 	function addMediaUrl(url: string): void {
@@ -586,6 +607,7 @@ function App(): JSX.Element {
 						<ContextMenuItem onClick={handleRemoveSelected}>Remove Selected</ContextMenuItem>
 						<ContextMenuItem onClick={handleRemoveAll}>Remove All</ContextMenuItem>
 						<ContextMenuItem onClick={handleCopyAllUrls}>Copy All URLs</ContextMenuItem>
+						<ContextMenuItem onClick={handleShowDebugConsole}>Show Debug Console</ContextMenuItem>
 					</ContextMenuContent>
 				</ContextMenu>
 
