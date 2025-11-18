@@ -5,6 +5,13 @@ import { logEntriesAtom } from "@/state/app-atoms";
 import { useTauriEvents } from "@/hooks/useTauriEvent";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
+import { formatTimestamp } from "@/utils/media-helpers";
+import {
+	findLogMatches,
+	getNextMatchIndex,
+	splitTextForHighlight,
+	getLogLevelClass
+} from "@/utils/log-helpers";
 
 export function DebugConsole() {
 	const logEntries = useAtomValue(logEntriesAtom);
@@ -25,21 +32,7 @@ export function DebugConsole() {
 
 	// Update matches when search term or log entries change
 	useEffect(() => {
-		if (!searchTerm) {
-			setMatches([]);
-			setCurrentMatchIndex(0);
-			return;
-		}
-
-		const searchLower = searchTerm.toLowerCase();
-		const newMatches: number[] = [];
-
-		logEntries.forEach((entry, index) => {
-			if (entry.message.toLowerCase().includes(searchLower)) {
-				newMatches.push(index);
-			}
-		});
-
+		const newMatches = findLogMatches(logEntries, searchTerm);
 		setMatches(newMatches);
 		setCurrentMatchIndex(0);
 	}, [searchTerm, logEntries]);
@@ -56,14 +49,7 @@ export function DebugConsole() {
 
 	const handleFindNext = () => {
 		if (matches.length === 0) return;
-
-		// Cycle to next match, wrap around
-		setCurrentMatchIndex((prev) => (prev + 1) % matches.length);
-	};
-
-	const formatTimestamp = (timestamp: number): string => {
-		const date = new Date(timestamp);
-		return date.toLocaleTimeString();
+		setCurrentMatchIndex((prev) => getNextMatchIndex(prev, matches.length));
 	};
 
 	const highlightText = (text: string, entryIndex: number): JSX.Element => {
@@ -71,22 +57,17 @@ export function DebugConsole() {
 			return <span>{text}</span>;
 		}
 
-		const searchLower = searchTerm.toLowerCase();
-		const textLower = text.toLowerCase();
-		const index = textLower.indexOf(searchLower);
+		const split = splitTextForHighlight(text, searchTerm);
 
-		if (index === -1) {
+		if (!split) {
 			return <span>{text}</span>;
 		}
 
 		const isCurrentMatch = matches[currentMatchIndex] === entryIndex;
-		const before = text.substring(0, index);
-		const match = text.substring(index, index + searchTerm.length);
-		const after = text.substring(index + searchTerm.length);
 
 		return (
 			<span>
-				{before}
+				{split.before}
 				<span
 					ref={(el) => {
 						if (isCurrentMatch) {
@@ -96,9 +77,9 @@ export function DebugConsole() {
 					}}
 					className={`highlight ${isCurrentMatch ? "bg-yellow-300 font-bold" : "bg-yellow-100"}`}
 				>
-					{match}
+					{split.match}
 				</span>
-				{after}
+				{split.after}
 			</span>
 		);
 	};
@@ -130,13 +111,7 @@ export function DebugConsole() {
 						{logEntries.map((entry, index) => (
 							<div
 								key={`${entry.timestamp}-${index}`}
-								className={`flex gap-2 ${
-									entry.level === "error"
-										? "text-red-600"
-										: entry.level === "warn"
-											? "text-yellow-600"
-											: "text-gray-700 dark:text-gray-300"
-								}`}
+								className={`flex gap-2 ${getLogLevelClass(entry.level)}`}
 							>
 								<span className="text-gray-500 shrink-0">{formatTimestamp(entry.timestamp)}</span>
 								<span className="text-blue-600 shrink-0">[{entry.source}]</span>
