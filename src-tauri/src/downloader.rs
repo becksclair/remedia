@@ -172,24 +172,29 @@ pub fn download_media(
     let window = window.clone();
 
     spawn(async move {
-        let output_format = format!("{}{}{}", output_location, path::MAIN_SEPARATOR, "%(title)s [%(id)s].%(ext)s");
+        // Robust output template: include ID for uniqueness, handle playlists
+        let output_format = format!(
+            "{}{}{}",
+            output_location,
+            path::MAIN_SEPARATOR,
+            "%(title)s [%(id)s].%(ext)s"
+        );
 
         // Build the yt-dlp command
         let mut cmd = Command::new("yt-dlp");
         cmd.arg(media_source_url)
-<<<<<<< HEAD
-            .arg("--progress-template")
-            .arg("download:remedia-%(progress._percent_stripped)s-%(progress.eta)s-%(info.id)s")
-            .arg("--newline")
-            .arg("--continue")
-            .arg("--no-overwrites")
-            .arg("--output")
-            .arg(output_format)
-            .arg("--embed-thumbnail")
-            .arg("--embed-subs")
-            .arg("--embed-metadata")
-            .arg("--embed-chapters")
-            .arg("--windows-filenames");
+                .arg("--progress-template")
+                .arg("download:remedia-%(progress._percent_str)s-%(progress.eta)s")
+                .arg("--newline")
+                .arg("--continue")
+                .arg("--no-overwrites")  // Prevent silent overwrites
+                .arg("--output")
+                .arg(output_format)
+                .arg("--embed-thumbnail")
+                .arg("--embed-subs")
+                .arg("--embed-metadata")
+                .arg("--embed-chapters")
+                .arg("--windows-filenames");  // Safe filenames for Windows
 
         // Add format selection based on settings
         let format_string = build_format_string(&settings);
