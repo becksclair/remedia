@@ -258,4 +258,106 @@ test.describe("ReMedia app", () => {
 		// Status should update to "Error"
 		await expect(page.getByRole("cell", { name: "Error" })).toBeVisible();
 	});
+
+	// Phase 4: Context Menu Tests
+	test("context menu appears on right-click", async ({ page }) => {
+		await page.goto("/");
+
+		const url = "https://example.com/video1";
+		await page.evaluate(url => window.__E2E_addUrl?.(url), url);
+
+		// Right-click on the table row
+		const row = page.getByRole("row").filter({ hasText: "video1" });
+		await row.click({ button: "right" });
+
+		// Context menu should appear with expected items
+		await expect(page.getByRole("menuitem", { name: "Remove Selected" })).toBeVisible();
+		await expect(page.getByRole("menuitem", { name: "Remove All" })).toBeVisible();
+		await expect(page.getByRole("menuitem", { name: "Copy All URLs" })).toBeVisible();
+	});
+
+	test("remove selected removes checked items", async ({ page }) => {
+		await page.goto("/");
+
+		// Add multiple URLs
+		const urls = ["https://example.com/video1", "https://example.com/video2", "https://example.com/video3"];
+		for (const url of urls) {
+			await page.evaluate(url => window.__E2E_addUrl?.(url), url);
+		}
+
+		// Select first two items using checkboxes
+		const firstCheckbox = page.getByRole("row").filter({ hasText: "video1" }).getByRole("checkbox");
+		const secondCheckbox = page.getByRole("row").filter({ hasText: "video2" }).getByRole("checkbox");
+		await firstCheckbox.check();
+		await secondCheckbox.check();
+
+		// Right-click and select "Remove Selected"
+		await page.getByRole("row").filter({ hasText: "video1" }).click({ button: "right" });
+		await page.getByRole("menuitem", { name: "Remove Selected" }).click();
+
+		// First two should be gone, third should remain
+		await expect(page.getByRole("cell", { name: "video1" })).not.toBeVisible();
+		await expect(page.getByRole("cell", { name: "video2" })).not.toBeVisible();
+		await expect(page.getByRole("cell", { name: "video3" })).toBeVisible();
+	});
+
+	test("remove all clears entire list", async ({ page }) => {
+		await page.goto("/");
+
+		// Add multiple URLs
+		const urls = ["https://example.com/video1", "https://example.com/video2"];
+		for (const url of urls) {
+			await page.evaluate(url => window.__E2E_addUrl?.(url), url);
+		}
+
+		// Right-click and select "Remove All"
+		await page.getByRole("row").filter({ hasText: "video1" }).click({ button: "right" });
+		await page.getByRole("menuitem", { name: "Remove All" }).click();
+
+		// All items should be gone, drop zone should be visible again
+		await expect(page.getByRole("cell", { name: "video1" })).not.toBeVisible();
+		await expect(page.getByRole("cell", { name: "video2" })).not.toBeVisible();
+		await expect(page.locator(".drop-zone")).toBeVisible();
+	});
+
+	test("copy all URLs copies to clipboard", async ({ page }) => {
+		await page.goto("/");
+
+		// Add multiple URLs
+		const urls = ["https://example.com/video1", "https://example.com/video2", "https://example.com/video3"];
+		for (const url of urls) {
+			await page.evaluate(url => window.__E2E_addUrl?.(url), url);
+		}
+
+		// Grant clipboard permissions
+		await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+
+		// Right-click and select "Copy All URLs"
+		await page.getByRole("row").filter({ hasText: "video1" }).click({ button: "right" });
+		await page.getByRole("menuitem", { name: "Copy All URLs" }).click();
+
+		// Check clipboard contents
+		const clipboardContent = await page.evaluate(() => navigator.clipboard.readText());
+		expect(clipboardContent).toContain("https://example.com/video1");
+		expect(clipboardContent).toContain("https://example.com/video2");
+		expect(clipboardContent).toContain("https://example.com/video3");
+	});
+
+	test("download all triggers download for all items", async ({ page }) => {
+		await page.goto("/");
+
+		// Add multiple URLs
+		const urls = ["https://example.com/video1", "https://example.com/video2"];
+		for (const url of urls) {
+			await page.evaluate(url => window.__E2E_addUrl?.(url), url);
+		}
+
+		// Right-click and select "Download All"
+		await page.getByRole("row").filter({ hasText: "video1" }).click({ button: "right" });
+		await page.getByRole("menuitem", { name: "Download All" }).click();
+
+		// Items should transition to "Downloading" status
+		// Note: This test may need backend mocking for full validation
+		await expect(page.getByRole("cell", { name: "Downloading" }).first()).toBeVisible({ timeout: 3000 });
+	});
 });
