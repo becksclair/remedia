@@ -21,13 +21,13 @@
 	--font-sans:
 		-apple-system, BlinkMacSystemFont, Segoe UI, Noto Sans, Roboto, Oxygen, Ubuntu, Cantarell, Inter, Avenir,
 		Helvetica, Arial, sans-serif;
-	font-size: 14px;
-	--text-base: 14px;
-	--text-lg: 14px;
-	--text-sm: 12px;
-	--text-xs: 10px;
-	line-height: 24px;
-	font-weight: 400;
+	font-size: 15px;
+	--text-base: 15px;
+	--text-lg: 16px;
+	--text-sm: 14px;
+	--text-xs: 13px;
+	line-height: 15px;
+	/*font-weight: 400;*/
 
 	color: #0f0f0f;
 	background-color: #f6f6f6;
@@ -70,9 +70,9 @@
 	--sidebar-border: oklch(0.92 0.004 286.32);
 	--sidebar-ring: oklch(0.645 0.246 16.439);
 
-	--spacing: 3px;
-	/* --spacing-sm: calc(var(--spacing) / 2); */
-	--line-height: 1.5;
+	--spacing: 3.5px;
+	--spacing-sm: calc(var(--spacing) / 2);
+	/*--line-height: 1.1;*/
 }
 
 .container {
@@ -182,7 +182,7 @@ button {
 	}
 
 	/* Enable compact mode for shadcn UI */
-	.compact {
+	/*.compact {
 		--radius: 0.4rem;
 	}
 
@@ -192,7 +192,7 @@ button {
 
 	.compact :where(.btn, button, input, select, textarea) {
 		@apply text-sm;
-	}
+	}*/
 
 	button {
 		cursor: default;
@@ -235,7 +235,7 @@ button {
 			rgba(255, 255, 0, 0.1) 100%
 		);
 		background-size: 400% 400%;
-		animation: gradient-animation 15s ease infinite;
+		/*animation: gradient-animation 15s ease infinite;*/
 	}
 
 	@keyframes gradient-animation {

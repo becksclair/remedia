@@ -14,7 +14,6 @@ import {
 	DropdownMenuContent,
 	DropdownMenuItem,
 	DropdownMenuLabel,
-	DropdownMenuSeparator,
 	DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 
@@ -158,9 +157,6 @@ function App(): JSX.Element {
 								}}>
 								Delete
 							</DropdownMenuItem>
-							<DropdownMenuSeparator />
-							<DropdownMenuItem>View customer</DropdownMenuItem>
-							<DropdownMenuItem>View payment details</DropdownMenuItem>
 						</DropdownMenuContent>
 					</DropdownMenu>
 				);

@@ -5,98 +5,11 @@ use std::path;
 use std::process::Command;
 use std::process::Stdio;
 
-use serde::Deserialize;
-use serde::Serialize;
+use serde_json::Value;
 use tauri::async_runtime::spawn;
 use tauri::AppHandle;
 use tauri::Emitter;
 use tauri::Window;
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct YtDlpVideo {
-    pub id: String,
-    pub title: String,
-    pub description: Option<String>,
-    pub duration: i32,
-    pub thumbnails: Vec<Thumbnail>,
-    pub formats: Vec<Format>,
-    pub subtitles: Option<Subtitles>,
-    pub original_url: String,
-    pub extractor: String,
-    pub extractor_key: String,
-    pub playlist: Option<String>,
-    pub playlist_index: Option<i32>,
-    pub thumbnail: String,
-    pub fulltitle: String,
-    pub duration_string: String,
-    pub requested_subtitles: Option<String>,
-    pub format_id: String,
-    pub protocol: String,
-    pub quality: Option<i32>,
-    pub width: Option<i32>,
-    pub height: Option<i32>,
-    pub vcodec: Option<String>,
-    pub acodec: Option<String>,
-    pub dynamic_range: Option<String>,
-    pub format_note: Option<String>,
-    pub resolution: String,
-    pub aspect_ratio: Option<f64>,
-    pub format: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Thumbnail {
-    pub url: String,
-    pub id: String,
-    pub preference: Option<i32>,
-}
-
-// #[derive(Debug, Serialize, Deserialize)]
-// pub struct Chapter {
-//     pub title: String,
-//     pub start_time: i32,
-//     pub end_time: i32,
-// }
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Format {
-    pub format_id: String,
-    pub format_note: Option<String>,
-    pub ext: Option<String>,
-    pub protocol: Option<String>,
-    pub acodec: Option<String>,
-    pub vcodec: Option<String>,
-    pub url: Option<String>,
-    pub width: Option<i32>,
-    pub height: Option<i32>,
-    pub fps: Option<f64>,
-    pub resolution: Option<String>,
-    pub aspect_ratio: Option<f64>,
-    pub filesize_approx: Option<i64>,
-    pub audio_ext: Option<String>,
-    pub video_ext: Option<String>,
-    pub vbr: Option<f64>,
-    pub abr: Option<f64>,
-    pub tbr: Option<f64>,
-    pub format: Option<String>,
-}
-
-// #[derive(Debug, Serialize, Deserialize)]
-// pub struct Fragment {
-//     pub url: Option<String>,
-//     pub duration: Option<f64>,
-// }
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Subtitles {
-    pub rechat: Option<Vec<RechatSubtitle>>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct RechatSubtitle {
-    pub url: Option<String>,
-    pub ext: Option<String>,
-}
 
 async fn run_yt_dlp(cmd: &mut Command) -> Result<(String, String), std::io::Error> {
     let mut child = cmd.spawn()?;
@@ -149,19 +62,34 @@ pub async fn get_media_info(
         if trimmed.is_empty() {
             continue;
         }
-        let video_info: Result<YtDlpVideo, _> = serde_json::from_str(trimmed);
-        match video_info {
-            Ok(info) => {
+
+        // Parse generically to be tolerant of null / missing fields.
+        match serde_json::from_str::<Value>(trimmed) {
+            Ok(v) => {
+                let title = v
+                    .get("title")
+                    .and_then(|t| t.as_str())
+                    .filter(|s| !s.is_empty())
+                    .unwrap_or(media_source_url.as_str())
+                    .to_string();
+                let thumbnail = v
+                    .get("thumbnail")
+                    .and_then(|t| t.as_str())
+                    .unwrap_or_default()
+                    .to_string();
+
                 found_any = true;
                 window
                     .emit(
                         "update-media-info",
-                        (media_idx, media_source_url.clone(), info.title.clone(), info.thumbnail.clone()),
+                        (media_idx, media_source_url.clone(), title, thumbnail),
                     )
                     .map_err(|e| e.to_string())?;
             }
             Err(e) => {
-                println!("Failed to parse yt-dlp output line as YtDlpVideo: {e}\nLine: {trimmed}");
+                println!(
+                    "Failed to parse yt-dlp output line as generic JSON: {e}\nLine: {trimmed}"
+                );
             }
         }
     }
@@ -184,16 +112,6 @@ pub fn download_media(
     let window = window.clone();
 
     spawn(async move {
-        // let ytdlp_command = app.shell().sidecar("yt-dlp").unwrap();
-        // ytdlp_command.arg(media_source_url)
-        //     .arg("--progress-template")
-        //     .arg("download:remedia-%(progress.downloaded_bytes)s-%(progress.total_bytes)s-%(progress.eta)s")
-        //     .arg("--newline")
-        //     .stdout(Stdio::piped())
-        //     .stderr(Stdio::piped());
-
-        // let mut child = ytdlp_command.spawn().expect("Failed to spawn yt-dlp");
-
         let output_format = format!("{}{}{}", output_location, path::MAIN_SEPARATOR, "%(title)s.%(ext)s");
 
         // Build the yt-dlp command
@@ -206,7 +124,7 @@ pub fn download_media(
                 .arg("--output")
                 .arg(output_format)
                 .arg("--embed-thumbnail")
-                // .arg("--embed-subs")
+                .arg("--embed-subs")
                 .arg("--embed-metadata")
                 .arg("--embed-chapters")
                 .arg("--windows-filenames")
@@ -227,25 +145,44 @@ pub fn download_media(
             if let Ok(line) = line {
                 println!("{line}");
 
-                // Check if the line starts with 'download:'
+                // Check if the line starts with 'remedia-'
                 if line.starts_with("remedia-") {
                     // Output format: remedia-7168-3098545-0
-                    let ln_status = line.split('-').collect::<Vec<&str>>();
-                    let downloaded_bytes = ln_status[1].parse::<f64>().unwrap_or(0.0);
-                    let total_bytes_est = ln_status[2].parse::<f64>().unwrap_or(0.0);
-                    let total_bytes = ln_status[3].parse::<f64>().unwrap_or(0.0);
-                    // let eta = ln_status[4].parse::<f64>().unwrap_or(0.0);
+                    let ln_status: Vec<&str> = line.split('-').collect();
 
-                    let t_bytes = if total_bytes > 0.0 {
-                        total_bytes
+                    // Check we have at least 4 segments before proceeding
+                    if ln_status.len() >= 4 {
+                        // Parse each segment safely using get() and match/if let
+                        let downloaded_bytes = ln_status.get(1)
+                            .and_then(|s| s.parse::<f64>().ok());
+                        let total_bytes_est = ln_status.get(2)
+                            .and_then(|s| s.parse::<f64>().ok());
+                        let total_bytes = ln_status.get(3)
+                            .and_then(|s| s.parse::<f64>().ok());
+
+                        // Only proceed if all required values were successfully parsed
+                        if let (Some(downloaded), Some(estimated), Some(actual)) =
+                            (downloaded_bytes, total_bytes_est, total_bytes) {
+
+                            let t_bytes = if actual > 0.0 {
+                                actual
+                            } else {
+                                estimated
+                            };
+
+                            // Only compute and emit percent when total bytes > 0.0
+                            if t_bytes > 0.0 {
+                                let percent = downloaded / t_bytes * 100.0;
+                                // Emit event to frontend
+                                if let Err(e) = window.emit("download-progress", (media_idx, percent)) {
+                                    eprintln!("Failed to emit download progress: {}", e);
+                                }
+                            }
+                        } else {
+                            eprintln!("Failed to parse progress values from line: {}", line);
+                        }
                     } else {
-                        total_bytes_est
-                    };
-
-                    if t_bytes > 0.0 {
-                        let percent = downloaded_bytes / t_bytes * 100.0;
-                        // Emit event to frontend
-                        window.emit("download-progress", (media_idx, percent)).unwrap();
+                        eprintln!("Invalid progress line format - expected at least 4 segments: {}", line);
                     }
                 }
             }
@@ -254,7 +191,10 @@ pub fn download_media(
         // Handle child process errors
         err_reader.lines().for_each(|line| {
             if let Ok(line) = line {
-                println!("Error: {line}");
+                // Emit stderr as event to frontend
+                if let Err(e) = window.emit("yt-dlp-stderr", (media_idx, line.clone())) {
+                    eprintln!("Failed to emit yt-dlp stderr: {}", e);
+                }
             }
         });
 
