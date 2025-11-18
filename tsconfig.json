@@ -2,7 +2,6 @@
 	"compilerOptions": {
 		"allowImportingTsExtensions": true,
 
-		"baseUrl": ".",
 		"forceConsistentCasingInFileNames": true,
 		"isolatedModules": true,
 		"jsx": "react-jsx",

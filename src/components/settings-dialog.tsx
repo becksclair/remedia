@@ -36,7 +36,7 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
 			});
 	}, []);
 
-	const handleAlwaysOnTopChange = async (checked: boolean | unknown) => {
+	const handleAlwaysOnTopChange = async (checked: unknown) => {
 		const boolValue = Boolean(checked);
 		setAlwaysOnTop(boolValue);
 		await invoke("set_always_on_top", { alwaysOnTop: boolValue });
@@ -96,7 +96,7 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
 							onChange={e => setOutputLocation(e.target.value)}
 						/>
 
-						<Button type="button" className="min-w-[8rem]" onClick={chooseOutputLocation}>
+						<Button type="button" className="min-w-32" onClick={chooseOutputLocation}>
 							Browse...
 						</Button>
 					</div>

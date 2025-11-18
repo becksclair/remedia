@@ -103,7 +103,7 @@ function App(): JSX.Element {
 			accessorKey: "title",
 			header: () => <div className="text-left">Title</div>,
 			cell: ({ row }) => (
-				<div className="text-left w-full whitespace-pre-line break-words overflow-hidden text-ellipsis">
+				<div className="text-left w-full whitespace-pre-line text-wrap overflow-hidden text-ellipsis">
 					{row.getValue("title")}
 				</div>
 			)
@@ -175,9 +175,9 @@ function App(): JSX.Element {
 		debounce(() => setDragHovering(false), 300)();
 	};
 
-	isPermissionGranted().then(granted => {
+	void isPermissionGranted().then(granted => {
 		if (!granted) {
-			requestPermission().then(permission => {
+			void requestPermission().then(permission => {
 				setNotificationPermission(permission === "granted");
 			});
 		}
@@ -227,10 +227,10 @@ function App(): JSX.Element {
 						title: selectedItem.title ? `Preview: ${selectedItem.title}` : "ReMedia Preview"
 					});
 
-					win.once("tauri://created", () => {
+					void win.once("tauri://created", () => {
 						// webview successfully created
 					});
-					win.once("tauri://error", error => {
+					void win.once("tauri://error", error => {
 						console.error("Error creating webview:", error);
 						// an error happened creating the webview
 					});
@@ -256,7 +256,7 @@ function App(): JSX.Element {
 			}
 		} catch (error) {
 			console.error("Error opening preview window:", error);
-			alert(`Failed to open preview: ${error}`);
+			alert(`Failed to open preview: ${String(error)}`);
 		}
 	}
 
@@ -411,10 +411,10 @@ function App(): JSX.Element {
 	useWindowFocus(handleWindowFocus);
 
 	useEffect(() => {
-		isPermissionGranted().then(granted => {
+		void isPermissionGranted().then(granted => {
 			if (!granted) {
 				console.log("Requesting notification permission");
-				requestPermission().then(permission => {
+				void requestPermission().then(permission => {
 					console.log("Notification permission:", permission);
 					setNotificationPermission(permission === "granted");
 				});
@@ -464,13 +464,13 @@ function App(): JSX.Element {
 
 				<section className="flex-none flex flex-col gap-y-4">
 					<div className="my-3">
-						<Progress data-testid="global-progress" value={globalProgress} max={100} className="w-[100%]" />
+						<Progress data-testid="global-progress" value={globalProgress} max={100} className="w-full" />
 					</div>
 
 					<div className="flex justify-center gap-x-4 mb-3">
 						<Button
 							type="button"
-							className="min-w-[8rem]"
+							className="min-w-32"
 							disabled={globalDownloading}
 							onClick={startDownload}>
 							Download
@@ -478,20 +478,20 @@ function App(): JSX.Element {
 						{globalDownloading && (
 							<Button
 								type="button"
-								className="min-w-[8rem]"
+								className="min-w-32"
 								disabled={!globalDownloading}
 								onClick={startDownload}>
 								Cancel
 							</Button>
 						)}
 
-						<Button type="button" className="min-w-[8rem]" onClick={preview}>
+						<Button type="button" className="min-w-32" onClick={preview}>
 							Preview
 						</Button>
-						<Button type="button" className="min-w-[8rem]" onClick={showSettings}>
+						<Button type="button" className="min-w-32" onClick={showSettings}>
 							Settings
 						</Button>
-						<Button type="button" className="min-w-[8rem]" onClick={quit}>
+						<Button type="button" className="min-w-32" onClick={quit}>
 							Quit
 						</Button>
 					</div>

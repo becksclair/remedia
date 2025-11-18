@@ -1,6 +1,7 @@
 // #[cfg(debug_assertions)]
-use tauri::Manager;
 use remedia::quit;
+#[allow(unused_imports)]
+use tauri::Manager;
 
 mod downloader;
 mod remedia;
@@ -52,7 +53,5 @@ pub fn run() {
         quit
     ]);
 
-    builder
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+    builder.run(tauri::generate_context!()).expect("error while running tauri application");
 }

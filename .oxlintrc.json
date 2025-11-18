@@ -1,0 +1,34 @@
+{
+  "rules": {},
+  "ignorePatterns": ["src/components/ui/**"],
+  "overrides": [
+    {
+      "files": ["e2e/fixtures.ts"],
+      "rules": {
+        "eslint-plugin-react-hooks/rules-of-hooks": "off",
+        "no-empty-pattern": "off"
+      }
+    },
+    {
+      "files": ["lib/ws-client.ts"],
+      "rules": {
+        "eslint-plugin-unicorn/prefer-add-event-listener": "off"
+      }
+    },
+    {
+      "files": ["test/**/*.ts", "test/**/*.tsx", "e2e/**/*.ts"],
+      "rules": {
+        "typescript-eslint/no-unsafe-type-assertion": "warn",
+        "typescript-eslint/no-unnecessary-type-assertion": "off",
+        "eslint-plugin-unicorn/consistent-function-scoping": "off",
+        "no-unused-vars": "off"
+      }
+    },
+    {
+      "files": ["test/mocks/**/*.ts"],
+      "rules": {
+        "eslint-plugin-unicorn/consistent-function-scoping": "off"
+      }
+    }
+  ]
+}
