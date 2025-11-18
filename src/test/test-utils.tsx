@@ -16,7 +16,7 @@ import { useHydrateAtoms } from "jotai/utils";
  */
 interface AllTheProvidersProps {
 	children: ReactNode;
-	initialValues?: Array<[unknown, unknown]>;
+	initialValues?: Iterable<readonly [any, any]>;
 }
 
 /**
@@ -36,10 +36,10 @@ function AllTheProviders({ children, initialValues = [] }: AllTheProvidersProps)
  * Helper component to hydrate atoms in tests
  */
 function HydrateAtoms({ initialValues, children }: {
-	initialValues: Array<[unknown, unknown]>;
+	initialValues: Iterable<readonly [any, any]>;
 	children: ReactNode;
 }) {
-	useHydrateAtoms(initialValues);
+	useHydrateAtoms(initialValues as any);
 	return children;
 }
 
@@ -48,7 +48,7 @@ function HydrateAtoms({ initialValues, children }: {
  */
 export function renderWithProviders(
 	ui: ReactElement,
-	options?: RenderOptions & { initialAtomValues?: Array<[unknown, unknown]> }
+	options?: RenderOptions & { initialAtomValues?: Iterable<readonly [any, any]> }
 ) {
 	const { initialAtomValues = [], ...renderOptions } = options || {};
 

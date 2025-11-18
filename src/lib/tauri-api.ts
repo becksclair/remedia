@@ -6,7 +6,7 @@
  */
 
 import { invoke as tauriInvoke } from "@tauri-apps/api/core";
-import type { Event, EventCallback } from "@tauri-apps/api/event";
+import type { EventCallback } from "@tauri-apps/api/event";
 import { listen } from "@tauri-apps/api/event";
 import { downloadDir } from "@tauri-apps/api/path";
 import { readText } from "@tauri-apps/plugin-clipboard-manager";

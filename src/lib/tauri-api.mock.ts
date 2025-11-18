@@ -219,8 +219,8 @@ class MockWindow implements TauriWindow {
 		width: number;
 		height: number;
 		title: string;
-	}): MockWebviewWindow {
-		return new MockWebviewWindow(label, options) as never;
+	}): any {
+		return new MockWebviewWindow(label, options);
 	}
 }
 
