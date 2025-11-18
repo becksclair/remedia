@@ -40,6 +40,23 @@ import "./App.css";
 
 import { useAtom, useSetAtom, useAtomValue } from "jotai";
 import {
+	isValidUrl,
+	removeItemsAtIndices,
+	calculateGlobalProgress,
+	hasActiveDownloads,
+	clampProgress,
+	getSelectedIndices,
+	createMediaItem,
+	urlExists
+} from "@/utils/media-helpers";
+import {
+	DRAG_HOVER_DEBOUNCE_MS,
+	DEBUG_CONSOLE_WIDTH,
+	DEBUG_CONSOLE_HEIGHT,
+	PREVIEW_WINDOW_WIDTH,
+	PREVIEW_WINDOW_HEIGHT
+} from "@/utils/constants";
+import {
 	downloadLocationAtom,
 	downloadModeAtom,
 	videoQualityAtom,
@@ -197,7 +214,7 @@ function App(): JSX.Element {
 
 	const handleDragLeave = (event: React.DragEvent<HTMLDivElement>): void => {
 		event.preventDefault();
-		debounce(() => setDragHovering(false), 300)();
+		debounce(() => setDragHovering(false), DRAG_HOVER_DEBOUNCE_MS)();
 	};
 
 	void isPermissionGranted().then(granted => {
@@ -241,7 +258,7 @@ function App(): JSX.Element {
 	}
 
 	async function preview(): Promise<void> {
-		const selectedRowIndices = Object.keys(rowSelection).filter(key => rowSelection[key] === true);
+		const selectedRowIndices = getSelectedIndices(rowSelection);
 
 		if (selectedRowIndices.length === 0) {
 			alert("Please select one or more items to preview");
@@ -252,14 +269,14 @@ function App(): JSX.Element {
 
 		try {
 			for (const rowIndex of selectedRowIndices) {
-				const selectedItem = mediaList[Number.parseInt(rowIndex)];
+				const selectedItem = mediaList[rowIndex];
 				if (selectedItem?.url) {
 					console.log(`Opening preview for item ${rowIndex}:`, selectedItem);
 
 					const win = new WebviewWindow("preview-win", {
 						url: `/player?url=${encodeURIComponent(selectedItem.url)}`,
-						width: 760,
-						height: 560,
+						width: PREVIEW_WINDOW_WIDTH,
+						height: PREVIEW_WINDOW_HEIGHT,
 						title: selectedItem.title ? `Preview: ${selectedItem.title}` : "ReMedia Preview"
 					});
 
@@ -306,15 +323,14 @@ function App(): JSX.Element {
 
 	// Phase 4: Context Menu Actions
 	function handleRemoveSelected(): void {
-		const selectedRowIndices = Object.keys(rowSelection).filter(key => rowSelection[key] === true);
+		const selectedIndices = getSelectedIndices(rowSelection);
 
-		if (selectedRowIndices.length === 0) {
+		if (selectedIndices.length === 0) {
 			return;
 		}
 
-		// Remove selected items by filtering out items at selected indices
-		const selectedIndices = new Set(selectedRowIndices.map(idx => Number.parseInt(idx)));
-		const filtered = mediaList.filter((_item, index) => !selectedIndices.has(index));
+		// Remove selected items using utility function
+		const filtered = removeItemsAtIndices(mediaList, new Set(selectedIndices));
 		setMediaList(filtered);
 	}
 
@@ -365,8 +381,8 @@ function App(): JSX.Element {
 		try {
 			const debugWindow = new WebviewWindow("debug-console", {
 				url: "/debug",
-				width: 900,
-				height: 600,
+				width: DEBUG_CONSOLE_WIDTH,
+				height: DEBUG_CONSOLE_HEIGHT,
 				title: "ReMedia Debug Console"
 			});
 
@@ -382,23 +398,14 @@ function App(): JSX.Element {
 		}
 	}
 
-	const isUrl = (input: string): boolean => /^https?:\/\//.test(input);
-
 	function addMediaUrl(url: string): void {
 		// Check if the URL is already in the list and return if it is
-		if (mediaList.some(media => media.url === url)) {
+		if (urlExists(mediaList, url)) {
 			console.log("URL already exists in the list");
 			return;
 		}
 
-		const newMedia = {
-			audioOnly: false,
-			progress: 0,
-			status: "Pending",
-			title: url,
-			url: url,
-			thumbnail: ""
-		} as VideoInfo;
+		const newMedia = createMediaItem(url);
 
 		const updatedMediaList = [...mediaList, newMedia];
 		const mediaIdx = updatedMediaList.findIndex(m => m.url === url);
@@ -423,7 +430,7 @@ function App(): JSX.Element {
 		// Check if the clipboard content is a URL
 		readText()
 			.then(text => {
-				if (isUrl(text)) {
+				if (isValidUrl(text)) {
 					addMediaUrl(text);
 					console.log("URL added from clipboard");
 				}
@@ -492,7 +499,7 @@ function App(): JSX.Element {
 	function dropHandler(input: string): void {
 		setDragHovering(false);
 
-		if (isUrl(input)) {
+		if (isValidUrl(input)) {
 			addMediaUrl(input);
 		}
 	}
@@ -510,7 +517,7 @@ function App(): JSX.Element {
 	const handleProgress = (event: Event<MediaProgressEvent>): void => {
 		const [mediaIdx, progress] = event.payload as MediaProgressEvent;
 		// Clamp progress 0-100, set status to Downloading
-		updateMediaItemByIndex(mediaIdx, { progress: Math.min(100, Math.max(0, progress)), status: "Downloading" });
+		updateMediaItemByIndex(mediaIdx, { progress: clampProgress(progress), status: "Downloading" });
 	};
 
 	const handleComplete = (event: Event<number>): void => {
@@ -578,13 +585,10 @@ function App(): JSX.Element {
 
 	// Handle dynamic updating of global download status and progress
 	useEffect(() => {
-		setGlobalDownloading(mediaList.some(media => media.status === "Downloading"));
-		setGlobalProgress(
-			globalDownloading && mediaList.length > 0
-				? mediaList.reduce((acc, item) => acc + item.progress, 0) / mediaList.length
-				: 0
-		);
-	}, [mediaList, globalDownloading]);
+		const isDownloading = hasActiveDownloads(mediaList);
+		setGlobalDownloading(isDownloading);
+		setGlobalProgress(isDownloading ? calculateGlobalProgress(mediaList) : 0);
+	}, [mediaList]);
 
 	return (
 		<main className="container" onDragOver={handleDragOver} onDragLeave={handleDragLeave}>

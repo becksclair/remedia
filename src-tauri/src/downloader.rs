@@ -19,6 +19,17 @@ use tauri::Window;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
+// Constants for download management
+/// Interval in milliseconds to check for cancellation requests
+/// Balance between responsiveness and CPU usage
+const CANCELLATION_POLL_INTERVAL_MS: u64 = 100;
+
+/// Maximum URL length to prevent abuse
+const MAX_URL_LENGTH: usize = 4096;
+
+/// Maximum output path length (OS limits)
+const MAX_OUTPUT_PATH_LENGTH: usize = 1024;
+
 static DOWNLOAD_CANCEL_FLAGS: Lazy<Mutex<HashMap<i32, Arc<AtomicBool>>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
 
@@ -81,8 +92,8 @@ fn validate_url(url: &str) -> Result<(), String> {
     }
 
     // Length check to prevent abuse
-    if url.len() > 4096 {
-        return Err("URL is too long (max 4096 characters)".to_string());
+    if url.len() > MAX_URL_LENGTH {
+        return Err(format!("URL is too long (max {} characters)", MAX_URL_LENGTH));
     }
 
     Ok(())
@@ -95,8 +106,8 @@ fn validate_output_location(location: &str) -> Result<(), String> {
     }
 
     // Length check
-    if location.len() > 1024 {
-        return Err("Output location path is too long (max 1024 characters)".to_string());
+    if location.len() > MAX_OUTPUT_PATH_LENGTH {
+        return Err(format!("Output location path is too long (max {} characters)", MAX_OUTPUT_PATH_LENGTH));
     }
 
     Ok(())
@@ -443,8 +454,8 @@ pub fn download_media(
             match child.try_wait() {
                 Ok(Some(status)) => break Some(status),
                 Ok(None) => {
-                    // Still running, sleep briefly
-                    thread::sleep(Duration::from_millis(100));
+                    // Still running, sleep briefly before checking again
+                    thread::sleep(Duration::from_millis(CANCELLATION_POLL_INTERVAL_MS));
                 }
                 Err(e) => {
                     eprintln!("Error checking process status: {}", e);
