@@ -30,7 +30,7 @@ Test style:
 - Use descriptive names (what + when + expected).
 - Use Arrange–Act–Assert structure.
 - Prefer tests focused on one behavior; avoid "mega tests".
-- When tests can’t run in the current environment, still write or document them and focus on testable logic.
+- When tests can't run in the current environment, still write or document them and focus on testable logic.
 
 ## 4. Architecture Principles
 
@@ -89,7 +89,17 @@ ReMedia is a Tauri-based desktop media downloader that uses yt-dlp to extract an
 
 ### Code Quality
 
+- `bun run lint` - Run oxlint linter (TypeScript-aware)
+- `bun run lint:fix` - Fix linting issues automatically
+- `bun run fmt` - Format code with oxfmt
 - `bun run check` - Run Biome linter and formatter (use this for lint/typecheck)
+
+### Testing
+
+- `bun run test:e2e` - Run Playwright end-to-end tests
+- `bun run test:e2e:web` - Run web-only Playwright tests
+- `bun run test:e2e:headed` - Run Playwright tests with headed browser
+- `bun run test:e2e:install` - Install Playwright browsers and dependencies
 
 ### Component Management
 
@@ -130,6 +140,13 @@ ReMedia is a Tauri-based desktop media downloader that uses yt-dlp to extract an
 - 120 character line width
 - Semicolons as needed, no trailing commas
 - Double quotes for JSX attributes
+
+### TypeScript Configuration
+
+- Strict mode enabled with `noUncheckedIndexedAccess`
+- Path aliases: `@/*` maps to `./src/*`
+- ES2020 target with DOM libraries
+- No unused locals/parameters allowed
 
 ### State Management Patterns
 
@@ -194,3 +211,4 @@ useTauriEvents({
 - Use Tauri dev tools for frontend debugging
 - Rust backend logs available in development console
 - yt-dlp output captured and parsed for error diagnostics
+- Playwright for end-to-end testing with cross-platform support
