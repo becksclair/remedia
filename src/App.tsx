@@ -17,6 +17,13 @@ import {
 	DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 
+import {
+	ContextMenu,
+	ContextMenuContent,
+	ContextMenuItem,
+	ContextMenuTrigger
+} from "@/components/ui/context-menu";
+
 import type { ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontal } from "lucide-react";
 
@@ -297,6 +304,54 @@ function App(): JSX.Element {
 		await invoke("quit");
 	}
 
+	// Phase 4: Context Menu Actions
+	function handleRemoveSelected(): void {
+		const selectedRowIndices = Object.keys(rowSelection).filter(key => rowSelection[key] === true);
+
+		if (selectedRowIndices.length === 0) {
+			return;
+		}
+
+		// Remove selected items by filtering out items at selected indices
+		const selectedIndices = new Set(selectedRowIndices.map(idx => Number.parseInt(idx)));
+		const filtered = mediaList.filter((_item, index) => !selectedIndices.has(index));
+		setMediaList(filtered);
+	}
+
+	function handleRemoveAll(): void {
+		setMediaList([]);
+		setGlobalProgress(0);
+		setGlobalDownloading(false);
+	}
+
+	async function handleCopyAllUrls(): Promise<void> {
+		if (mediaList.length === 0) {
+			return;
+		}
+
+		const urls = mediaList.map(item => item.url).join("\n");
+		try {
+			await navigator.clipboard.writeText(urls);
+
+			if (notificationPermission) {
+				sendNotification({
+					body: `Copied ${mediaList.length} URL(s) to clipboard`,
+					title: "ReMedia"
+				});
+			}
+		} catch (error) {
+			console.error("Failed to copy URLs:", error);
+		}
+	}
+
+	async function handleDownloadAll(): Promise<void> {
+		if (mediaList.length === 0) {
+			return;
+		}
+
+		await startDownload();
+	}
+
 	const isUrl = (input: string): boolean => /^https?:\/\//.test(input);
 
 	function addMediaUrl(url: string): void {
@@ -506,7 +561,17 @@ function App(): JSX.Element {
 					dragHovering={dragHovering}
 				/>
 				{/* Drop Zone + Data View */}
-				<DataTable className="flex-auto grow overflow-y-auto" columns={MediaListColumns} data={mediaList} />
+				<ContextMenu>
+					<ContextMenuTrigger>
+						<DataTable className="flex-auto grow overflow-y-auto" columns={MediaListColumns} data={mediaList} />
+					</ContextMenuTrigger>
+					<ContextMenuContent>
+						<ContextMenuItem onClick={handleDownloadAll}>Download All</ContextMenuItem>
+						<ContextMenuItem onClick={handleRemoveSelected}>Remove Selected</ContextMenuItem>
+						<ContextMenuItem onClick={handleRemoveAll}>Remove All</ContextMenuItem>
+						<ContextMenuItem onClick={handleCopyAllUrls}>Copy All URLs</ContextMenuItem>
+					</ContextMenuContent>
+				</ContextMenu>
 
 				<section className="flex-none flex flex-col gap-y-4">
 					<div className="my-3">
