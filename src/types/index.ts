@@ -20,24 +20,24 @@ export type TauriEventName = (typeof TAURI_EVENT)[keyof typeof TAURI_EVENT];
 
 // Tauri command payloads (for invoke)
 export interface DownloadSettings {
-  downloadMode: "video" | "audio" | "both";
-  videoQuality: "best" | "high" | "medium" | "low";
-  maxResolution: "2160p" | "1440p" | "1080p" | "720p" | "480p" | "no-limit";
-  videoFormat: "mp4" | "mkv" | "webm" | "best";
-  audioFormat: "mp3" | "m4a" | "opus" | "best";
-  audioQuality: "best" | "high" | "medium" | "low";
+	downloadMode: "video" | "audio";
+	videoQuality: "best" | "high" | "medium" | "low";
+	maxResolution: "2160p" | "1440p" | "1080p" | "720p" | "480p" | "no-limit";
+	videoFormat: "mp4" | "mkv" | "webm" | "best";
+	audioFormat: "mp3" | "m4a" | "opus" | "best";
+	audioQuality: "0" | "2" | "5" | "9";
 }
 
 export interface DownloadMediaCommand {
-  mediaIdx: number;
-  mediaSourceUrl: string;
-  outputLocation: string;
-  settings: DownloadSettings;
+	mediaIdx: number;
+	mediaSourceUrl: string;
+	outputLocation: string;
+	settings: DownloadSettings;
 }
 
 export interface GetMediaInfoCommand {
-  mediaIdx: number;
-  mediaSourceUrl: string;
+	mediaIdx: number;
+	mediaSourceUrl: string;
 }
 
 export type QuitCommand = undefined;

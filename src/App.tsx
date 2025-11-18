@@ -2,11 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { Event } from "@tauri-apps/api/event";
 import { downloadDir } from "@tauri-apps/api/path";
 import { readText } from "@tauri-apps/plugin-clipboard-manager";
-import {
-  isPermissionGranted,
-  requestPermission,
-  sendNotification,
-} from "@tauri-apps/plugin-notification";
+import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
 
 import { useEffect, useState } from "react";
 import type { JSX } from "react";
@@ -14,11 +10,11 @@ import { DropZone } from "./components/drop-zone.tsx";
 import { Button } from "./components/ui/button.tsx";
 import { Progress } from "./components/ui/progress.tsx";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuLabel,
+	DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 
 import type { ColumnDef } from "@tanstack/react-table";
@@ -35,42 +31,41 @@ import { SettingsDialog } from "./components/settings-dialog";
 
 import "./App.css";
 
-import thumbnailPlaceholder from "./assets/thumbnail-placeholder.svg";
-
-import { useAtom, useSetAtom } from "jotai";
+import { useAtom, useSetAtom, useAtomValue } from "jotai";
 import {
-  downloadLocationAtom,
-  downloadModeAtom,
-  videoQualityAtom,
-  maxResolutionAtom,
-  videoFormatAtom,
-  audioFormatAtom,
-  audioQualityAtom,
+	downloadLocationAtom,
+	downloadModeAtom,
+	videoQualityAtom,
+	maxResolutionAtom,
+	videoFormatAtom,
+	audioFormatAtom,
+	audioQualityAtom
 } from "@/state/settings-atoms";
 import { tableRowSelectionAtom, addLogEntryAtom } from "@/state/app-atoms";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
+import type { DownloadSettings } from "@/types";
 
 declare global {
-  interface Window {
-    __E2E_addUrl?: (url: string) => void;
-  }
+	interface Window {
+		__E2E_addUrl?: (url: string) => void;
+	}
 }
 
 type VideoInfo = {
-  url: string;
-  title: string;
-  thumbnail?: string;
-  audioOnly: boolean;
-  progress: number;
-  status: "Pending" | "Downloading" | "Done" | "Error";
+	url: string;
+	title: string;
+	thumbnail?: string;
+	audioOnly: boolean;
+	progress: number;
+	status: "Pending" | "Downloading" | "Done" | "Error";
 };
 
 function debounce(callback: () => void, delay: number): () => void {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  return () => {
-    if (timer !== undefined) clearTimeout(timer);
-    timer = setTimeout(callback, delay);
-  };
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	return () => {
+		if (timer !== undefined) clearTimeout(timer);
+		timer = setTimeout(callback, delay);
+	};
 }
 
 function App(): JSX.Element {
@@ -78,17 +73,19 @@ function App(): JSX.Element {
 	const [dragHovering, setDragHovering] = useState(false);
 	const [mediaList, setMediaList] = useState<VideoInfo[]>([]);
 	const [outputLocation, setOutputLocation] = useAtom(downloadLocationAtom);
-	const [downloadMode] = useAtom(downloadModeAtom);
-	const [videoQuality] = useAtom(videoQualityAtom);
-	const [maxResolution] = useAtom(maxResolutionAtom);
-	const [videoFormat] = useAtom(videoFormatAtom);
-	const [audioFormat] = useAtom(audioFormatAtom);
-	const [audioQuality] = useAtom(audioQualityAtom);
 	const [rowSelection] = useAtom(tableRowSelectionAtom);
 	const [globalProgress, setGlobalProgress] = useState(0);
 	const [globalDownloading, setGlobalDownloading] = useState(false);
 	const [settingsOpen, setSettingsOpen] = useState(false);
 	const addLogEntry = useSetAtom(addLogEntryAtom);
+
+	// Phase 3.3: Read download settings
+	const downloadMode = useAtomValue(downloadModeAtom);
+	const videoQuality = useAtomValue(videoQualityAtom);
+	const maxResolution = useAtomValue(maxResolutionAtom);
+	const videoFormat = useAtomValue(videoFormatAtom);
+	const audioFormat = useAtomValue(audioFormatAtom);
+	const audioQuality = useAtomValue(audioQualityAtom);
 
 	const MediaListColumns: ColumnDef<VideoInfo>[] = [
 		{
@@ -114,16 +111,9 @@ function App(): JSX.Element {
 			accessorKey: "thumbnail",
 			cell: ({ row }) => {
 				const thumbnail = row.getValue("thumbnail");
-				if (!thumbnail) {
-					return (
-						<img
-							className="h-[72px] w-auto opacity-50"
-							alt="No thumbnail available"
-							src={thumbnailPlaceholder}
-						/>
-					);
-				}
-				return <img className="h-[72px] w-auto" alt="Media thumbnail" src={thumbnail as string} />;
+				const thumbnailSrc = thumbnail ? (thumbnail as string) : "/src/assets/thumbnail-placeholder.svg";
+
+				return <img className="h-[72px] w-auto" alt="Media thumbnail" src={thumbnailSrc} />;
 			},
 			header: () => <div className="text-left">Preview</div>
 		},
@@ -193,269 +183,259 @@ function App(): JSX.Element {
 		}
 	];
 
-  const handleDragOver = (event: React.DragEvent<HTMLDivElement>): void => {
-    event.preventDefault();
-    setDragHovering(true);
-  };
+	const handleDragOver = (event: React.DragEvent<HTMLDivElement>): void => {
+		event.preventDefault();
+		setDragHovering(true);
+	};
 
-  const handleDragLeave = (event: React.DragEvent<HTMLDivElement>): void => {
-    event.preventDefault();
-    debounce(() => setDragHovering(false), 300)();
-  };
+	const handleDragLeave = (event: React.DragEvent<HTMLDivElement>): void => {
+		event.preventDefault();
+		debounce(() => setDragHovering(false), 300)();
+	};
 
-  void isPermissionGranted().then((granted) => {
-    if (!granted) {
-      void requestPermission().then((permission) => {
-        setNotificationPermission(permission === "granted");
-      });
-    }
-  });
+	void isPermissionGranted().then(granted => {
+		if (!granted) {
+			void requestPermission().then(permission => {
+				setNotificationPermission(permission === "granted");
+			});
+		}
+	});
 
-  async function startDownload(): Promise<void> {
-    setGlobalProgress(0);
-    setGlobalDownloading(true);
+	async function startDownload(): Promise<void> {
+		setGlobalProgress(0);
+		setGlobalDownloading(true);
 
-    try {
-      await Promise.all(
-        mediaList.map((media, i) =>
-          invoke("download_media", {
-            mediaIdx: i,
-            mediaSourceUrl: media.url,
-            outputLocation: outputLocation,
-            settings: {
-              downloadMode: downloadMode,
-              videoQuality: videoQuality,
-              maxResolution: maxResolution,
-              videoFormat: videoFormat,
-              audioFormat: audioFormat,
-              audioQuality: audioQuality,
-            },
-          }),
-        ),
-      );
-    } catch (err) {
-      console.error("Error starting download:", err);
-      alert("Error starting download");
-      setGlobalDownloading(false);
-    }
-  }
+		// Phase 3.3: Collect current settings
+		const settings: DownloadSettings = {
+			downloadMode,
+			videoQuality,
+			maxResolution,
+			videoFormat,
+			audioFormat,
+			audioQuality
+		};
 
-  async function preview(): Promise<void> {
-    const selectedRowIndices = Object.keys(rowSelection).filter(
-      (key) => rowSelection[key] === true,
-    );
+		try {
+			await Promise.all(
+				mediaList.map((media, i) =>
+					invoke("download_media", {
+						mediaIdx: i,
+						mediaSourceUrl: media.url,
+						outputLocation: outputLocation,
+						settings
+					})
+				)
+			);
+		} catch (err) {
+			console.error("Error starting download:", err);
+			alert("Error starting download");
+			setGlobalDownloading(false);
+		}
+	}
 
-    if (selectedRowIndices.length === 0) {
-      alert("Please select one or more items to preview");
-      return;
-    }
+	async function preview(): Promise<void> {
+		const selectedRowIndices = Object.keys(rowSelection).filter(key => rowSelection[key] === true);
 
-    console.log("Selected rows for preview:", selectedRowIndices);
+		if (selectedRowIndices.length === 0) {
+			alert("Please select one or more items to preview");
+			return;
+		}
 
-    try {
-      for (const rowIndex of selectedRowIndices) {
-        const selectedItem = mediaList[Number.parseInt(rowIndex)];
-        if (selectedItem?.url) {
-          console.log(`Opening preview for item ${rowIndex}:`, selectedItem);
+		console.log("Selected rows for preview:", selectedRowIndices);
 
-          const win = new WebviewWindow("preview-win", {
-            url: `/player?url=${encodeURIComponent(selectedItem.url)}`,
-            width: 760,
-            height: 560,
-            title: selectedItem.title
-              ? `Preview: ${selectedItem.title}`
-              : "ReMedia Preview",
-          });
+		try {
+			for (const rowIndex of selectedRowIndices) {
+				const selectedItem = mediaList[Number.parseInt(rowIndex)];
+				if (selectedItem?.url) {
+					console.log(`Opening preview for item ${rowIndex}:`, selectedItem);
 
-          void win.once("tauri://created", () => {
-            // webview successfully created
-          });
-          void win.once("tauri://error", (error) => {
-            console.error("Error creating webview:", error);
-            // an error happened creating the webview
-          });
+					const win = new WebviewWindow("preview-win", {
+						url: `/player?url=${encodeURIComponent(selectedItem.url)}`,
+						width: 760,
+						height: 560,
+						title: selectedItem.title ? `Preview: ${selectedItem.title}` : "ReMedia Preview"
+					});
 
-          // NOTE rc(08/2025): Disable creating the window in the Rust side for now
-          // so far, unable to get the window loading without crashing.
+					void win.once("tauri://created", () => {
+						// webview successfully created
+					});
+					void win.once("tauri://error", error => {
+						console.error("Error creating webview:", error);
+						// an error happened creating the webview
+					});
 
-          // await invoke("open_preview_window", {
-          // 	// Ensure leading slash so pathname === "/player" in src/main.tsx
-          // 	url: `/player?url=${encodeURIComponent(selectedItem.url)}`,
-          // 	title: selectedItem.title ? `Preview: ${selectedItem.title}` : "ReMedia Preview"
-          // })
-        } else {
-          console.warn(`No URL found for selected item at index ${rowIndex}`);
-        }
-      }
+					// NOTE rc(08/2025): Disable creating the window in the Rust side for now
+					// so far, unable to get the window loading without crashing.
 
-      if (notificationPermission) {
-        sendNotification({
-          body: `Loading ${selectedRowIndices.length} media preview(s)...`,
-          title: "Remedia",
-        });
-      }
-    } catch (error) {
-      console.error("Error opening preview window:", error);
-      alert(`Failed to open preview: ${String(error)}`);
-    }
-  }
+					// await invoke("open_preview_window", {
+					// 	// Ensure leading slash so pathname === "/player" in src/main.tsx
+					// 	url: `/player?url=${encodeURIComponent(selectedItem.url)}`,
+					// 	title: selectedItem.title ? `Preview: ${selectedItem.title}` : "ReMedia Preview"
+					// })
+				} else {
+					console.warn(`No URL found for selected item at index ${rowIndex}`);
+				}
+			}
 
-  async function showSettings(): Promise<void> {
-    setSettingsOpen(true);
-  }
+			if (notificationPermission) {
+				sendNotification({
+					body: `Loading ${selectedRowIndices.length} media preview(s)...`,
+					title: "Remedia"
+				});
+			}
+		} catch (error) {
+			console.error("Error opening preview window:", error);
+			alert(`Failed to open preview: ${String(error)}`);
+		}
+	}
 
-  async function quit(): Promise<void> {
-    await invoke("quit");
-  }
+	async function showSettings(): Promise<void> {
+		setSettingsOpen(true);
+	}
 
-  const isUrl = (input: string): boolean => /^https?:\/\//.test(input);
+	async function quit(): Promise<void> {
+		await invoke("quit");
+	}
 
-  function addMediaUrl(url: string): void {
-    // Check if the URL is already in the list and return if it is
-    if (mediaList.some((media) => media.url === url)) {
-      console.log("URL already exists in the list");
-      return;
-    }
+	const isUrl = (input: string): boolean => /^https?:\/\//.test(input);
 
-    const newMedia = {
-      audioOnly: false,
-      progress: 0,
-      status: "Pending",
-      title: url,
-      url: url,
-      thumbnail: "",
-    } as VideoInfo;
+	function addMediaUrl(url: string): void {
+		// Check if the URL is already in the list and return if it is
+		if (mediaList.some(media => media.url === url)) {
+			console.log("URL already exists in the list");
+			return;
+		}
 
-    const updatedMediaList = [...mediaList, newMedia];
-    const mediaIdx = updatedMediaList.findIndex((m) => m.url === url);
+		const newMedia = {
+			audioOnly: false,
+			progress: 0,
+			status: "Pending",
+			title: url,
+			url: url,
+			thumbnail: ""
+		} as VideoInfo;
 
-    setMediaList(updatedMediaList);
+		const updatedMediaList = [...mediaList, newMedia];
+		const mediaIdx = updatedMediaList.findIndex(m => m.url === url);
 
-    // Request media information
-    void invoke("get_media_info", {
-      mediaIdx,
-      mediaSourceUrl: url,
-    });
-  }
+		setMediaList(updatedMediaList);
 
-  // Expose test helper to add URLs without drag and drop
-  if (
-    typeof window !== "undefined" &&
-    (process.env.NODE_ENV === "test" || process.env.NODE_ENV === "development")
-  ) {
-    window.__E2E_addUrl = (url: string) => {
-      if (/^https?:\/\/[^\s]{3,2000}$/.test(url)) addMediaUrl(url);
-    };
-  }
+		// Request media information
+		void invoke("get_media_info", {
+			mediaIdx,
+			mediaSourceUrl: url
+		});
+	}
 
-  function clipboardIsUrl(): void {
-    // Check if the clipboard content is a URL
-    readText()
-      .then((text) => {
-        if (isUrl(text)) {
-          addMediaUrl(text);
-          console.log("URL added from clipboard");
-        }
-      })
-      .catch((err) => {
-        console.log("Error reading clipboard:", err);
-      });
-  }
+	// Expose test helper to add URLs without drag and drop
+	if (typeof window !== "undefined" && (process.env.NODE_ENV === "test" || process.env.NODE_ENV === "development")) {
+		window.__E2E_addUrl = (url: string) => {
+			if (/^https?:\/\/[^\s]{3,2000}$/.test(url)) addMediaUrl(url);
+		};
+	}
 
-  const updateMediaItem = (updates: Partial<VideoInfo>): void => {
-    if (!updates.url) return;
+	function clipboardIsUrl(): void {
+		// Check if the clipboard content is a URL
+		readText()
+			.then(text => {
+				if (isUrl(text)) {
+					addMediaUrl(text);
+					console.log("URL added from clipboard");
+				}
+			})
+			.catch(err => {
+				console.log("Error reading clipboard:", err);
+			});
+	}
 
-    setMediaList((prevList) => {
-      // Remove any items where title equals updates.url
-      const filtered = prevList.filter((item) => item.title !== updates.url);
+	const updateMediaItem = (updates: Partial<VideoInfo>): void => {
+		if (!updates.url) return;
 
-      const newMedia = {
-        audioOnly: false,
-        progress: 0,
-        status: "Pending",
-        title: updates.title ?? updates.url,
-        url: updates.url,
-        thumbnail: updates.thumbnail,
-      } as VideoInfo;
+		setMediaList(prevList => {
+			// Remove any items where title equals updates.url
+			const filtered = prevList.filter(item => item.title !== updates.url);
 
-      // If filtered contains an item with the same title as updates.title, merge it
-      const idx = filtered.findIndex((item) => item.title === updates.title);
+			const newMedia = {
+				audioOnly: false,
+				progress: 0,
+				status: "Pending",
+				title: updates.title ?? updates.url,
+				url: updates.url,
+				thumbnail: updates.thumbnail
+			} as VideoInfo;
 
-      if (idx !== -1) {
-        const existing = filtered[idx];
-        if (existing) {
-          const merged: VideoInfo = {
-            ...existing,
-            ...updates,
-            url: existing.url,
-            title: updates.title ?? existing.title,
-          };
-          filtered[idx] = merged;
-        }
-      } else {
-        filtered.push(newMedia);
-      }
+			// If filtered contains an item with the same title as updates.title, merge it
+			const idx = filtered.findIndex(item => item.title === updates.title);
 
-      return [...filtered];
-    });
-  };
+			if (idx !== -1) {
+				const existing = filtered[idx];
+				if (existing) {
+					const merged: VideoInfo = {
+						...existing,
+						...updates,
+						url: existing.url,
+						title: updates.title ?? existing.title
+					};
+					filtered[idx] = merged;
+				}
+			} else {
+				filtered.push(newMedia);
+			}
 
-  // Index-based updater for progress + status events coming from Rust.
-  const updateMediaItemByIndex = (
-    index: number,
-    updates: Partial<VideoInfo>,
-  ): void => {
-    setMediaList((prev) => {
-      if (index < 0 || index >= prev.length) return prev;
-      const next = [...prev];
-      const existing = next[index];
-      if (!existing) return prev;
-      next[index] = {
-        ...existing,
-        ...updates,
-        // Preserve original identifying fields if not explicitly changed
-        title: updates.title ?? existing.title,
-        url: existing.url,
-      };
-      return next;
-    });
-  };
+			return [...filtered];
+		});
+	};
 
-  function dropHandler(input: string): void {
-    setDragHovering(false);
+	// Index-based updater for progress + status events coming from Rust.
+	const updateMediaItemByIndex = (index: number, updates: Partial<VideoInfo>): void => {
+		setMediaList(prev => {
+			if (index < 0 || index >= prev.length) return prev;
+			const next = [...prev];
+			const existing = next[index];
+			if (!existing) return prev;
+			next[index] = {
+				...existing,
+				...updates,
+				// Preserve original identifying fields if not explicitly changed
+				title: updates.title ?? existing.title,
+				url: existing.url
+			};
+			return next;
+		});
+	};
 
-    if (isUrl(input)) {
-      addMediaUrl(input);
-    }
-  }
+	function dropHandler(input: string): void {
+		setDragHovering(false);
 
-  function handleWindowFocus(): void {
-    clipboardIsUrl();
-  }
+		if (isUrl(input)) {
+			addMediaUrl(input);
+		}
+	}
 
-  const handleMediaInfo = ({
-    payload: [_mediaIdx, mediaSourceUrl, title, thumbnail],
-  }: Event<MediaInfoEvent>): void => {
-    updateMediaItem({ thumbnail, title, url: mediaSourceUrl });
-  };
+	function handleWindowFocus(): void {
+		clipboardIsUrl();
+	}
 
-  const handleProgress = (event: Event<MediaProgressEvent>): void => {
-    const [mediaIdx, progress] = event.payload as MediaProgressEvent;
-    // Clamp progress 0-100, set status to Downloading
-    updateMediaItemByIndex(mediaIdx, {
-      progress: Math.min(100, Math.max(0, progress)),
-      status: "Downloading",
-    });
-  };
+	const handleMediaInfo = ({
+		payload: [_mediaIdx, mediaSourceUrl, title, thumbnail]
+	}: Event<MediaInfoEvent>): void => {
+		updateMediaItem({ thumbnail, title, url: mediaSourceUrl });
+	};
 
-  const handleComplete = (event: Event<number>): void => {
-    const mediaIdx = event.payload;
-    updateMediaItemByIndex(mediaIdx, { progress: 100, status: "Done" });
-  };
-  const handleError = (event: Event<number>): void => {
-    const mediaIdx = event.payload;
-    updateMediaItemByIndex(mediaIdx, { status: "Error" });
-  };
+	const handleProgress = (event: Event<MediaProgressEvent>): void => {
+		const [mediaIdx, progress] = event.payload as MediaProgressEvent;
+		// Clamp progress 0-100, set status to Downloading
+		updateMediaItemByIndex(mediaIdx, { progress: Math.min(100, Math.max(0, progress)), status: "Downloading" });
+	};
+
+	const handleComplete = (event: Event<number>): void => {
+		const mediaIdx = event.payload;
+		updateMediaItemByIndex(mediaIdx, { progress: 100, status: "Done" });
+	};
+	const handleError = (event: Event<number>): void => {
+		const mediaIdx = event.payload;
+		updateMediaItemByIndex(mediaIdx, { status: "Error" });
+	};
 
 	const handleYtDlpStderr = (event: Event<[number, string]>): void => {
 		const [mediaIdx, message] = event.payload;
@@ -473,28 +453,28 @@ function App(): JSX.Element {
 
 	useWindowFocus(handleWindowFocus);
 
-  useEffect(() => {
-    void isPermissionGranted().then((granted) => {
-      if (!granted) {
-        console.log("Requesting notification permission");
-        void requestPermission().then((permission) => {
-          console.log("Notification permission:", permission);
-          setNotificationPermission(permission === "granted");
-        });
-      }
-      console.log("Notification permission already granted:", granted);
-      setNotificationPermission(granted);
-    });
-  }, []);
+	useEffect(() => {
+		void isPermissionGranted().then(granted => {
+			if (!granted) {
+				console.log("Requesting notification permission");
+				void requestPermission().then(permission => {
+					console.log("Notification permission:", permission);
+					setNotificationPermission(permission === "granted");
+				});
+			}
+			console.log("Notification permission already granted:", granted);
+			setNotificationPermission(granted);
+		});
+	}, []);
 
-  useEffect(() => {
-    // Set the default download directory to the user's download folder
-    downloadDir()
-      .then((dir) => setOutputLocation(dir))
-      .catch((error) => {
-        console.error("Failed to get download directory:", error);
-      });
-  }, [setOutputLocation]);
+	useEffect(() => {
+		// Set the default download directory to the user's download folder
+		downloadDir()
+			.then(dir => setOutputLocation(dir))
+			.catch(error => {
+				console.error("Failed to get download directory:", error);
+			});
+	}, [setOutputLocation]);
 
 	// Subscribe to Tauri events
 	useTauriEvents({
@@ -515,72 +495,57 @@ function App(): JSX.Element {
 		);
 	}, [mediaList, globalDownloading]);
 
-  return (
-    <main
-      className="container"
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-    >
-      {/* <CustomTitleBar /> */}
+	return (
+		<main className="container" onDragOver={handleDragOver} onDragLeave={handleDragLeave}>
+			{/* <CustomTitleBar /> */}
 
-      <div className="app-container compact flex flex-col justify-between gap-y-4 h-screen ">
-        <DropZone
-          className="flex-auto grow overflow-y-auto"
-          dropHandler={dropHandler}
-          dragHovering={dragHovering}
-        />
-        {/* Drop Zone + Data View */}
-        <DataTable
-          className="flex-auto grow overflow-y-auto"
-          columns={MediaListColumns}
-          data={mediaList}
-        />
+			<div className="app-container compact flex flex-col justify-between gap-y-4 h-screen ">
+				<DropZone
+					className="flex-auto grow overflow-y-auto"
+					dropHandler={dropHandler}
+					dragHovering={dragHovering}
+				/>
+				{/* Drop Zone + Data View */}
+				<DataTable className="flex-auto grow overflow-y-auto" columns={MediaListColumns} data={mediaList} />
 
-        <section className="flex-none flex flex-col gap-y-4">
-          <div className="my-3">
-            <Progress
-              data-testid="global-progress"
-              value={globalProgress}
-              max={100}
-              className="w-full"
-            />
-          </div>
+				<section className="flex-none flex flex-col gap-y-4">
+					<div className="my-3">
+						<Progress data-testid="global-progress" value={globalProgress} max={100} className="w-full" />
+					</div>
 
-          <div className="flex justify-center gap-x-4 mb-3">
-            <Button
-              type="button"
-              className="min-w-32"
-              disabled={globalDownloading}
-              onClick={startDownload}
-            >
-              Download
-            </Button>
-            {globalDownloading && (
-              <Button
-                type="button"
-                className="min-w-32"
-                disabled={!globalDownloading}
-                onClick={startDownload}
-              >
-                Cancel
-              </Button>
-            )}
+					<div className="flex justify-center gap-x-4 mb-3">
+						<Button
+							type="button"
+							className="min-w-32"
+							disabled={globalDownloading}
+							onClick={startDownload}>
+							Download
+						</Button>
+						{globalDownloading && (
+							<Button
+								type="button"
+								className="min-w-32"
+								disabled={!globalDownloading}
+								onClick={startDownload}>
+								Cancel
+							</Button>
+						)}
 
-            <Button type="button" className="min-w-32" onClick={preview}>
-              Preview
-            </Button>
-            <Button type="button" className="min-w-32" onClick={showSettings}>
-              Settings
-            </Button>
-            <Button type="button" className="min-w-32" onClick={quit}>
-              Quit
-            </Button>
-          </div>
-        </section>
-      </div>
-      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
-    </main>
-  );
+						<Button type="button" className="min-w-32" onClick={preview}>
+							Preview
+						</Button>
+						<Button type="button" className="min-w-32" onClick={showSettings}>
+							Settings
+						</Button>
+						<Button type="button" className="min-w-32" onClick={quit}>
+							Quit
+						</Button>
+					</div>
+				</section>
+			</div>
+			<SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+		</main>
+	);
 }
 
 export default App;
