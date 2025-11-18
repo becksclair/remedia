@@ -24,6 +24,74 @@ pub struct DownloadSettings {
     audio_quality: String,    // "0" | "2" | "5" | "9"
 }
 
+/// Validate download settings fields
+fn validate_settings(settings: &DownloadSettings) -> Result<(), String> {
+    // Validate download mode
+    if !matches!(settings.download_mode.as_str(), "video" | "audio") {
+        return Err(format!("Invalid download_mode: {}", settings.download_mode));
+    }
+
+    // Validate video quality
+    if !matches!(settings.video_quality.as_str(), "best" | "high" | "medium" | "low") {
+        return Err(format!("Invalid video_quality: {}", settings.video_quality));
+    }
+
+    // Validate max resolution
+    if !matches!(settings.max_resolution.as_str(), "2160p" | "1440p" | "1080p" | "720p" | "480p" | "no-limit") {
+        return Err(format!("Invalid max_resolution: {}", settings.max_resolution));
+    }
+
+    // Validate video format
+    if !matches!(settings.video_format.as_str(), "mp4" | "mkv" | "webm" | "best") {
+        return Err(format!("Invalid video_format: {}", settings.video_format));
+    }
+
+    // Validate audio format
+    if !matches!(settings.audio_format.as_str(), "mp3" | "m4a" | "opus" | "best") {
+        return Err(format!("Invalid audio_format: {}", settings.audio_format));
+    }
+
+    // Validate audio quality
+    if !matches!(settings.audio_quality.as_str(), "0" | "2" | "5" | "9") {
+        return Err(format!("Invalid audio_quality: {}", settings.audio_quality));
+    }
+
+    Ok(())
+}
+
+/// Validate URL input
+fn validate_url(url: &str) -> Result<(), String> {
+    if url.trim().is_empty() {
+        return Err("URL cannot be empty".to_string());
+    }
+
+    // Basic URL format validation
+    if !url.starts_with("http://") && !url.starts_with("https://") {
+        return Err("URL must start with http:// or https://".to_string());
+    }
+
+    // Length check to prevent abuse
+    if url.len() > 4096 {
+        return Err("URL is too long (max 4096 characters)".to_string());
+    }
+
+    Ok(())
+}
+
+/// Validate output location
+fn validate_output_location(location: &str) -> Result<(), String> {
+    if location.trim().is_empty() {
+        return Err("Output location cannot be empty".to_string());
+    }
+
+    // Length check
+    if location.len() > 1024 {
+        return Err("Output location path is too long (max 1024 characters)".to_string());
+    }
+
+    Ok(())
+}
+
 /// Parse progress percentage from yt-dlp progress line
 /// Returns None if line doesn't contain valid progress
 fn parse_progress_percent(line: &str) -> Option<f64> {
@@ -115,6 +183,13 @@ pub async fn get_media_info(
     media_idx: i32,
     media_source_url: String,
 ) -> Result<(), String> {
+    // Validate inputs at boundary
+    validate_url(&media_source_url)?;
+
+    if media_idx < 0 {
+        return Err("Media index must be non-negative".to_string());
+    }
+
     let mut cmd = Command::new("yt-dlp");
     cmd.arg(&media_source_url)
         .arg("-j")
@@ -201,6 +276,39 @@ pub fn download_media(
     output_location: String,
     settings: DownloadSettings,
 ) {
+    // Validate inputs at boundary
+    if let Err(e) = validate_url(&media_source_url) {
+        eprintln!("URL validation failed: {}", e);
+        if let Err(emit_err) = window.emit("download-error", media_idx) {
+            eprintln!("Failed to emit download error: {}", emit_err);
+        }
+        return;
+    }
+
+    if let Err(e) = validate_output_location(&output_location) {
+        eprintln!("Output location validation failed: {}", e);
+        if let Err(emit_err) = window.emit("download-error", media_idx) {
+            eprintln!("Failed to emit download error: {}", emit_err);
+        }
+        return;
+    }
+
+    if let Err(e) = validate_settings(&settings) {
+        eprintln!("Settings validation failed: {}", e);
+        if let Err(emit_err) = window.emit("download-error", media_idx) {
+            eprintln!("Failed to emit download error: {}", emit_err);
+        }
+        return;
+    }
+
+    if media_idx < 0 {
+        eprintln!("Invalid media index: {}", media_idx);
+        if let Err(emit_err) = window.emit("download-error", media_idx) {
+            eprintln!("Failed to emit download error: {}", emit_err);
+        }
+        return;
+    }
+
     let window = window.clone();
 
     spawn(async move {
