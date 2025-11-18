@@ -11,25 +11,25 @@ function Player() {
 
   const src = decodeURIComponent(raw);
 
-  return (
-    <ErrorBoundary>
-      <div className="w-screen h-screen bg-black relative flex justify-center items-center">
-        <ReactPlayer
-          url={src}
-          controls
-          width="100%"
-          height="100%"
-          config={{
-            file: {
-              attributes: {
-                controlsList: "nodownload",
-              },
-            },
-          }}
-        />
-      </div>
-    </ErrorBoundary>
-  );
+	return (
+		<ErrorBoundary>
+			<div className="w-screen h-screen bg-black relative flex justify-center items-center">
+				<ReactPlayer
+					url={src}
+					controls
+					width="100%"
+					height="100%"
+					config={{
+						file: {
+							attributes: {
+								controlsList: "nodownload"
+							}
+						}
+					}}
+				/>
+			</div>
+		</ErrorBoundary>
+	);
 }
 
 export default Player;

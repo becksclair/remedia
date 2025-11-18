@@ -5,13 +5,16 @@
 export type MediaProgressEvent = [number, number];
 // [mediaIdx, mediaSourceUrl, title, thumbnail]
 export type MediaInfoEvent = [number, string, string, string];
+// [mediaIdx, stderrLine]
+export type YtDlpStderrEvent = [number, string];
 
 // Tauri event name constants
 export const TAURI_EVENT = {
-  updateMediaInfo: "update-media-info",
-  downloadProgress: "download-progress",
-  downloadComplete: "download-complete",
-  downloadError: "download-error",
+	updateMediaInfo: "update-media-info",
+	downloadProgress: "download-progress",
+	downloadComplete: "download-complete",
+	downloadError: "download-error",
+	ytDlpStderr: "yt-dlp-stderr"
 } as const;
 export type TauriEventName = (typeof TAURI_EVENT)[keyof typeof TAURI_EVENT];
 

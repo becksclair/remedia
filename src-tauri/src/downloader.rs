@@ -119,22 +119,25 @@ pub async fn get_media_info(
                     .filter(|s| !s.is_empty())
                     .unwrap_or(media_source_url.as_str())
                     .to_string();
-                // Enhanced thumbnail extraction strategy per spec
+                // Robust thumbnail extraction: try multiple fields
                 let thumbnail = v
                     .get("thumbnail")
                     .and_then(|t| t.as_str())
                     .filter(|s| !s.is_empty())
                     .or_else(|| {
-                        // Try thumbnails array - pick highest resolution or last element
-                        v.get("thumbnails").and_then(|thumbnails| {
-                            thumbnails.as_array().and_then(|arr| {
-                                arr.last().and_then(|thumb| thumb.get("url")).and_then(|url| url.as_str())
-                            })
-                        })
+                        // Try thumbnails array - pick the last (usually highest resolution)
+                        v.get("thumbnails")
+                            .and_then(|arr| arr.as_array())
+                            .and_then(|thumbnails| thumbnails.last())
+                            .and_then(|thumb| thumb.get("url"))
+                            .and_then(|url| url.as_str())
+                            .filter(|s| !s.is_empty())
                     })
                     .or_else(|| {
-                        // Try thumbnail_url field
-                        v.get("thumbnail_url").and_then(|t| t.as_str())
+                        // Try thumbnail_url as fallback
+                        v.get("thumbnail_url")
+                            .and_then(|t| t.as_str())
+                            .filter(|s| !s.is_empty())
                     })
                     .unwrap_or_default()
                     .to_string();
@@ -174,6 +177,7 @@ pub fn download_media(
         // Build the yt-dlp command
         let mut cmd = Command::new("yt-dlp");
         cmd.arg(media_source_url)
+<<<<<<< HEAD
             .arg("--progress-template")
             .arg("download:remedia-%(progress._percent_stripped)s-%(progress.eta)s-%(info.id)s")
             .arg("--newline")
@@ -223,25 +227,30 @@ pub fn download_media(
 
                 // Check if the line starts with 'remedia-'
                 if line.starts_with("remedia-") {
-                    // Output format: remedia-75.3-00:12-abc123
-                    let ln_status: Vec<&str> = line.split('-').collect();
+                    // New format: remedia-<percent>-<eta>
+                    // Example: remedia-45.2%-2:30
+                    let parts: Vec<&str> = line.split('-').collect();
 
-                    // Check we have at least 3 segments before proceeding
-                    if ln_status.len() >= 3 {
-                        // Parse percent directly from the first segment
-                        let percent = ln_status.get(1).and_then(|s| s.parse::<f64>().ok());
+                    // We expect at least 2 segments: ["remedia", "<percent>", ...]
+                    if parts.len() >= 2 {
+                        // Get the percent string (e.g., "45.2%" or "100%" or "N/A")
+                        if let Some(percent_str) = parts.get(1) {
+                            // Remove the '%' sign if present and parse as f64
+                            let percent_clean = percent_str.trim_end_matches('%');
 
-                        // Only proceed if percent was successfully parsed
-                        if let Some(percent_value) = percent {
-                            // Emit event to frontend
-                            if let Err(e) = window.emit("download-progress", (media_idx, percent_value)) {
-                                eprintln!("Failed to emit download progress: {}", e);
+                            if let Ok(percent) = percent_clean.parse::<f64>() {
+                                // Emit event to frontend with clamped percent value
+                                let clamped_percent = percent.max(0.0).min(100.0);
+                                if let Err(e) = window.emit("download-progress", (media_idx, clamped_percent)) {
+                                    eprintln!("Failed to emit download progress: {}", e);
+                                }
+                            } else if percent_clean != "N/A" {
+                                // Only log if it's not the expected "N/A" value
+                                eprintln!("Failed to parse percent value: {}", percent_clean);
                             }
-                        } else {
-                            eprintln!("Failed to parse percent from line: {}", line);
                         }
                     } else {
-                        eprintln!("Invalid progress line format - expected at least 3 segments: {}", line);
+                        eprintln!("Invalid progress line format - expected at least 2 segments: {}", line);
                     }
                 }
             }

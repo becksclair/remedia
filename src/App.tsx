@@ -37,7 +37,7 @@ import "./App.css";
 
 import thumbnailPlaceholder from "./assets/thumbnail-placeholder.svg";
 
-import { useAtom } from "jotai";
+import { useAtom, useSetAtom } from "jotai";
 import {
   downloadLocationAtom,
   downloadModeAtom,
@@ -47,7 +47,7 @@ import {
   audioFormatAtom,
   audioQualityAtom,
 } from "@/state/settings-atoms";
-import { tableRowSelectionAtom } from "@/state/app-atoms";
+import { tableRowSelectionAtom, addLogEntryAtom } from "@/state/app-atoms";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 
 declare global {
@@ -74,140 +74,124 @@ function debounce(callback: () => void, delay: number): () => void {
 }
 
 function App(): JSX.Element {
-  const [notificationPermission, setNotificationPermission] = useState(false);
-  const [dragHovering, setDragHovering] = useState(false);
-  const [mediaList, setMediaList] = useState<VideoInfo[]>([]);
-  const [outputLocation, setOutputLocation] = useAtom(downloadLocationAtom);
-  const [downloadMode] = useAtom(downloadModeAtom);
-  const [videoQuality] = useAtom(videoQualityAtom);
-  const [maxResolution] = useAtom(maxResolutionAtom);
-  const [videoFormat] = useAtom(videoFormatAtom);
-  const [audioFormat] = useAtom(audioFormatAtom);
-  const [audioQuality] = useAtom(audioQualityAtom);
-  const [rowSelection] = useAtom(tableRowSelectionAtom);
-  const [globalProgress, setGlobalProgress] = useState(0);
-  const [globalDownloading, setGlobalDownloading] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
+	const [notificationPermission, setNotificationPermission] = useState(false);
+	const [dragHovering, setDragHovering] = useState(false);
+	const [mediaList, setMediaList] = useState<VideoInfo[]>([]);
+	const [outputLocation, setOutputLocation] = useAtom(downloadLocationAtom);
+	const [downloadMode] = useAtom(downloadModeAtom);
+	const [videoQuality] = useAtom(videoQualityAtom);
+	const [maxResolution] = useAtom(maxResolutionAtom);
+	const [videoFormat] = useAtom(videoFormatAtom);
+	const [audioFormat] = useAtom(audioFormatAtom);
+	const [audioQuality] = useAtom(audioQualityAtom);
+	const [rowSelection] = useAtom(tableRowSelectionAtom);
+	const [globalProgress, setGlobalProgress] = useState(0);
+	const [globalDownloading, setGlobalDownloading] = useState(false);
+	const [settingsOpen, setSettingsOpen] = useState(false);
+	const addLogEntry = useSetAtom(addLogEntryAtom);
 
-  const MediaListColumns: ColumnDef<VideoInfo>[] = [
-    {
-      cell: ({ row }) => (
-        <Checkbox
-          checked={row.getIsSelected()}
-          onCheckedChange={(value) => row.toggleSelected(!!value)}
-          aria-label="Select row"
-        />
-      ),
-      enableHiding: false,
-      enableSorting: false,
-      header: ({ table }) => (
-        <Checkbox
-          checked={
-            table.getIsAllPageRowsSelected() ||
-            (table.getIsSomePageRowsSelected() && "indeterminate")
-          }
-          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-          aria-label="Select all"
-        />
-      ),
-      id: "select",
-    },
-    {
-      accessorKey: "thumbnail",
-      cell: ({ row }) => {
-        const thumbnail = row.getValue("thumbnail");
-        if (!thumbnail) {
-          return (
-            <img
-              className="h-[72px] w-auto opacity-50"
-              alt="No thumbnail available"
-              src={thumbnailPlaceholder}
-            />
-          );
-        }
-
-        return (
-          <img
-            className="h-[72px] w-auto"
-            alt="Media thumbnail"
-            src={thumbnail as string}
-          />
-        );
-      },
-      header: () => <div className="text-left">Preview</div>,
-    },
-    {
-      accessorKey: "title",
-      header: () => <div className="text-left">Title</div>,
-      cell: ({ row }) => (
-        <div className="text-left w-full whitespace-pre-line text-wrap overflow-hidden text-ellipsis">
-          {row.getValue("title")}
-        </div>
-      ),
-    },
-    {
-      accessorKey: "audioOnly",
-      cell: ({ row }) => {
-        return (
-          <Checkbox
-            checked={row.getValue("audioOnly")}
-            aria-label="Audio only"
-            // Optionally, add onCheckedChange if you want to allow toggling
-            // onCheckedChange={(value) => ...}
-          />
-        );
-      },
-      header: () => <div className="text-center">Audio</div>,
-    },
-    {
-      accessorKey: "progress",
-      cell: ({ row }) => {
-        return <Progress value={row.getValue("progress")} />;
-      },
-      header: () => <div className="text-center">Progress</div>,
-    },
-    {
-      accessorKey: "status",
-      header: () => <div className="text-right">Status</div>,
-    },
-    {
-      cell: ({ row }) => {
-        return (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-8 w-8 p-0">
-                <span className="sr-only">Open menu</span>
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuItem
-                onClick={() =>
-                  navigator.clipboard.writeText(row.getValue("url"))
-                }
-              >
-                Copy URL
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => {
-                  // Remove the row from the mediaList
-                  setMediaList((prevList) =>
-                    prevList.filter(
-                      (item) => item.title !== row.getValue("title"),
-                    ),
-                  );
-                }}
-              >
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        );
-      },
-      id: "actions",
-    },
-  ];
+	const MediaListColumns: ColumnDef<VideoInfo>[] = [
+		{
+			cell: ({ row }) => (
+				<Checkbox
+					checked={row.getIsSelected()}
+					onCheckedChange={value => row.toggleSelected(!!value)}
+					aria-label="Select row"
+				/>
+			),
+			enableHiding: false,
+			enableSorting: false,
+			header: ({ table }) => (
+				<Checkbox
+					checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")}
+					onCheckedChange={value => table.toggleAllPageRowsSelected(!!value)}
+					aria-label="Select all"
+				/>
+			),
+			id: "select"
+		},
+		{
+			accessorKey: "thumbnail",
+			cell: ({ row }) => {
+				const thumbnail = row.getValue("thumbnail");
+				if (!thumbnail) {
+					return (
+						<img
+							className="h-[72px] w-auto opacity-50"
+							alt="No thumbnail available"
+							src={thumbnailPlaceholder}
+						/>
+					);
+				}
+				return <img className="h-[72px] w-auto" alt="Media thumbnail" src={thumbnail as string} />;
+			},
+			header: () => <div className="text-left">Preview</div>
+		},
+		{
+			accessorKey: "title",
+			header: () => <div className="text-left">Title</div>,
+			cell: ({ row }) => (
+				<div className="text-left w-full whitespace-pre-line text-wrap overflow-hidden text-ellipsis">
+					{row.getValue("title")}
+				</div>
+			)
+		},
+		{
+			accessorKey: "audioOnly",
+			cell: ({ row }) => {
+				return (
+					<Checkbox
+						checked={row.getValue("audioOnly")}
+						aria-label="Audio only"
+						// Optionally, add onCheckedChange if you want to allow toggling
+						// onCheckedChange={(value) => ...}
+					/>
+				);
+			},
+			header: () => <div className="text-center">Audio</div>
+		},
+		{
+			accessorKey: "progress",
+			cell: ({ row }) => {
+				return <Progress value={row.getValue("progress")} />;
+			},
+			header: () => <div className="text-center">Progress</div>
+		},
+		{
+			accessorKey: "status",
+			header: () => <div className="text-right">Status</div>
+		},
+		{
+			cell: ({ row }) => {
+				return (
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<Button variant="ghost" className="h-8 w-8 p-0">
+								<span className="sr-only">Open menu</span>
+								<MoreHorizontal className="h-4 w-4" />
+							</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="end">
+							<DropdownMenuLabel>Actions</DropdownMenuLabel>
+							<DropdownMenuItem onClick={() => navigator.clipboard.writeText(row.getValue("url"))}>
+								Copy URL
+							</DropdownMenuItem>
+							<DropdownMenuItem
+								onClick={() => {
+									// Remove the row from the mediaList
+									setMediaList(prevList =>
+										prevList.filter(item => item.title !== row.getValue("title"))
+									);
+								}}>
+								Delete
+							</DropdownMenuItem>
+						</DropdownMenuContent>
+					</DropdownMenu>
+				);
+			},
+			id: "actions"
+		}
+	];
 
   const handleDragOver = (event: React.DragEvent<HTMLDivElement>): void => {
     event.preventDefault();
@@ -473,7 +457,21 @@ function App(): JSX.Element {
     updateMediaItemByIndex(mediaIdx, { status: "Error" });
   };
 
-  useWindowFocus(handleWindowFocus);
+	const handleYtDlpStderr = (event: Event<[number, string]>): void => {
+		const [mediaIdx, message] = event.payload;
+		// Log to console for dev visibility
+		console.log(`[yt-dlp stderr][media ${mediaIdx}]: ${message}`);
+		// Add to log entries atom
+		addLogEntry({
+			timestamp: Date.now(),
+			source: "yt-dlp",
+			level: message.toLowerCase().includes("error") ? "error" : message.toLowerCase().includes("warn") ? "warn" : "info",
+			message,
+			mediaIdx
+		});
+	};
+
+	useWindowFocus(handleWindowFocus);
 
   useEffect(() => {
     void isPermissionGranted().then((granted) => {
@@ -498,26 +496,24 @@ function App(): JSX.Element {
       });
   }, [setOutputLocation]);
 
-  // You could alternatively use the new useTauriEvents hook, uncomment this to try it:
-  useTauriEvents({
-    "update-media-info": handleMediaInfo,
-    "download-progress": handleProgress,
-    "download-complete": handleComplete,
-    "download-error": handleError,
-  });
+	// Subscribe to Tauri events
+	useTauriEvents({
+		"update-media-info": handleMediaInfo,
+		"download-progress": handleProgress,
+		"download-complete": handleComplete,
+		"download-error": handleError,
+		"yt-dlp-stderr": handleYtDlpStderr
+	});
 
-  // Handle dynamic updating of global download status and progress
-  useEffect(() => {
-    setGlobalDownloading(
-      mediaList.some((media) => media.status === "Downloading"),
-    );
-    setGlobalProgress(
-      globalDownloading
-        ? mediaList.reduce((acc, item) => acc + item.progress, 0) /
-            mediaList.length
-        : 0,
-    );
-  }, [mediaList, globalDownloading]);
+	// Handle dynamic updating of global download status and progress
+	useEffect(() => {
+		setGlobalDownloading(mediaList.some(media => media.status === "Downloading"));
+		setGlobalProgress(
+			globalDownloading && mediaList.length > 0
+				? mediaList.reduce((acc, item) => acc + item.progress, 0) / mediaList.length
+				: 0
+		);
+	}, [mediaList, globalDownloading]);
 
   return (
     <main
