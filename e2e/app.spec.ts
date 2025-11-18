@@ -425,4 +425,67 @@ test.describe("ReMedia app", () => {
 		// Status should update to "Cancelled"
 		await expect(page.getByRole("cell", { name: "Cancelled" })).toBeVisible();
 	});
+
+	// Phase 5: Debug Console Tests
+	test("debug console displays log entries", async ({ page }) => {
+		await page.goto("/debug");
+
+		// Emit a yt-dlp stderr event
+		await emitTauriEvent(page, "yt-dlp-stderr", [0, "Downloading video metadata"]);
+
+		// Log entry should appear
+		await expect(page.getByText("Downloading video metadata")).toBeVisible({ timeout: 2000 });
+	});
+
+	test("debug console search finds text", async ({ page }) => {
+		await page.goto("/debug");
+
+		// Emit multiple log entries
+		await emitTauriEvent(page, "yt-dlp-stderr", [0, "Starting download"]);
+		await emitTauriEvent(page, "yt-dlp-stderr", [0, "Processing video"]);
+		await emitTauriEvent(page, "yt-dlp-stderr", [0, "Download complete"]);
+
+		// Enter search term
+		await page.getByPlaceholder("Search logs...").fill("download");
+
+		// Click Find Next
+		await page.getByRole("button", { name: "Find Next" }).click();
+
+		// First occurrence should be highlighted
+		const highlighted = page.locator(".highlight").first();
+		await expect(highlighted).toBeVisible();
+		await expect(highlighted).toContainText("download");
+	});
+
+	test("debug console find next cycles through results", async ({ page }) => {
+		await page.goto("/debug");
+
+		// Emit entries with repeated text
+		await emitTauriEvent(page, "yt-dlp-stderr", [0, "First error message"]);
+		await emitTauriEvent(page, "yt-dlp-stderr", [0, "Second error message"]);
+		await emitTauriEvent(page, "yt-dlp-stderr", [0, "Third error message"]);
+
+		// Search for "error"
+		await page.getByPlaceholder("Search logs...").fill("error");
+
+		// First Find Next
+		await page.getByRole("button", { name: "Find Next" }).click();
+		let highlighted = page.locator(".highlight").first();
+		await expect(highlighted).toContainText("First");
+
+		// Second Find Next
+		await page.getByRole("button", { name: "Find Next" }).click();
+		highlighted = page.locator(".highlight").first();
+		await expect(highlighted).toContainText("Second");
+
+		// Third Find Next
+		await page.getByRole("button", { name: "Find Next" }).click();
+		highlighted = page.locator(".highlight").first();
+		await expect(highlighted).toContainText("Third");
+
+		// Fourth Find Next wraps to first
+		await page.getByRole("button", { name: "Find Next" }).click();
+		highlighted = page.locator(".highlight").first();
+		await expect(highlighted).toContainText("First");
+	});
 });
