@@ -1,6 +1,78 @@
-# CLAUDE.md
+# Core Directives for AI Agents
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+## 1. Read Project Guidelines First
+
+- **Read-project-docs**: Before code changes, read the main project docs (architecture, patterns, lessons learned).
+- **Follow-existing-patterns**: Prefer existing abstractions and conventions over inventing new ones.
+
+## 2. Think Before Acting ("Ultrathink")
+
+- **Analyze-request**: Clarify the real goal, fit into existing architecture, and related features.
+- **Design-first**:
+  - Define contracts (inputs/outputs/errors).
+  - Decide what is configurable vs. hardcoded.
+  - Separate persistent state from transient UI/state.
+  - Place logic in the right layer (domain/service/orchestrator vs. UI).
+  - Plan how it will be tested.
+
+## 3. TDD: Red–Green–Refactor
+
+- **Red**: Write failing tests first.
+  - Start with happy path, then validation, edge cases, error conditions.
+  - Mock external dependencies (network, DB, FS, OS, external services).
+- **Green**: Implement minimal code to make tests pass.
+  - Only implement behavior covered by tests.
+- **Refactor**: Improve structure without changing behavior.
+  - Extract helpers, clean naming, remove duplication.
+  - Keep tests passing.
+
+Test style:
+- Use descriptive names (what + when + expected).
+- Use Arrange–Act–Assert structure.
+- Prefer tests focused on one behavior; avoid "mega tests".
+- When tests can’t run in the current environment, still write or document them and focus on testable logic.
+
+## 4. Architecture Principles
+
+- **Never**:
+  - Hardcode timeouts/retries/limits when they should be configurable.
+  - Hide core business logic in UI components.
+  - Call UI dialogs/notifications from deep core logic; keep a clear boundary.
+  - Store critical state only in UI-level objects.
+  - Swallow exceptions silently; always log or propagate appropriately.
+  - Duplicate validation logic across layers.
+
+- **Always**:
+  - Separate concerns: UI, orchestration, domain logic, infrastructure.
+  - Define interfaces/contracts for significant services/components.
+  - Validate inputs at boundaries/orchestrators.
+  - Log errors with enough context to debug.
+  - Return explicit result objects/status values for operations.
+  - Use async/non-blocking I/O where supported.
+
+## 5. Adding a New Feature
+
+1. **Explore**: Search for similar features, services, and patterns; read "lessons learned".
+2. **Design**: Define contracts, configuration, state boundaries, and placement.
+3. **Test-first**: Add failing tests for contract, validation, and errors.
+4. **Implement**: Minimal code to pass tests; reuse existing patterns.
+5. **Refactor**: Clean up, extract helpers, document public APIs.
+6. **Integrate**: Wire into existing flows/UI; perform basic manual tests.
+7. **Document & Commit**: Update docs if needed; commit small, focused changes with clear messages.
+
+## 6. Fixing Bugs
+
+1. **Reproduce**: Clarify expected vs. actual behavior and reproduction steps.
+2. **Locate**: Trace code paths and logs; search for similar issues.
+3. **Fix**: Address the root cause (validation, logic, or orchestration), not just symptoms.
+4. **Prevent**: Add/extend tests, improve logging, document subtle gotchas.
+
+## 7. Refactoring
+
+1. **Justify**: Only refactor for real issues (duplication, violations, poor testability/maintainability).
+2. **Plan**: Define target design, needed interfaces/contracts, and migration path.
+3. **Execute**: Refactor incrementally; keep the system running at each step.
+4. **Verify**: Run tests, check wiring/integration, and verify critical flows still work.
 
 ## Project Overview
 
