@@ -64,7 +64,7 @@ type VideoInfo = {
 	thumbnail?: string;
 	audioOnly: boolean;
 	progress: number;
-	status: "Pending" | "Downloading" | "Done" | "Error";
+	status: "Pending" | "Downloading" | "Done" | "Error" | "Cancelled";
 };
 
 function debounce(callback: () => void, delay: number): () => void {
@@ -352,6 +352,15 @@ function App(): JSX.Element {
 		await startDownload();
 	}
 
+	async function handleCancelAll(): Promise<void> {
+		try {
+			await invoke("cancel_all_downloads");
+			console.log("Cancel all downloads requested");
+		} catch (error) {
+			console.error("Failed to cancel downloads:", error);
+		}
+	}
+
 	const isUrl = (input: string): boolean => /^https?:\/\//.test(input);
 
 	function addMediaUrl(url: string): void {
@@ -492,6 +501,11 @@ function App(): JSX.Element {
 		updateMediaItemByIndex(mediaIdx, { status: "Error" });
 	};
 
+	const handleCancelled = (event: Event<number>): void => {
+		const mediaIdx = event.payload;
+		updateMediaItemByIndex(mediaIdx, { status: "Cancelled" });
+	};
+
 	const handleYtDlpStderr = (event: Event<[number, string]>): void => {
 		const [mediaIdx, message] = event.payload;
 		// Log to console for dev visibility
@@ -537,6 +551,7 @@ function App(): JSX.Element {
 		"download-progress": handleProgress,
 		"download-complete": handleComplete,
 		"download-error": handleError,
+		"download-cancelled": handleCancelled,
 		"yt-dlp-stderr": handleYtDlpStderr
 	});
 
@@ -567,6 +582,7 @@ function App(): JSX.Element {
 					</ContextMenuTrigger>
 					<ContextMenuContent>
 						<ContextMenuItem onClick={handleDownloadAll}>Download All</ContextMenuItem>
+						<ContextMenuItem onClick={handleCancelAll}>Cancel All</ContextMenuItem>
 						<ContextMenuItem onClick={handleRemoveSelected}>Remove Selected</ContextMenuItem>
 						<ContextMenuItem onClick={handleRemoveAll}>Remove All</ContextMenuItem>
 						<ContextMenuItem onClick={handleCopyAllUrls}>Copy All URLs</ContextMenuItem>
@@ -591,7 +607,7 @@ function App(): JSX.Element {
 								type="button"
 								className="min-w-32"
 								disabled={!globalDownloading}
-								onClick={startDownload}>
+								onClick={handleCancelAll}>
 								Cancel
 							</Button>
 						)}
