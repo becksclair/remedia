@@ -4,6 +4,7 @@ use remedia::quit;
 use tauri::Manager;
 
 mod downloader;
+mod download_queue;
 mod remedia;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
