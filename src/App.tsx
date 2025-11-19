@@ -35,6 +35,8 @@ import { SettingsDialog } from "./components/settings-dialog";
 
 import "./App.css";
 
+import thumbnailPlaceholder from "./assets/thumbnail-placeholder.svg";
+
 import { useAtom } from "jotai";
 import { downloadLocationAtom } from "@/state/settings-atoms";
 import { tableRowSelectionAtom } from "@/state/app-atoms";
@@ -100,7 +102,15 @@ function App(): JSX.Element {
       accessorKey: "thumbnail",
       cell: ({ row }) => {
         const thumbnail = row.getValue("thumbnail");
-        if (!thumbnail) return <div className="h-[72px] w-auto" />;
+        if (!thumbnail) {
+          return (
+            <img
+              className="h-[72px] w-auto opacity-50"
+              alt="No thumbnail available"
+              src={thumbnailPlaceholder}
+            />
+          );
+        }
 
         return (
           <img

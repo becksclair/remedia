@@ -6,10 +6,10 @@ use std::process::Command;
 use std::process::Stdio;
 
 use serde_json::Value;
-use tauri::async_runtime::spawn;
 use tauri::AppHandle;
 use tauri::Emitter;
 use tauri::Window;
+use tauri::async_runtime::spawn;
 
 async fn run_yt_dlp(cmd: &mut Command) -> Result<(String, String), std::io::Error> {
     let mut child = cmd.spawn()?;
@@ -72,24 +72,33 @@ pub async fn get_media_info(
                     .filter(|s| !s.is_empty())
                     .unwrap_or(media_source_url.as_str())
                     .to_string();
+                // Enhanced thumbnail extraction strategy per spec
                 let thumbnail = v
                     .get("thumbnail")
                     .and_then(|t| t.as_str())
+                    .filter(|s| !s.is_empty())
+                    .or_else(|| {
+                        // Try thumbnails array - pick highest resolution or last element
+                        v.get("thumbnails").and_then(|thumbnails| {
+                            thumbnails.as_array().and_then(|arr| {
+                                arr.last().and_then(|thumb| thumb.get("url")).and_then(|url| url.as_str())
+                            })
+                        })
+                    })
+                    .or_else(|| {
+                        // Try thumbnail_url field
+                        v.get("thumbnail_url").and_then(|t| t.as_str())
+                    })
                     .unwrap_or_default()
                     .to_string();
 
                 found_any = true;
                 window
-                    .emit(
-                        "update-media-info",
-                        (media_idx, media_source_url.clone(), title, thumbnail),
-                    )
+                    .emit("update-media-info", (media_idx, media_source_url.clone(), title, thumbnail))
                     .map_err(|e| e.to_string())?;
             }
             Err(e) => {
-                println!(
-                    "Failed to parse yt-dlp output line as generic JSON: {e}\nLine: {trimmed}"
-                );
+                println!("Failed to parse yt-dlp output line as generic JSON: {e}\nLine: {trimmed}");
             }
         }
     }
@@ -112,26 +121,27 @@ pub fn download_media(
     let window = window.clone();
 
     spawn(async move {
-        let output_format = format!("{}{}{}", output_location, path::MAIN_SEPARATOR, "%(title)s.%(ext)s");
+        let output_format = format!("{}{}{}", output_location, path::MAIN_SEPARATOR, "%(title)s [%(id)s].%(ext)s");
 
         // Build the yt-dlp command
         let mut cmd = Command::new("yt-dlp");
         cmd.arg(media_source_url)
-                .arg("--progress-template")
-                .arg("download:remedia-%(progress.downloaded_bytes)s-%(progress.total_bytes)s-%(progress.total_bytes_estimate)s-%(progress.eta)s")
-                .arg("--newline")
-                .arg("--continue")
-                .arg("--output")
-                .arg(output_format)
-                .arg("--embed-thumbnail")
-                .arg("--embed-subs")
-                .arg("--embed-metadata")
-                .arg("--embed-chapters")
-                .arg("--windows-filenames")
-                // .arg("--sponsorblock-remove")
-                // .arg("default")
-                .stdout(Stdio::piped())
-                .stderr(Stdio::piped());
+            .arg("--progress-template")
+            .arg("download:remedia-%(progress._percent_stripped)s-%(progress.eta)s-%(info.id)s")
+            .arg("--newline")
+            .arg("--continue")
+            .arg("--no-overwrites")
+            .arg("--output")
+            .arg(output_format)
+            .arg("--embed-thumbnail")
+            .arg("--embed-subs")
+            .arg("--embed-metadata")
+            .arg("--embed-chapters")
+            .arg("--windows-filenames")
+            // .arg("--sponsorblock-remove")
+            // .arg("default")
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
 
         let mut child = cmd.spawn().expect("Failed to spawn yt-dlp");
 
@@ -147,42 +157,25 @@ pub fn download_media(
 
                 // Check if the line starts with 'remedia-'
                 if line.starts_with("remedia-") {
-                    // Output format: remedia-7168-3098545-0
+                    // Output format: remedia-75.3-00:12-abc123
                     let ln_status: Vec<&str> = line.split('-').collect();
 
-                    // Check we have at least 4 segments before proceeding
-                    if ln_status.len() >= 4 {
-                        // Parse each segment safely using get() and match/if let
-                        let downloaded_bytes = ln_status.get(1)
-                            .and_then(|s| s.parse::<f64>().ok());
-                        let total_bytes_est = ln_status.get(2)
-                            .and_then(|s| s.parse::<f64>().ok());
-                        let total_bytes = ln_status.get(3)
-                            .and_then(|s| s.parse::<f64>().ok());
+                    // Check we have at least 3 segments before proceeding
+                    if ln_status.len() >= 3 {
+                        // Parse percent directly from the first segment
+                        let percent = ln_status.get(1).and_then(|s| s.parse::<f64>().ok());
 
-                        // Only proceed if all required values were successfully parsed
-                        if let (Some(downloaded), Some(estimated), Some(actual)) =
-                            (downloaded_bytes, total_bytes_est, total_bytes) {
-
-                            let t_bytes = if actual > 0.0 {
-                                actual
-                            } else {
-                                estimated
-                            };
-
-                            // Only compute and emit percent when total bytes > 0.0
-                            if t_bytes > 0.0 {
-                                let percent = downloaded / t_bytes * 100.0;
-                                // Emit event to frontend
-                                if let Err(e) = window.emit("download-progress", (media_idx, percent)) {
-                                    eprintln!("Failed to emit download progress: {}", e);
-                                }
+                        // Only proceed if percent was successfully parsed
+                        if let Some(percent_value) = percent {
+                            // Emit event to frontend
+                            if let Err(e) = window.emit("download-progress", (media_idx, percent_value)) {
+                                eprintln!("Failed to emit download progress: {}", e);
                             }
                         } else {
-                            eprintln!("Failed to parse progress values from line: {}", line);
+                            eprintln!("Failed to parse percent from line: {}", line);
                         }
                     } else {
-                        eprintln!("Invalid progress line format - expected at least 4 segments: {}", line);
+                        eprintln!("Invalid progress line format - expected at least 3 segments: {}", line);
                     }
                 }
             }
