@@ -9,17 +9,21 @@ type E2EWindow = Window & { __E2E_lastEventReceived?: string };
  * @param timeout - Timeout in milliseconds (default: 5000)
  * @returns Promise that resolves when event is received
  */
-export const waitForTauriEvent = async (page: Page, eventName: string, timeout = 5000) => {
-	if (!eventName.trim()) {
-		throw new Error("Event name cannot be empty");
-	}
+export const waitForTauriEvent = async (
+  page: Page,
+  eventName: string,
+  timeout = 5000,
+) => {
+  if (!eventName.trim()) {
+    throw new Error("Event name cannot be empty");
+  }
 
-	return page.waitForFunction(
-		({ eventName }) => {
-			const e2eWindow = window as E2EWindow;
-			return e2eWindow.__E2E_lastEventReceived === eventName;
-		},
-		{ eventName },
-		{ timeout }
-	);
+  return page.waitForFunction(
+    ({ eventName }) => {
+      const e2eWindow = window as E2EWindow;
+      return e2eWindow.__E2E_lastEventReceived === eventName;
+    },
+    { eventName },
+    { timeout },
+  );
 };
