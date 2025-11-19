@@ -38,7 +38,15 @@ import "./App.css";
 import thumbnailPlaceholder from "./assets/thumbnail-placeholder.svg";
 
 import { useAtom } from "jotai";
-import { downloadLocationAtom } from "@/state/settings-atoms";
+import {
+  downloadLocationAtom,
+  downloadModeAtom,
+  videoQualityAtom,
+  maxResolutionAtom,
+  videoFormatAtom,
+  audioFormatAtom,
+  audioQualityAtom,
+} from "@/state/settings-atoms";
 import { tableRowSelectionAtom } from "@/state/app-atoms";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 
@@ -70,6 +78,12 @@ function App(): JSX.Element {
   const [dragHovering, setDragHovering] = useState(false);
   const [mediaList, setMediaList] = useState<VideoInfo[]>([]);
   const [outputLocation, setOutputLocation] = useAtom(downloadLocationAtom);
+  const [downloadMode] = useAtom(downloadModeAtom);
+  const [videoQuality] = useAtom(videoQualityAtom);
+  const [maxResolution] = useAtom(maxResolutionAtom);
+  const [videoFormat] = useAtom(videoFormatAtom);
+  const [audioFormat] = useAtom(audioFormatAtom);
+  const [audioQuality] = useAtom(audioQualityAtom);
   const [rowSelection] = useAtom(tableRowSelectionAtom);
   const [globalProgress, setGlobalProgress] = useState(0);
   const [globalDownloading, setGlobalDownloading] = useState(false);
@@ -224,6 +238,14 @@ function App(): JSX.Element {
             mediaIdx: i,
             mediaSourceUrl: media.url,
             outputLocation: outputLocation,
+            settings: {
+              downloadMode: downloadMode,
+              videoQuality: videoQuality,
+              maxResolution: maxResolution,
+              videoFormat: videoFormat,
+              audioFormat: audioFormat,
+              audioQuality: audioQuality,
+            },
           }),
         ),
       );

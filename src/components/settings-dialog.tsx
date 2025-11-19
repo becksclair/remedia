@@ -16,9 +16,26 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 import { useAtom } from "jotai";
-import { alwaysOnTopAtom, downloadLocationAtom } from "@/state/settings-atoms";
+import {
+  alwaysOnTopAtom,
+  downloadLocationAtom,
+  downloadModeAtom,
+  videoQualityAtom,
+  maxResolutionAtom,
+  videoFormatAtom,
+  audioFormatAtom,
+  audioQualityAtom,
+} from "@/state/settings-atoms";
 
 export function SettingsDialog({
   open,
@@ -30,6 +47,12 @@ export function SettingsDialog({
   const [alwaysOnTop, setAlwaysOnTop] = useAtom(alwaysOnTopAtom);
   const [isWayland, setIsWayland] = useState(false);
   const [outputLocation, setOutputLocation] = useAtom(downloadLocationAtom);
+  const [downloadMode, setDownloadMode] = useAtom(downloadModeAtom);
+  const [videoQuality, setVideoQuality] = useAtom(videoQualityAtom);
+  const [maxResolution, setMaxResolution] = useAtom(maxResolutionAtom);
+  const [videoFormat, setVideoFormat] = useAtom(videoFormatAtom);
+  const [audioFormat, setAudioFormat] = useAtom(audioFormatAtom);
+  const [audioQuality, setAudioQuality] = useAtom(audioQualityAtom);
 
   useEffect(() => {
     // Check if we're running on Wayland using the Rust backend
@@ -66,7 +89,7 @@ export function SettingsDialog({
         <DialogHeader>
           <DialogTitle>Settings</DialogTitle>
           <DialogDescription>
-            Make changes to your profile here. Click save when you're done.
+            Configure download preferences and quality settings.
           </DialogDescription>
         </DialogHeader>
 
@@ -115,18 +138,165 @@ export function SettingsDialog({
             </Button>
           </div>
 
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="name" className="text-right">
-              Name
-            </Label>
-            <Input id="name" value="Pedro Duarte" className="col-span-3" />
+          <div className="space-y-3">
+            <Label className="text-left font-medium">Download Mode</Label>
+            <RadioGroup
+              value={downloadMode}
+              onValueChange={(value) =>
+                setDownloadMode(value as "video" | "audio" | "both")
+              }
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="video" id="video" />
+                <Label htmlFor="video">Video</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="audio" id="audio" />
+                <Label htmlFor="audio">Audio only</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="both" id="both" />
+                <Label htmlFor="both">Video + Audio</Label>
+              </div>
+            </RadioGroup>
           </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="username" className="text-right">
-              Username
-            </Label>
-            <Input id="username" value="@peduarte" className="col-span-3" />
-          </div>
+
+          {downloadMode !== "audio" && (
+            <div className="space-y-3">
+              <Label className="text-left font-medium">Video Options</Label>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="video-quality" className="text-sm">
+                    Quality
+                  </Label>
+                  <Select
+                    value={videoQuality}
+                    onValueChange={(value) =>
+                      setVideoQuality(
+                        value as "best" | "high" | "medium" | "low",
+                      )
+                    }
+                  >
+                    <SelectTrigger id="video-quality">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="best">Best</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="low">Low</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="max-resolution" className="text-sm">
+                    Max Resolution
+                  </Label>
+                  <Select
+                    value={maxResolution}
+                    onValueChange={(value) =>
+                      setMaxResolution(
+                        value as
+                          | "2160p"
+                          | "1440p"
+                          | "1080p"
+                          | "720p"
+                          | "480p"
+                          | "no-limit",
+                      )
+                    }
+                  >
+                    <SelectTrigger id="max-resolution">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="no-limit">No limit</SelectItem>
+                      <SelectItem value="2160p">4K (2160p)</SelectItem>
+                      <SelectItem value="1440p">1440p</SelectItem>
+                      <SelectItem value="1080p">1080p</SelectItem>
+                      <SelectItem value="720p">720p</SelectItem>
+                      <SelectItem value="480p">480p</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="video-format" className="text-sm">
+                    Format
+                  </Label>
+                  <Select
+                    value={videoFormat}
+                    onValueChange={(value) =>
+                      setVideoFormat(value as "mp4" | "mkv" | "webm" | "best")
+                    }
+                  >
+                    <SelectTrigger id="video-format">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="best">Best available</SelectItem>
+                      <SelectItem value="mp4">MP4</SelectItem>
+                      <SelectItem value="mkv">MKV</SelectItem>
+                      <SelectItem value="webm">WebM</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {downloadMode !== "video" && (
+            <div className="space-y-3">
+              <Label className="text-left font-medium">Audio Options</Label>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="audio-format" className="text-sm">
+                    Format
+                  </Label>
+                  <Select
+                    value={audioFormat}
+                    onValueChange={(value) =>
+                      setAudioFormat(value as "mp3" | "m4a" | "opus" | "best")
+                    }
+                  >
+                    <SelectTrigger id="audio-format">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="best">Best available</SelectItem>
+                      <SelectItem value="mp3">MP3</SelectItem>
+                      <SelectItem value="m4a">M4A</SelectItem>
+                      <SelectItem value="opus">Opus</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="audio-quality" className="text-sm">
+                    Quality
+                  </Label>
+                  <Select
+                    value={audioQuality}
+                    onValueChange={(value) =>
+                      setAudioQuality(
+                        value as "best" | "high" | "medium" | "low",
+                      )
+                    }
+                  >
+                    <SelectTrigger id="audio-quality">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="best">Best</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="low">Low</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         <DialogFooter>

@@ -2,10 +2,10 @@
 
 ## 📊 **IMPLEMENTATION PROGRESS**
 
-**Overall**: ~25% complete (7/28 major features)
+**Overall**: ~35% complete (10/28 major features)
 
-**Completed**: Infrastructure, basic functionality, testing setup
-**In Progress**: Progress refinement, thumbnail handling
+**Completed**: Infrastructure, Phase 1 (Progress & Thumbnails), Phase 2 (Filename Safety)
+**In Progress**: None
 **Pending**: Advanced features, bulk operations, debug tools, performance
 
 ---
@@ -26,30 +26,26 @@
 - **UI framework**: ✅ shadcn/ui components with proper composition
 - **Event handling**: ✅ Centralized via `useTauriEvents` hook
 
----
-
-## 🔄 **PARTIALLY IMPLEMENTED**
-
 ### Phase 1 – Progress & Thumbnails
 
-- **Progress fixes**: 🔄 **In Progress** - Basic progress works but jumps 0→99→100 (spec identifies this issue)
-- **Thumbnail reliability**: 🔄 **Partial** - Basic thumbnail extraction exists but missing placeholders and fallback logic
+- **Progress fixes**: ✅ Fixed 0→99→100 jumping by using yt-dlp's `_percent_stripped` field
+- **Thumbnail reliability**: ✅ Enhanced extraction with fallback strategy and added placeholder image
 
 ### Phase 2 – Filename Safety
 
-- **Basic sanitization**: 🔄 **Partial** - Uses `--windows-filenames` but missing collision prevention and length limits
-- **Output template**: 🔄 **Partial** - Basic template exists but missing robust ID-based naming
+- **Basic sanitization**: ✅ Uses `--windows-filenames` + `--no-overwrites` for collision prevention
+- **Output template**: ✅ Updated to `%(title)s [%(id)s].%(ext)s` for unique filenames
+
+### Phase 3 – Advanced Download Settings
+
+- **Quality/Resolution controls**: ✅ Implemented with Select dropdowns
+- **Format selection**: ✅ Added video and audio format options
+- **Audio-only mode**: ✅ Implemented with proper yt-dlp flags
+- **Settings dialog enhancement**: ✅ Replaced placeholder fields with advanced controls
 
 ---
 
 ## ❌ **NOT YET IMPLEMENTED**
-
-### Phase 3 – Advanced Download Settings
-
-- **Quality/Resolution controls**: ❌ Not started
-- **Format selection**: ❌ Not started
-- **Audio-only mode**: ❌ Not started
-- **Settings dialog enhancement**: ❌ Still has placeholder fields
 
 ### Phase 4 – Context Menu & Bulk Operations
 

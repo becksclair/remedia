@@ -5,11 +5,58 @@ use std::path;
 use std::process::Command;
 use std::process::Stdio;
 
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tauri::AppHandle;
 use tauri::Emitter;
 use tauri::Window;
 use tauri::async_runtime::spawn;
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct DownloadSettings {
+    pub download_mode: String,
+    pub video_quality: String,
+    pub max_resolution: String,
+    pub video_format: String,
+    pub audio_format: String,
+    pub audio_quality: String,
+}
+
+fn build_format_string(settings: &DownloadSettings) -> String {
+    match settings.download_mode.as_str() {
+        "audio" => "bestaudio".to_string(),
+        "video" | "both" => {
+            let height_filter = match settings.max_resolution.as_str() {
+                "2160p" => "[height<=2160]",
+                "1440p" => "[height<=1440]",
+                "1080p" => "[height<=1080]",
+                "720p" => "[height<=720]",
+                "480p" => "[height<=480]",
+                "no-limit" => "",
+                _ => "",
+            };
+
+            match settings.video_quality.as_str() {
+                "high" => format!("bestvideo{}+bestaudio/best{}", height_filter, height_filter),
+                "medium" => "bestvideo[height<=720]+bestaudio/best[height<=720]".to_string(),
+                "low" => "bestvideo[height<=480]+bestaudio/best[height<=480]".to_string(),
+                _ => format!("bestvideo{}+bestaudio/best{}", height_filter, height_filter),
+            }
+        }
+        _ => "best".to_string(),
+    }
+}
+
+fn get_audio_quality_number(quality: &str) -> u8 {
+    match quality {
+        "best" => 0,
+        "high" => 2,
+        "medium" => 5,
+        "low" => 7,
+        _ => 0,
+    }
+}
 
 async fn run_yt_dlp(cmd: &mut Command) -> Result<(String, String), std::io::Error> {
     let mut child = cmd.spawn()?;
@@ -117,6 +164,7 @@ pub fn download_media(
     media_idx: i32,
     media_source_url: String,
     output_location: String,
+    settings: DownloadSettings,
 ) {
     let window = window.clone();
 
@@ -137,11 +185,29 @@ pub fn download_media(
             .arg("--embed-subs")
             .arg("--embed-metadata")
             .arg("--embed-chapters")
-            .arg("--windows-filenames")
-            // .arg("--sponsorblock-remove")
-            // .arg("default")
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped());
+            .arg("--windows-filenames");
+
+        // Add format selection based on settings
+        let format_string = build_format_string(&settings);
+        cmd.arg("-f").arg(format_string);
+
+        // Add audio extraction for audio-only mode
+        if settings.download_mode == "audio" {
+            cmd.arg("--extract-audio");
+
+            if settings.audio_format != "best" {
+                cmd.arg("--audio-format").arg(&settings.audio_format);
+            }
+
+            cmd.arg("--audio-quality").arg(get_audio_quality_number(&settings.audio_quality).to_string());
+        }
+
+        // Add video format conversion if needed
+        if (settings.download_mode == "video" || settings.download_mode == "both") && settings.video_format != "best" {
+            cmd.arg("--remux-video").arg(&settings.video_format);
+        }
+
+        cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
 
         let mut child = cmd.spawn().expect("Failed to spawn yt-dlp");
 
