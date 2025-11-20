@@ -3,23 +3,23 @@ use std::io::BufRead;
 use std::io::BufReader;
 use std::io::Read;
 use std::path;
-use std::process::{Child, Command};
+use std::process::Command;
 use std::process::Stdio;
 use std::sync::Mutex;
 
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tauri::async_runtime::spawn;
 use tauri::AppHandle;
 use tauri::Emitter;
 use tauri::Window;
+use tauri::async_runtime::spawn;
 
-use crate::download_queue::{get_queue, QueuedDownload, DownloadStatus};
+use crate::download_queue::{DownloadStatus, QueuedDownload, get_queue};
 
 // Download Manager: Track cancellation flags for active downloads
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 // Constants for download management
 /// Interval in milliseconds to check for cancellation requests
@@ -32,19 +32,18 @@ const MAX_URL_LENGTH: usize = 4096;
 /// Maximum output path length (OS limits)
 const MAX_OUTPUT_PATH_LENGTH: usize = 1024;
 
-static DOWNLOAD_CANCEL_FLAGS: Lazy<Mutex<HashMap<i32, Arc<AtomicBool>>>> =
-    Lazy::new(|| Mutex::new(HashMap::new()));
+static DOWNLOAD_CANCEL_FLAGS: Lazy<Mutex<HashMap<i32, Arc<AtomicBool>>>> = Lazy::new(|| Mutex::new(HashMap::new()));
 
 // Download settings from frontend (Phase 3.3)
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct DownloadSettings {
-    download_mode: String,    // "video" | "audio"
-    video_quality: String,    // "best" | "high" | "medium" | "low"
-    max_resolution: String,   // "2160p" | "1440p" | "1080p" | "720p" | "480p" | "no-limit"
-    video_format: String,     // "mp4" | "mkv" | "webm" | "best"
-    audio_format: String,     // "mp3" | "m4a" | "opus" | "best"
-    audio_quality: String,    // "0" | "2" | "5" | "9"
+    download_mode: String,  // "video" | "audio"
+    video_quality: String,  // "best" | "high" | "medium" | "low"
+    max_resolution: String, // "2160p" | "1440p" | "1080p" | "720p" | "480p" | "no-limit"
+    video_format: String,   // "mp4" | "mkv" | "webm" | "best"
+    audio_format: String,   // "mp3" | "m4a" | "opus" | "best"
+    audio_quality: String,  // "0" | "2" | "5" | "9"
 }
 
 /// Validate download settings fields
@@ -134,8 +133,7 @@ fn parse_progress_percent(line: &str) -> Option<f64> {
         return None;
     }
 
-    percent_clean.parse::<f64>().ok()
-        .map(|p| p.max(0.0).min(100.0))
+    percent_clean.parse::<f64>().ok().map(|p| p.clamp(0.0, 100.0))
 }
 
 /// Build format selection arguments for yt-dlp based on settings
@@ -260,25 +258,18 @@ pub async fn get_media_info(
                     })
                     .or_else(|| {
                         // Try thumbnail_url as fallback
-                        v.get("thumbnail_url")
-                            .and_then(|t| t.as_str())
-                            .filter(|s| !s.is_empty())
+                        v.get("thumbnail_url").and_then(|t| t.as_str()).filter(|s| !s.is_empty())
                     })
                     .unwrap_or_default()
                     .to_string();
 
                 found_any = true;
                 window
-                    .emit(
-                        "update-media-info",
-                        (media_idx, media_source_url.clone(), title, thumbnail),
-                    )
+                    .emit("update-media-info", (media_idx, media_source_url.clone(), title, thumbnail))
                     .map_err(|e| e.to_string())?;
             }
             Err(e) => {
-                println!(
-                    "Failed to parse yt-dlp output line as generic JSON: {e}\nLine: {trimmed}"
-                );
+                println!("Failed to parse yt-dlp output line as generic JSON: {e}\nLine: {trimmed}");
             }
         }
     }
@@ -291,7 +282,8 @@ pub async fn get_media_info(
 
 /// Process the queue and start next available download
 fn process_queue(window: Window) {
-    let mut queue = get_queue().lock().unwrap();
+    let queue = get_queue();
+    let mut queue = queue.lock().unwrap();
 
     // Try to start next download if slots available
     if let Some(queued_download) = queue.next_to_start() {
@@ -344,36 +336,30 @@ fn execute_download(
         }
 
         // Robust output template: include ID for uniqueness, handle playlists
-        let output_format = format!(
-            "{}{}{}",
-            output_location,
-            path::MAIN_SEPARATOR,
-            "%(title)s [%(id)s].%(ext)s"
-        );
+        let output_format = format!("{}{}{}", output_location, path::MAIN_SEPARATOR, "%(title)s [%(id)s].%(ext)s");
 
         // Build the yt-dlp command
         let mut cmd = Command::new("yt-dlp");
         cmd.arg(media_source_url)
-                .arg("--progress-template")
-                .arg("download:remedia-%(progress._percent_str)s-%(progress.eta)s")
-                .arg("--newline")
-                .arg("--continue")
-                .arg("--no-overwrites")  // Prevent silent overwrites
-                .arg("--output")
-                .arg(output_format)
-                .arg("--embed-thumbnail")
-                .arg("--embed-subs")
-                .arg("--embed-metadata")
-                .arg("--embed-chapters")
-                .arg("--windows-filenames");  // Safe filenames for Windows
+            .arg("--progress-template")
+            .arg("download:remedia-%(progress._percent_str)s-%(progress.eta)s")
+            .arg("--newline")
+            .arg("--continue")
+            .arg("--no-overwrites") // Prevent silent overwrites
+            .arg("--output")
+            .arg(output_format)
+            .arg("--embed-thumbnail")
+            .arg("--embed-subs")
+            .arg("--embed-metadata")
+            .arg("--embed-chapters")
+            .arg("--windows-filenames"); // Safe filenames for Windows
 
         // Apply settings-based format selection using extracted function
         for arg in build_format_args(&settings) {
             cmd.arg(arg);
         }
 
-        cmd.stdout(Stdio::piped())
-           .stderr(Stdio::piped());
+        cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
 
         let mut child = match cmd.spawn() {
             Ok(child) => child,
@@ -390,6 +376,9 @@ fn execute_download(
             Some(stdout) => stdout,
             None => {
                 eprintln!("Failed to capture stdout from yt-dlp");
+                if let Ok(mut queue) = get_queue().lock() {
+                    queue.fail(media_idx);
+                }
                 if let Err(e) = window.emit("download-error", media_idx) {
                     eprintln!("Failed to emit download error: {}", e);
                 }
@@ -401,6 +390,9 @@ fn execute_download(
             Some(stderr) => stderr,
             None => {
                 eprintln!("Failed to capture stderr from yt-dlp");
+                if let Ok(mut queue) = get_queue().lock() {
+                    queue.fail(media_idx);
+                }
                 if let Err(e) = window.emit("download-error", media_idx) {
                     eprintln!("Failed to emit download error: {}", e);
                 }
@@ -416,10 +408,10 @@ fn execute_download(
                 println!("{line}");
 
                 // Parse progress using extracted function
-                if let Some(percent) = parse_progress_percent(&line) {
-                    if let Err(e) = window.emit("download-progress", (media_idx, percent)) {
-                        eprintln!("Failed to emit download progress: {}", e);
-                    }
+                if let Some(percent) = parse_progress_percent(&line)
+                    && let Err(e) = window.emit("download-progress", (media_idx, percent))
+                {
+                    eprintln!("Failed to emit download progress: {}", e);
                 }
             }
         });
@@ -569,15 +561,14 @@ pub fn download_media(
     };
 
     // Enqueue the download
-    {
-        let mut queue = get_queue().lock().unwrap();
-        if let Err(e) = queue.enqueue(queued_download) {
-            eprintln!("Failed to enqueue download: {}", e);
-            if let Err(emit_err) = window.emit("download-error", media_idx) {
-                eprintln!("Failed to emit download error: {}", emit_err);
-            }
-            return;
+    let queue = get_queue();
+    let mut queue = queue.lock().unwrap();
+    if let Err(e) = queue.enqueue(queued_download) {
+        eprintln!("Failed to enqueue download: {}", e);
+        if let Err(emit_err) = window.emit("download-error", media_idx) {
+            eprintln!("Failed to emit download error: {}", emit_err);
         }
+        return;
     }
 
     // Emit download-queued event
@@ -592,7 +583,7 @@ pub fn download_media(
 // Phase 4: Cancellation support
 #[tauri::command]
 pub fn cancel_download(window: Window, media_idx: i32) {
-    let mut flags = DOWNLOAD_CANCEL_FLAGS.lock().unwrap();
+    let flags = DOWNLOAD_CANCEL_FLAGS.lock().unwrap();
 
     if let Some(flag) = flags.get(&media_idx) {
         flag.store(true, Ordering::Relaxed);
@@ -610,10 +601,9 @@ pub fn cancel_download(window: Window, media_idx: i32) {
 #[tauri::command]
 pub fn cancel_all_downloads(window: Window) {
     // Cancel all downloads in queue (both queued and active)
-    let cancelled_indices = {
-        let mut queue = get_queue().lock().unwrap();
-        queue.cancel_all()
-    };
+    let queue = get_queue();
+    let mut queue = queue.lock().unwrap();
+    let cancelled_indices = queue.cancel_all();
 
     // Set cancellation flags for active downloads
     let mut flags = DOWNLOAD_CANCEL_FLAGS.lock().unwrap();
@@ -651,7 +641,8 @@ pub fn set_max_concurrent_downloads(max_concurrent: usize) -> Result<(), String>
         return Err("Max concurrent downloads must be at least 1".to_string());
     }
 
-    let mut queue = get_queue().lock().unwrap();
+    let queue = get_queue();
+    let mut queue = queue.lock().unwrap();
     queue.set_max_concurrent(max_concurrent);
 
     eprintln!("Updated max concurrent downloads to {}", max_concurrent);
@@ -661,7 +652,8 @@ pub fn set_max_concurrent_downloads(max_concurrent: usize) -> Result<(), String>
 /// Get current queue status
 #[tauri::command]
 pub fn get_queue_status() -> (usize, usize, usize) {
-    let queue = get_queue().lock().unwrap();
+    let queue = get_queue();
+    let queue = queue.lock().unwrap();
     let status = queue.status();
     (status.queued, status.active, status.max_concurrent)
 }

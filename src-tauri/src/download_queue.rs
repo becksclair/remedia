@@ -1,11 +1,10 @@
+use once_cell::sync::Lazy;
 /// Download Queue Manager
 ///
 /// Manages concurrent downloads with a queue system.
 /// Limits the number of simultaneous downloads and queues additional requests.
-
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
-use once_cell::sync::Lazy;
 
 /// Download status for queue management
 #[derive(Debug, Clone, PartialEq)]
@@ -65,14 +64,17 @@ impl DownloadQueue {
 
     /// Get next download to start (if slots available)
     pub fn next_to_start(&mut self) -> Option<QueuedDownload> {
-        if self.active.len() < self.max_concurrent {
-            if let Some(mut download) = self.queue.pop_front() {
-                download.status = DownloadStatus::Downloading;
-                self.active.insert(download.media_idx, download.clone());
-                return Some(download);
-            }
+        if self.active.len() >= self.max_concurrent {
+            return None;
         }
-        None
+
+        if let Some(mut download) = self.queue.pop_front() {
+            download.status = DownloadStatus::Downloading;
+            self.active.insert(download.media_idx, download.clone());
+            Some(download)
+        } else {
+            None
+        }
     }
 
     /// Mark download as completed
@@ -124,16 +126,19 @@ impl DownloadQueue {
     }
 
     /// Get current queue size
+    #[allow(dead_code)]
     pub fn queue_size(&self) -> usize {
         self.queue.len()
     }
 
     /// Get number of active downloads
+    #[allow(dead_code)]
     pub fn active_count(&self) -> usize {
         self.active.len()
     }
 
     /// Check if a download is active
+    #[allow(dead_code)]
     pub fn is_active(&self, media_idx: i32) -> bool {
         self.active.contains_key(&media_idx)
     }
@@ -162,8 +167,7 @@ pub struct QueueStatus {
 }
 
 /// Global download queue instance
-static DOWNLOAD_QUEUE: Lazy<Arc<Mutex<DownloadQueue>>> =
-    Lazy::new(|| Arc::new(Mutex::new(DownloadQueue::new(3))));
+static DOWNLOAD_QUEUE: Lazy<Arc<Mutex<DownloadQueue>>> = Lazy::new(|| Arc::new(Mutex::new(DownloadQueue::new(3))));
 
 /// Get global download queue
 pub fn get_queue() -> Arc<Mutex<DownloadQueue>> {
