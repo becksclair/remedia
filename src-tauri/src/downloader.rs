@@ -117,23 +117,21 @@ fn validate_output_location(location: &str) -> Result<(), String> {
 /// Parse progress percentage from yt-dlp progress line
 /// Returns None if line doesn't contain valid progress
 fn parse_progress_percent(line: &str) -> Option<f64> {
-    if !line.starts_with("remedia-") {
+    const PREFIX: &str = "remedia-";
+
+    if !line.starts_with(PREFIX) {
         return None;
     }
 
-    let parts: Vec<&str> = line.split('-').collect();
-    if parts.len() < 2 {
+    let after_prefix = &line[PREFIX.len()..];
+    let percent_end = after_prefix.find('%')?;
+    let percent_str = &after_prefix[..percent_end];
+
+    if percent_str == "N/A" {
         return None;
     }
 
-    let percent_str = parts.get(1)?;
-    let percent_clean = percent_str.trim_end_matches('%');
-
-    if percent_clean == "N/A" {
-        return None;
-    }
-
-    percent_clean.parse::<f64>().ok().map(|p| p.clamp(0.0, 100.0))
+    percent_str.parse::<f64>().ok().map(|p| p.clamp(0.0, 100.0))
 }
 
 /// Build format selection arguments for yt-dlp based on settings
@@ -365,9 +363,17 @@ fn execute_download(
             Ok(child) => child,
             Err(e) => {
                 eprintln!("Failed to spawn yt-dlp: {}", e);
+                if let Ok(mut queue) = get_queue().lock() {
+                    queue.fail(media_idx);
+                }
+                {
+                    let mut flags = DOWNLOAD_CANCEL_FLAGS.lock().unwrap();
+                    flags.remove(&media_idx);
+                }
                 if let Err(emit_err) = window.emit("download-error", media_idx) {
                     eprintln!("Failed to emit download error: {}", emit_err);
                 }
+                process_queue(window);
                 return;
             }
         };
@@ -382,6 +388,11 @@ fn execute_download(
                 if let Err(e) = window.emit("download-error", media_idx) {
                     eprintln!("Failed to emit download error: {}", e);
                 }
+                {
+                    let mut flags = DOWNLOAD_CANCEL_FLAGS.lock().unwrap();
+                    flags.remove(&media_idx);
+                }
+                process_queue(window.clone());
                 return;
             }
         };
@@ -396,6 +407,11 @@ fn execute_download(
                 if let Err(e) = window.emit("download-error", media_idx) {
                     eprintln!("Failed to emit download error: {}", e);
                 }
+                {
+                    let mut flags = DOWNLOAD_CANCEL_FLAGS.lock().unwrap();
+                    flags.remove(&media_idx);
+                }
+                process_queue(window.clone());
                 return;
             }
         };
@@ -456,6 +472,9 @@ fn execute_download(
                     eprintln!("Error checking process status: {}", e);
                     if let Err(emit_err) = window.emit("download-error", media_idx) {
                         eprintln!("Failed to emit download error: {}", emit_err);
+                    }
+                    if let Ok(mut queue) = get_queue().lock() {
+                        queue.fail(media_idx);
                     }
                     break None;
                 }
