@@ -10,120 +10,132 @@ import type { VideoInfo } from "@/components/MediaTable";
 import { useTauriApi } from "@/lib/TauriApiContext";
 
 export function useMediaList() {
-	const [mediaList, setMediaList] = useState<VideoInfo[]>([]);
-	const tauriApi = useTauriApi();
+  const [mediaList, setMediaList] = useState<VideoInfo[]>([]);
+  const tauriApi = useTauriApi();
 
-	/**
-	 * Add a media URL to the list
-	 */
-	const addMediaUrl = useCallback(
-		(url: string) => {
-			// Check if URL already exists
-			if (urlExists(mediaList, url)) {
-				console.log("URL already exists in the list");
-				return;
-			}
+  /**
+   * Add a media URL to the list
+   */
+  const addMediaUrl = useCallback(
+    (url: string) => {
+      // Check if URL already exists
+      if (urlExists(mediaList, url)) {
+        console.log("URL already exists in the list");
+        return;
+      }
 
-			const newMedia = createMediaItem(url);
-			const updatedMediaList = [...mediaList, newMedia];
-			const mediaIdx = updatedMediaList.findIndex(m => m.url === url);
+      const newMedia = createMediaItem(url);
+      const updatedMediaList = [...mediaList, newMedia];
+      const mediaIdx = updatedMediaList.findIndex((m) => m.url === url);
 
-			setMediaList(updatedMediaList);
+      setMediaList(updatedMediaList);
 
-			// Request media information
-			void tauriApi.commands.getMediaInfo(mediaIdx, url);
-		},
-		[mediaList, tauriApi.commands]
-	);
+      // Request media information
+      void tauriApi.commands.getMediaInfo(mediaIdx, url);
+    },
+    [mediaList, tauriApi.commands],
+  );
 
-	/**
-	 * Update media item by merging updates
-	 */
-	const updateMediaItem = useCallback((updates: Partial<VideoInfo>): void => {
-		if (!updates.url) return;
+  /**
+   * Update media item by merging updates
+   */
+  const updateMediaItem = useCallback((updates: Partial<VideoInfo>): void => {
+    const url = updates.url;
+    if (!url) return;
 
-		setMediaList(prevList => {
-			// Remove any items where title equals updates.url
-			const filtered = prevList.filter(item => item.title !== updates.url);
+    setMediaList((prevList) => {
+      const idx = prevList.findIndex((item) => item.url === url);
 
-			const newMedia = {
-				audioOnly: false,
-				progress: 0,
-				status: "Pending",
-				title: updates.title ?? updates.url,
-				url: updates.url,
-				thumbnail: updates.thumbnail
-			} as VideoInfo;
+      if (idx !== -1) {
+        const existing = prevList[idx];
+        if (!existing) return prevList;
+        const merged: VideoInfo = {
+          ...existing,
+          ...updates,
+          progress: updates.progress ?? existing.progress,
+          status: updates.status ?? existing.status,
+          audioOnly: updates.audioOnly ?? existing.audioOnly,
+          thumbnail: updates.thumbnail ?? existing.thumbnail,
+          title: updates.title ?? existing.title,
+          url,
+        };
+        const next = [...prevList];
+        next[idx] = merged;
+        return next;
+      }
 
-			// If filtered contains an item with the same title as updates.title, merge it
-			const idx = filtered.findIndex(item => item.title === updates.title);
+      const defaultItem: VideoInfo = {
+        audioOnly: false,
+        progress: 0,
+        status: updates.status ?? "Pending",
+        title: updates.title ?? url,
+        url,
+        thumbnail: updates.thumbnail,
+      };
 
-			if (idx !== -1) {
-				const existing = filtered[idx];
-				if (existing) {
-					const merged: VideoInfo = {
-						...existing,
-						...updates,
-						url: existing.url,
-						title: updates.title ?? existing.title
-					};
-					filtered[idx] = merged;
-				}
-			} else {
-				filtered.push(newMedia);
-			}
+      const newItem: VideoInfo = {
+        ...defaultItem,
+        ...updates,
+        title: updates.title ?? defaultItem.title,
+        url,
+      };
 
-			return [...filtered];
-		});
-	}, []);
+      return [...prevList, newItem];
+    });
+  }, []);
 
-	/**
-	 * Update media item by index
-	 */
-	const updateMediaItemByIndex = useCallback((index: number, updates: Partial<VideoInfo>): void => {
-		setMediaList(prev => {
-			if (index < 0 || index >= prev.length) return prev;
-			const next = [...prev];
-			const existing = next[index];
-			if (!existing) return prev;
-			next[index] = {
-				...existing,
-				...updates,
-				title: updates.title ?? existing.title,
-				url: existing.url
-			};
-			return next;
-		});
-	}, []);
+  /**
+   * Update media item by index
+   */
+  const updateMediaItemByIndex = useCallback(
+    (index: number, updates: Partial<VideoInfo>): void => {
+      setMediaList((prev) => {
+        if (index < 0 || index >= prev.length) return prev;
+        const next = [...prev];
+        const existing = next[index];
+        if (!existing) return prev;
+        next[index] = {
+          ...existing,
+          ...updates,
+          title: updates.title ?? existing.title,
+          url: existing.url,
+        };
+        return next;
+      });
+    },
+    [],
+  );
 
-	/**
-	 * Remove an item by title
-	 */
-	const removeItem = useCallback((title: string) => {
-		setMediaList(prevList => prevList.filter(item => item.title !== title));
-	}, []);
+  /**
+   * Remove an item by title
+   */
+  const removeItem = useCallback((title: string) => {
+    setMediaList((prevList) => prevList.filter((item) => item.title !== title));
+  }, []);
 
-	/**
-	 * Remove all items
-	 */
-	const removeAll = useCallback(() => {
-		setMediaList([]);
-	}, []);
+  /**
+   * Remove all items
+   */
+  const removeAll = useCallback(() => {
+    setMediaList([]);
+  }, []);
 
-	/**
-	 * Remove items at specific indices
-	 */
-	const removeItemsAtIndices = useCallback((indices: Set<number>) => {
-		setMediaList(prevList => prevList.filter((_, index) => !indices.has(index)));
-	}, []);
+  /**
+   * Remove items at specific indices
+   */
+  const removeItemsAtIndices = useCallback((indices: Set<number>) => {
+    setMediaList((prevList) =>
+      prevList.filter((_, index) => !indices.has(index)),
+    );
+  }, []);
 
-	return {
-		mediaList,
-		addMediaUrl,
-		updateMediaItem,
-		updateMediaItemByIndex,
-		removeItem,
-		removeAll,
-		removeItemsAtIndices
-	};
+  return {
+    mediaList,
+    addMediaUrl,
+    updateMediaItem,
+    updateMediaItemByIndex,
+    removeItem,
+    removeAll,
+    removeItemsAtIndices,
+  };
 }
