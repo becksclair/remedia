@@ -61,7 +61,7 @@ pub fn open_preview_window(
     //     return Ok(());
     // }
 
-    let window = WebviewWindowBuilder::new(&app, "preview-win", webview_url)
+    let _window = WebviewWindowBuilder::new(&app, "preview-win", webview_url)
         .title(title.unwrap_or_else(|| "ReMedia Preview".to_string()))
         .inner_size(width.unwrap_or(800.0), height.unwrap_or(600.0))
         .min_inner_size(320.0, 200.0)
@@ -72,7 +72,7 @@ pub fn open_preview_window(
         .map_err(|e| format!("Failed to build preview window: {e}"))?;
 
     #[cfg(debug_assertions)]
-    window.open_devtools();
+    _window.open_devtools();
 
     println!("Preview window opened successfully");
     Ok(())

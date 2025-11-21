@@ -1,70 +1,66 @@
-import { invoke } from "@tauri-apps/api/core";
-import type { Event } from "@tauri-apps/api/event";
-import { downloadDir } from "@tauri-apps/api/path";
-import { readText } from "@tauri-apps/plugin-clipboard-manager";
-import {
-  isPermissionGranted,
-  requestPermission,
-  sendNotification,
-} from "@tauri-apps/plugin-notification";
+/**
+ * Main Application Component (Refactored)
+ *
+ * Orchestrates the main media downloader interface.
+ * Now uses extracted components and hooks for better maintainability.
+ */
 
 import { useEffect, useState } from "react";
 import type { JSX } from "react";
-import { DropZone } from "./components/drop-zone.tsx";
-import { Button } from "./components/ui/button.tsx";
-import { Progress } from "./components/ui/progress.tsx";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import type { Event } from "@tauri-apps/api/event";
+import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 
-import type { ColumnDef } from "@tanstack/react-table";
-import { MoreHorizontal } from "lucide-react";
+// Components
+import { DropZone } from "./components/drop-zone";
+import { SettingsDialog } from "./components/settings-dialog";
+import { MediaTable } from "./components/MediaTable";
+import { DownloadControls } from "./components/DownloadControls";
+import { MediaListContextMenu } from "./components/MediaListContextMenu";
 
+// Hooks
 import { useWindowFocus } from "@/hooks/use-window-focus";
 import { useTauriEvents } from "@/hooks/useTauriEvent";
+import { useMediaList } from "@/hooks/useMediaList";
+import { useDownloadManager } from "@/hooks/useDownloadManager";
+
+// State
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import { downloadLocationAtom } from "@/state/settings-atoms";
+import { tableRowSelectionAtom, addLogEntryAtom } from "@/state/app-atoms";
+
+// Utils
+import {
+  isValidUrl,
+  clampProgress,
+  getSelectedIndices,
+} from "@/utils/media-helpers";
+import {
+  DRAG_HOVER_DEBOUNCE_MS,
+  DEBUG_CONSOLE_WIDTH,
+  DEBUG_CONSOLE_HEIGHT,
+  PREVIEW_WINDOW_WIDTH,
+  PREVIEW_WINDOW_HEIGHT,
+} from "@/utils/constants";
+import { isTauriRuntime } from "@/utils/env";
+
+// Types
 import type { MediaInfoEvent, MediaProgressEvent } from "@/types";
 
-import { DataTable } from "./components/data-table.tsx";
-import { Checkbox } from "./components/ui/checkbox.tsx";
-
-import { SettingsDialog } from "./components/settings-dialog";
+// Tauri API
+import { useTauriApi } from "@/lib/TauriApiContext";
 
 import "./App.css";
 
-import thumbnailPlaceholder from "./assets/thumbnail-placeholder.svg";
-
-import { useAtom } from "jotai";
-import {
-  downloadLocationAtom,
-  downloadModeAtom,
-  videoQualityAtom,
-  maxResolutionAtom,
-  videoFormatAtom,
-  audioFormatAtom,
-  audioQualityAtom,
-} from "@/state/settings-atoms";
-import { tableRowSelectionAtom } from "@/state/app-atoms";
-import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
-
+// Global declarations for E2E testing
 declare global {
   interface Window {
     __E2E_addUrl?: (url: string) => void;
   }
 }
 
-type VideoInfo = {
-  url: string;
-  title: string;
-  thumbnail?: string;
-  audioOnly: boolean;
-  progress: number;
-  status: "Pending" | "Downloading" | "Done" | "Error";
-};
-
+/**
+ * Debounce helper function
+ */
 function debounce(callback: () => void, delay: number): () => void {
   let timer: ReturnType<typeof setTimeout> | undefined;
   return () => {
@@ -73,142 +69,119 @@ function debounce(callback: () => void, delay: number): () => void {
   };
 }
 
+/**
+ * Main App Component
+ */
 function App(): JSX.Element {
+  const tauriApi = useTauriApi();
+
+  // Local state
   const [notificationPermission, setNotificationPermission] = useState(false);
   const [dragHovering, setDragHovering] = useState(false);
-  const [mediaList, setMediaList] = useState<VideoInfo[]>([]);
-  const [outputLocation, setOutputLocation] = useAtom(downloadLocationAtom);
-  const [downloadMode] = useAtom(downloadModeAtom);
-  const [videoQuality] = useAtom(videoQualityAtom);
-  const [maxResolution] = useAtom(maxResolutionAtom);
-  const [videoFormat] = useAtom(videoFormatAtom);
-  const [audioFormat] = useAtom(audioFormatAtom);
-  const [audioQuality] = useAtom(audioQualityAtom);
-  const [rowSelection] = useAtom(tableRowSelectionAtom);
-  const [globalProgress, setGlobalProgress] = useState(0);
-  const [globalDownloading, setGlobalDownloading] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
-  const MediaListColumns: ColumnDef<VideoInfo>[] = [
-    {
-      cell: ({ row }) => (
-        <Checkbox
-          checked={row.getIsSelected()}
-          onCheckedChange={(value) => row.toggleSelected(!!value)}
-          aria-label="Select row"
-        />
-      ),
-      enableHiding: false,
-      enableSorting: false,
-      header: ({ table }) => (
-        <Checkbox
-          checked={
-            table.getIsAllPageRowsSelected() ||
-            (table.getIsSomePageRowsSelected() && "indeterminate")
-          }
-          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-          aria-label="Select all"
-        />
-      ),
-      id: "select",
-    },
-    {
-      accessorKey: "thumbnail",
-      cell: ({ row }) => {
-        const thumbnail = row.getValue("thumbnail");
-        if (!thumbnail) {
-          return (
-            <img
-              className="h-[72px] w-auto opacity-50"
-              alt="No thumbnail available"
-              src={thumbnailPlaceholder}
-            />
-          );
+  // Global state
+  const outputLocation = useAtomValue(downloadLocationAtom);
+  const setOutputLocation = useSetAtom(downloadLocationAtom);
+  const [rowSelection] = useAtom(tableRowSelectionAtom);
+  const addLogEntry = useSetAtom(addLogEntryAtom);
+
+  // Custom hooks
+  const {
+    mediaList,
+    addMediaUrl,
+    updateMediaItem,
+    updateMediaItemByIndex,
+    removeItem,
+    removeAll,
+    removeItemsAtIndices,
+  } = useMediaList();
+
+  const {
+    globalProgress,
+    globalDownloading,
+    startDownload,
+    cancelAllDownloads,
+  } = useDownloadManager(mediaList);
+
+  /**
+   * Request notification permissions
+   */
+  useEffect(() => {
+    if (!isTauriRuntime()) return;
+
+    void (async () => {
+      try {
+        const granted = await tauriApi.notification.isPermissionGranted();
+        if (!granted) {
+          console.log("Requesting notification permission");
+          const permission = await tauriApi.notification.requestPermission();
+          console.log("Notification permission:", permission);
+          setNotificationPermission(permission === "granted");
+        } else {
+          console.log("Notification permission already granted:", granted);
+          setNotificationPermission(granted);
         }
+      } catch (error) {
+        console.error("Notification permission check failed:", error);
+        setNotificationPermission(false);
+      }
+    })();
+  }, [tauriApi.notification]);
 
-        return (
-          <img
-            className="h-[72px] w-auto"
-            alt="Media thumbnail"
-            src={thumbnail as string}
-          />
-        );
-      },
-      header: () => <div className="text-left">Preview</div>,
-    },
-    {
-      accessorKey: "title",
-      header: () => <div className="text-left">Title</div>,
-      cell: ({ row }) => (
-        <div className="text-left w-full whitespace-pre-line text-wrap overflow-hidden text-ellipsis">
-          {row.getValue("title")}
-        </div>
-      ),
-    },
-    {
-      accessorKey: "audioOnly",
-      cell: ({ row }) => {
-        return (
-          <Checkbox
-            checked={row.getValue("audioOnly")}
-            aria-label="Audio only"
-            // Optionally, add onCheckedChange if you want to allow toggling
-            // onCheckedChange={(value) => ...}
-          />
-        );
-      },
-      header: () => <div className="text-center">Audio</div>,
-    },
-    {
-      accessorKey: "progress",
-      cell: ({ row }) => {
-        return <Progress value={row.getValue("progress")} />;
-      },
-      header: () => <div className="text-center">Progress</div>,
-    },
-    {
-      accessorKey: "status",
-      header: () => <div className="text-right">Status</div>,
-    },
-    {
-      cell: ({ row }) => {
-        return (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-8 w-8 p-0">
-                <span className="sr-only">Open menu</span>
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuItem
-                onClick={() =>
-                  navigator.clipboard.writeText(row.getValue("url"))
-                }
-              >
-                Copy URL
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => {
-                  // Remove the row from the mediaList
-                  setMediaList((prevList) =>
-                    prevList.filter(
-                      (item) => item.title !== row.getValue("title"),
-                    ),
-                  );
-                }}
-              >
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        );
-      },
-      id: "actions",
-    },
-  ];
+  /**
+   * Set default download directory
+   */
+  useEffect(() => {
+    if (outputLocation) return;
 
+    void (async () => {
+      try {
+        const dir = await tauriApi.path.getDownloadDir();
+        setOutputLocation(dir);
+      } catch (error) {
+        console.error("Failed to get download directory:", error);
+      }
+    })();
+  }, [tauriApi.path, outputLocation, setOutputLocation]);
+
+  /**
+   * Expose test helper for E2E tests
+   */
+  useEffect(() => {
+    if (
+      typeof window !== "undefined" &&
+      (process.env.NODE_ENV === "test" ||
+        process.env.NODE_ENV === "development")
+    ) {
+      window.__E2E_addUrl = (url: string) => {
+        if (isValidUrl(url)) addMediaUrl(url);
+      };
+    }
+  }, [addMediaUrl]);
+
+  /**
+   * Check clipboard for URLs on window focus
+   */
+  const handleWindowFocus = () => {
+    void (async () => {
+      try {
+        const text = await tauriApi.clipboard.readText();
+        if (isValidUrl(text)) {
+          addMediaUrl(text);
+          console.log("URL added from clipboard");
+        }
+      } catch (err) {
+        console.log("Error reading clipboard:", err);
+      }
+    })();
+  };
+
+  useWindowFocus(handleWindowFocus);
+
+  /**
+   * Handle drag and drop
+   */
   const handleDragOver = (event: React.DragEvent<HTMLDivElement>): void => {
     event.preventDefault();
     setDragHovering(true);
@@ -216,50 +189,21 @@ function App(): JSX.Element {
 
   const handleDragLeave = (event: React.DragEvent<HTMLDivElement>): void => {
     event.preventDefault();
-    debounce(() => setDragHovering(false), 300)();
+    debounce(() => setDragHovering(false), DRAG_HOVER_DEBOUNCE_MS)();
   };
 
-  void isPermissionGranted().then((granted) => {
-    if (!granted) {
-      void requestPermission().then((permission) => {
-        setNotificationPermission(permission === "granted");
-      });
+  const dropHandler = (input: string): void => {
+    setDragHovering(false);
+    if (isValidUrl(input)) {
+      addMediaUrl(input);
     }
-  });
+  };
 
-  async function startDownload(): Promise<void> {
-    setGlobalProgress(0);
-    setGlobalDownloading(true);
-
-    try {
-      await Promise.all(
-        mediaList.map((media, i) =>
-          invoke("download_media", {
-            mediaIdx: i,
-            mediaSourceUrl: media.url,
-            outputLocation: outputLocation,
-            settings: {
-              downloadMode: downloadMode,
-              videoQuality: videoQuality,
-              maxResolution: maxResolution,
-              videoFormat: videoFormat,
-              audioFormat: audioFormat,
-              audioQuality: audioQuality,
-            },
-          }),
-        ),
-      );
-    } catch (err) {
-      console.error("Error starting download:", err);
-      alert("Error starting download");
-      setGlobalDownloading(false);
-    }
-  }
-
+  /**
+   * Preview selected media
+   */
   async function preview(): Promise<void> {
-    const selectedRowIndices = Object.keys(rowSelection).filter(
-      (key) => rowSelection[key] === true,
-    );
+    const selectedRowIndices = getSelectedIndices(rowSelection);
 
     if (selectedRowIndices.length === 0) {
       alert("Please select one or more items to preview");
@@ -270,42 +214,37 @@ function App(): JSX.Element {
 
     try {
       for (const rowIndex of selectedRowIndices) {
-        const selectedItem = mediaList[Number.parseInt(rowIndex)];
+        const selectedItem = mediaList[rowIndex];
         if (selectedItem?.url) {
           console.log(`Opening preview for item ${rowIndex}:`, selectedItem);
+          // unique label per preview so Tauri opens distinct windows
+          const previewLabel = `preview-win-${rowIndex}-${Date.now()}`;
 
-          const win = new WebviewWindow("preview-win", {
-            url: `/player?url=${encodeURIComponent(selectedItem.url)}`,
-            width: 760,
-            height: 560,
-            title: selectedItem.title
-              ? `Preview: ${selectedItem.title}`
-              : "ReMedia Preview",
-          });
+          const win: WebviewWindow = tauriApi.window.createWindow(
+            previewLabel,
+            {
+              url: `/player?url=${encodeURIComponent(selectedItem.url)}`,
+              width: PREVIEW_WINDOW_WIDTH,
+              height: PREVIEW_WINDOW_HEIGHT,
+              title: selectedItem.title
+                ? `Preview: ${selectedItem.title}`
+                : "ReMedia Preview",
+            },
+          );
 
           void win.once("tauri://created", () => {
             // webview successfully created
           });
-          void win.once("tauri://error", (error) => {
+          void win.once("tauri://error", (error: unknown) => {
             console.error("Error creating webview:", error);
-            // an error happened creating the webview
           });
-
-          // NOTE rc(08/2025): Disable creating the window in the Rust side for now
-          // so far, unable to get the window loading without crashing.
-
-          // await invoke("open_preview_window", {
-          // 	// Ensure leading slash so pathname === "/player" in src/main.tsx
-          // 	url: `/player?url=${encodeURIComponent(selectedItem.url)}`,
-          // 	title: selectedItem.title ? `Preview: ${selectedItem.title}` : "ReMedia Preview"
-          // })
         } else {
           console.warn(`No URL found for selected item at index ${rowIndex}`);
         }
       }
 
       if (notificationPermission) {
-        sendNotification({
+        tauriApi.notification.sendNotification({
           body: `Loading ${selectedRowIndices.length} media preview(s)...`,
           title: "Remedia",
         });
@@ -316,139 +255,100 @@ function App(): JSX.Element {
     }
   }
 
-  async function showSettings(): Promise<void> {
-    setSettingsOpen(true);
-  }
+  /**
+   * Context menu handlers
+   */
+  const handleRemoveSelected = (): void => {
+    const selectedIndices = getSelectedIndices(rowSelection);
+    if (selectedIndices.length === 0) return;
+    removeItemsAtIndices(new Set(selectedIndices));
+  };
 
-  async function quit(): Promise<void> {
-    await invoke("quit");
-  }
+  const handleRemoveAll = (): void => {
+    removeAll();
+  };
 
-  const isUrl = (input: string): boolean => /^https?:\/\//.test(input);
+  const handleCopyAllUrls = async (): Promise<void> => {
+    if (mediaList.length === 0) return;
 
-  function addMediaUrl(url: string): void {
-    // Check if the URL is already in the list and return if it is
-    if (mediaList.some((media) => media.url === url)) {
-      console.log("URL already exists in the list");
+    const urls = mediaList.map((item) => item.url).join("\n");
+    const canUseBrowserClipboard =
+      typeof navigator !== "undefined" &&
+      typeof navigator.clipboard?.writeText === "function";
+
+    if (canUseBrowserClipboard) {
+      try {
+        await navigator.clipboard.writeText(urls);
+      } catch (err) {
+        console.error("Browser clipboard write failed:", err);
+        return;
+      }
+    } else if (tauriApi.clipboard?.writeText) {
+      try {
+        await tauriApi.clipboard.writeText(urls);
+      } catch (err) {
+        console.error("Tauri clipboard write failed:", err);
+        return;
+      }
+    } else {
+      console.warn("No clipboard API available; skipping copy");
       return;
     }
 
-    const newMedia = {
-      audioOnly: false,
-      progress: 0,
-      status: "Pending",
-      title: url,
-      url: url,
-      thumbnail: "",
-    } as VideoInfo;
-
-    const updatedMediaList = [...mediaList, newMedia];
-    const mediaIdx = updatedMediaList.findIndex((m) => m.url === url);
-
-    setMediaList(updatedMediaList);
-
-    // Request media information
-    void invoke("get_media_info", {
-      mediaIdx,
-      mediaSourceUrl: url,
-    });
-  }
-
-  // Expose test helper to add URLs without drag and drop
-  if (
-    typeof window !== "undefined" &&
-    (process.env.NODE_ENV === "test" || process.env.NODE_ENV === "development")
-  ) {
-    window.__E2E_addUrl = (url: string) => {
-      if (/^https?:\/\/[^\s]{3,2000}$/.test(url)) addMediaUrl(url);
-    };
-  }
-
-  function clipboardIsUrl(): void {
-    // Check if the clipboard content is a URL
-    readText()
-      .then((text) => {
-        if (isUrl(text)) {
-          addMediaUrl(text);
-          console.log("URL added from clipboard");
-        }
-      })
-      .catch((err) => {
-        console.log("Error reading clipboard:", err);
+    if (notificationPermission) {
+      tauriApi.notification.sendNotification({
+        body: `Copied ${mediaList.length} URL(s) to clipboard`,
+        title: "ReMedia",
       });
-  }
-
-  const updateMediaItem = (updates: Partial<VideoInfo>): void => {
-    if (!updates.url) return;
-
-    setMediaList((prevList) => {
-      // Remove any items where title equals updates.url
-      const filtered = prevList.filter((item) => item.title !== updates.url);
-
-      const newMedia = {
-        audioOnly: false,
-        progress: 0,
-        status: "Pending",
-        title: updates.title ?? updates.url,
-        url: updates.url,
-        thumbnail: updates.thumbnail,
-      } as VideoInfo;
-
-      // If filtered contains an item with the same title as updates.title, merge it
-      const idx = filtered.findIndex((item) => item.title === updates.title);
-
-      if (idx !== -1) {
-        const existing = filtered[idx];
-        if (existing) {
-          const merged: VideoInfo = {
-            ...existing,
-            ...updates,
-            url: existing.url,
-            title: updates.title ?? existing.title,
-          };
-          filtered[idx] = merged;
-        }
-      } else {
-        filtered.push(newMedia);
-      }
-
-      return [...filtered];
-    });
-  };
-
-  // Index-based updater for progress + status events coming from Rust.
-  const updateMediaItemByIndex = (
-    index: number,
-    updates: Partial<VideoInfo>,
-  ): void => {
-    setMediaList((prev) => {
-      if (index < 0 || index >= prev.length) return prev;
-      const next = [...prev];
-      const existing = next[index];
-      if (!existing) return prev;
-      next[index] = {
-        ...existing,
-        ...updates,
-        // Preserve original identifying fields if not explicitly changed
-        title: updates.title ?? existing.title,
-        url: existing.url,
-      };
-      return next;
-    });
-  };
-
-  function dropHandler(input: string): void {
-    setDragHovering(false);
-
-    if (isUrl(input)) {
-      addMediaUrl(input);
     }
-  }
+  };
 
-  function handleWindowFocus(): void {
-    clipboardIsUrl();
-  }
+  const handleCancelAll = async (): Promise<void> => {
+    await cancelAllDownloads();
 
+    mediaList.forEach((item, idx) => {
+      if (item.status === "Downloading" || item.status === "Pending") {
+        updateMediaItemByIndex(idx, { status: "Cancelled" });
+      }
+    });
+  };
+
+  const handleStartAllDownloads = async (): Promise<void> => {
+    mediaList.forEach((item, idx) => {
+      if (item.status !== "Done") {
+        updateMediaItemByIndex(idx, { status: "Downloading", progress: 0 });
+      }
+    });
+    await startDownload();
+  };
+
+  const handleShowDebugConsole = async (): Promise<void> => {
+    try {
+      const debugWindow: WebviewWindow = tauriApi.window.createWindow(
+        "debug-console",
+        {
+          url: "/debug",
+          width: DEBUG_CONSOLE_WIDTH,
+          height: DEBUG_CONSOLE_HEIGHT,
+          title: "ReMedia Debug Console",
+        },
+      );
+
+      void debugWindow.once("tauri://created", () => {
+        console.log("Debug console window created");
+      });
+
+      void debugWindow.once("tauri://error", (error: unknown) => {
+        console.error("Error creating debug console window:", error);
+      });
+    } catch (error) {
+      console.error("Failed to open debug console:", error);
+    }
+  };
+
+  /**
+   * Tauri event handlers
+   */
   const handleMediaInfo = ({
     payload: [_mediaIdx, mediaSourceUrl, title, thumbnail],
   }: Event<MediaInfoEvent>): void => {
@@ -457,9 +357,8 @@ function App(): JSX.Element {
 
   const handleProgress = (event: Event<MediaProgressEvent>): void => {
     const [mediaIdx, progress] = event.payload as MediaProgressEvent;
-    // Clamp progress 0-100, set status to Downloading
     updateMediaItemByIndex(mediaIdx, {
-      progress: Math.min(100, Math.max(0, progress)),
+      progress: clampProgress(progress),
       status: "Downloading",
     });
   };
@@ -468,56 +367,69 @@ function App(): JSX.Element {
     const mediaIdx = event.payload;
     updateMediaItemByIndex(mediaIdx, { progress: 100, status: "Done" });
   };
+
   const handleError = (event: Event<number>): void => {
     const mediaIdx = event.payload;
     updateMediaItemByIndex(mediaIdx, { status: "Error" });
   };
 
-  useWindowFocus(handleWindowFocus);
+  const handleCancelled = (event: Event<number>): void => {
+    const mediaIdx = event.payload;
+    updateMediaItemByIndex(mediaIdx, { status: "Cancelled" });
+  };
 
-  useEffect(() => {
-    void isPermissionGranted().then((granted) => {
-      if (!granted) {
-        console.log("Requesting notification permission");
-        void requestPermission().then((permission) => {
-          console.log("Notification permission:", permission);
-          setNotificationPermission(permission === "granted");
-        });
+  const handleYtDlpStderr = (event: Event<[number, string]>): void => {
+    const [mediaIdx, message] = event.payload;
+    console.log(`[yt-dlp stderr][media ${mediaIdx}]: ${message}`);
+
+    // Normalize case once for robust log-level detection
+    const messageLower = message.toLowerCase();
+
+    // Determine log level using canonical prefixes and word-boundary regex
+    let level: "error" | "warn" | "info" = "info";
+
+    // Check canonical log prefixes first (most reliable)
+    if (
+      message.startsWith("ERROR") ||
+      message.startsWith("Error") ||
+      message.startsWith("error")
+    ) {
+      level = "error";
+    } else if (
+      message.startsWith("WARNING") ||
+      message.startsWith("Warning") ||
+      message.startsWith("WARN") ||
+      message.startsWith("Warn") ||
+      message.startsWith("warn")
+    ) {
+      level = "warn";
+    } else {
+      // Fallback to word-boundary regex for whole-word severity tokens
+      if (/\b(error|err)\b/i.test(messageLower)) {
+        level = "error";
+      } else if (/\b(warn|warning)\b/i.test(messageLower)) {
+        level = "warn";
       }
-      console.log("Notification permission already granted:", granted);
-      setNotificationPermission(granted);
+    }
+
+    addLogEntry({
+      timestamp: Date.now(),
+      source: "yt-dlp",
+      level,
+      message,
+      mediaIdx,
     });
-  }, []);
+  };
 
-  useEffect(() => {
-    // Set the default download directory to the user's download folder
-    downloadDir()
-      .then((dir) => setOutputLocation(dir))
-      .catch((error) => {
-        console.error("Failed to get download directory:", error);
-      });
-  }, [setOutputLocation]);
-
-  // You could alternatively use the new useTauriEvents hook, uncomment this to try it:
+  // Subscribe to Tauri events
   useTauriEvents({
     "update-media-info": handleMediaInfo,
     "download-progress": handleProgress,
     "download-complete": handleComplete,
     "download-error": handleError,
+    "download-cancelled": handleCancelled,
+    "yt-dlp-stderr": handleYtDlpStderr,
   });
-
-  // Handle dynamic updating of global download status and progress
-  useEffect(() => {
-    setGlobalDownloading(
-      mediaList.some((media) => media.status === "Downloading"),
-    );
-    setGlobalProgress(
-      globalDownloading
-        ? mediaList.reduce((acc, item) => acc + item.progress, 0) /
-            mediaList.length
-        : 0,
-    );
-  }, [mediaList, globalDownloading]);
 
   return (
     <main
@@ -525,63 +437,43 @@ function App(): JSX.Element {
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
     >
-      {/* <CustomTitleBar /> */}
-
-      <div className="app-container compact flex flex-col justify-between gap-y-4 h-screen ">
+      <div className="app-container compact flex flex-col justify-between gap-y-4 h-screen">
+        {/* Drop Zone */}
         <DropZone
           className="flex-auto grow overflow-y-auto"
           dropHandler={dropHandler}
           dragHovering={dragHovering}
         />
-        {/* Drop Zone + Data View */}
-        <DataTable
-          className="flex-auto grow overflow-y-auto"
-          columns={MediaListColumns}
-          data={mediaList}
+
+        {/* Media List with Context Menu */}
+        <MediaListContextMenu
+          onDownloadAll={handleStartAllDownloads}
+          onCancelAll={handleCancelAll}
+          onRemoveSelected={handleRemoveSelected}
+          onRemoveAll={handleRemoveAll}
+          onCopyAllUrls={handleCopyAllUrls}
+          onShowDebugConsole={handleShowDebugConsole}
+        >
+          <MediaTable
+            className="flex-auto grow overflow-y-auto"
+            mediaList={mediaList}
+            onRemoveItem={removeItem}
+          />
+        </MediaListContextMenu>
+
+        {/* Download Controls */}
+        <DownloadControls
+          globalProgress={globalProgress}
+          globalDownloading={globalDownloading}
+          onDownload={handleStartAllDownloads}
+          onCancel={handleCancelAll}
+          onPreview={preview}
+          onSettings={() => setSettingsOpen(true)}
+          onQuit={() => tauriApi.commands.quit()}
         />
-
-        <section className="flex-none flex flex-col gap-y-4">
-          <div className="my-3">
-            <Progress
-              data-testid="global-progress"
-              value={globalProgress}
-              max={100}
-              className="w-full"
-            />
-          </div>
-
-          <div className="flex justify-center gap-x-4 mb-3">
-            <Button
-              type="button"
-              className="min-w-32"
-              disabled={globalDownloading}
-              onClick={startDownload}
-            >
-              Download
-            </Button>
-            {globalDownloading && (
-              <Button
-                type="button"
-                className="min-w-32"
-                disabled={!globalDownloading}
-                onClick={startDownload}
-              >
-                Cancel
-              </Button>
-            )}
-
-            <Button type="button" className="min-w-32" onClick={preview}>
-              Preview
-            </Button>
-            <Button type="button" className="min-w-32" onClick={showSettings}>
-              Settings
-            </Button>
-            <Button type="button" className="min-w-32" onClick={quit}>
-              Quit
-            </Button>
-          </div>
-        </section>
       </div>
+
+      {/* Settings Dialog */}
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </main>
   );

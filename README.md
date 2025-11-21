@@ -4,13 +4,54 @@ A cross-platform desktop media downloader built with Tauri, React, and yt-dlp. R
 
 ## Features
 
+### Core Features
+
 - **Drag & Drop Support**: Simply drag media URLs into the application
-- **Clipboard Detection**: Automatically detects URLs copied to clipboard
-- **Real-time Progress**: Live download progress with detailed status updates
-- **Metadata Extraction**: Automatically extracts video titles, thumbnails, and metadata
-- **Cross-platform**: Works on Windows, macOS, and Linux
-- **Modern UI**: Built with shadcn/ui components and Tailwind CSS
-- **Preview Window**: Built-in media player for preview functionality
+- **Clipboard Detection**: Automatically detects URLs copied to clipboard when window gains focus
+- **Real-time Progress**: Live download progress with detailed status updates and thumbnails
+- **Metadata Extraction**: Automatically extracts video titles, thumbnails, and metadata using yt-dlp
+- **Cross-platform**: Works on Windows, macOS, and Linux with platform-specific optimizations
+- **Modern UI**: Built with shadcn/ui components and Tailwind CSS using "new-york" variant
+- **Preview Window**: Built-in media player for preview functionality before downloading
+
+### Advanced Features
+
+- **Flexible Download Settings**:
+  - Download mode: Video (with audio) or audio-only
+  - Video quality presets: Best, High, Medium, Low
+  - Max resolution limits: 4K (2160p), 2K (1440p), 1080p, 720p, 480p, or no limit
+  - Video format selection: MP4, MKV, WebM, or best available
+  - Audio format selection: MP3, M4A, Opus, or best available
+  - Audio quality: Best (320 kbps), High (256 kbps), Medium (192 kbps), Low (128 kbps)
+
+- **Batch Operations via Context Menu**:
+  - Download all items at once
+  - Cancel all active downloads
+  - Remove selected items from queue
+  - Clear entire download list
+  - Copy all URLs to clipboard
+  - Access debug console
+
+- **Download Management**:
+  - Real-time cancellation of individual or all downloads
+  - Responsive cancel polling (100ms intervals)
+  - Proper cleanup of yt-dlp processes
+  - Status tracking: Pending, Downloading, Done, Error, Cancelled
+
+- **Debug Console**:
+  - Dedicated window for viewing all yt-dlp logs
+  - Real-time log streaming with timestamps
+  - Search functionality with highlighting
+  - Navigate between search matches
+  - Color-coded log levels (info, warning, error)
+  - Media index tracking for multi-download debugging
+
+- **Robust Error Handling**:
+  - Input validation at all boundaries
+  - Comprehensive error messages from yt-dlp
+  - Graceful handling of unsupported URLs
+  - Network error recovery
+  - Memory-safe log management (1000 entry limit)
 
 ## Quick Start
 
@@ -87,11 +128,24 @@ bun run fmt          # Format code with oxfmt
 ### Testing
 
 ```bash
+# Unit Tests (Vitest)
+bun run test              # Run unit tests in watch mode
+bun run test:run          # Run unit tests once
+bun run test:ui           # Run tests with UI dashboard
+bun run test:coverage     # Generate coverage report
+
+# End-to-End Tests (Playwright)
 bun run test:e2e           # Run Playwright end-to-end tests
 bun run test:e2e:web       # Run web-only Playwright tests
 bun run test:e2e:headed    # Run Playwright tests with headed browser
 bun run test:e2e:install   # Install Playwright browsers
 ```
+
+**Test Coverage:**
+- 58+ unit tests covering utility functions
+- Media helpers: URL validation, list operations, progress calculation
+- Log helpers: Search, highlighting, match navigation
+- E2E tests for user workflows and integration scenarios
 
 ### Component Management
 
@@ -102,12 +156,42 @@ bun run sh-up                 # Update existing shadcn/ui components
 
 ## Architecture
 
+### Technology Stack
+
 - **Frontend**: React 19.2.0 + TypeScript with strict mode
 - **Backend**: Rust with Tauri 2.9.3 framework
-- **State Management**: Jotai atoms for reactive state
-- **UI Components**: shadcn/ui with Tailwind CSS
+- **State Management**: Jotai atoms for reactive state with localStorage persistence
+- **UI Components**: shadcn/ui with Tailwind CSS (new-york variant)
 - **Media Engine**: yt-dlp for extraction and downloads
 - **Build System**: Vite for frontend, Cargo for backend
+- **Testing**: Vitest for unit tests, Playwright for E2E tests
+
+### Code Organization
+
+```
+src/
+├── components/         # React components (UI, dialogs, tables)
+├── hooks/             # Custom React hooks (Tauri events, window focus)
+├── state/             # Jotai atoms (app state, settings persistence)
+├── utils/             # Pure utility functions (testable, documented)
+│   ├── constants.ts   # Application-wide constants
+│   ├── media-helpers.ts   # Media list operations
+│   └── log-helpers.ts     # Log search and filtering
+└── types/             # TypeScript type definitions
+
+src-tauri/src/
+├── lib.rs             # Tauri app setup and command handlers
+└── downloader.rs      # yt-dlp integration and download logic
+```
+
+### Design Principles
+
+- **Test-Driven Development**: 58+ unit tests ensure code reliability
+- **Pure Functions**: Business logic extracted to testable utilities
+- **Type Safety**: Strict TypeScript with noUncheckedIndexedAccess
+- **Error Handling**: Comprehensive validation and error propagation
+- **Separation of Concerns**: Clear boundaries between UI, state, and logic
+- **Documentation**: JSDoc comments on all public utility functions
 
 ## Platform Support
 
@@ -139,7 +223,13 @@ bun run sh-up                 # Update existing shadcn/ui components
 
 ### Debug Mode
 
-Enable developer tools for debugging:
+**Debug Console**: Right-click in the media list and select "Show Debug Console" to open a dedicated window with:
+- Real-time yt-dlp log streaming
+- Search functionality with highlighting
+- Color-coded log levels (info, warning, error)
+- Timestamp and media index tracking
+
+**Developer Tools**: Enable browser dev tools for frontend debugging:
 ```rust
 // In src-tauri/src/lib.rs, uncomment:
 app.get_webview_window("main").unwrap().open_devtools();
@@ -147,13 +237,29 @@ app.get_webview_window("main").unwrap().open_devtools();
 
 ## Contributing
 
+We welcome contributions! Please follow these steps:
+
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes
-4. Run tests and linting (`bun run check && bun run test:e2e`)
-5. Commit your changes (`git commit -m 'Add amazing feature'`)
-6. Push to the branch (`git push origin feature/amazing-feature`)
-7. Open a Pull Request
+3. Make your changes following the existing code style
+4. Write or update tests for your changes
+5. Run the test suite and ensure all tests pass:
+   ```bash
+   bun run test:run      # Unit tests
+   bun run test:e2e      # E2E tests
+   bun run lint          # Check linting
+   ```
+6. Commit your changes with a descriptive message
+7. Push to your branch and open a Pull Request
+
+### Development Guidelines
+
+- Follow TDD principles: Write tests before implementation when possible
+- Extract business logic into testable utility functions
+- Add JSDoc comments to all public functions
+- Use TypeScript strict mode and handle all edge cases
+- Ensure no TypeScript errors or linting warnings
+- Update README if adding new features or commands
 
 ## License
 
