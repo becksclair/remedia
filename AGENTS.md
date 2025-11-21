@@ -93,6 +93,7 @@ ReMedia is a Tauri-based desktop media downloader that uses yt-dlp to extract an
 - `bun run lint:fix` - Fix linting issues automatically
 - `bun run fmt` - Format code with oxfmt
 - `bun run check` - Run Biome linter and formatter (use this for lint/typecheck)
+- Before marking work complete, run format+lint and full builds for both UIs: `bun run fmt`, `bun run lint`, `bun run build`, `bun tauri build` to catch warnings/errors.
 
 ### Testing
 
