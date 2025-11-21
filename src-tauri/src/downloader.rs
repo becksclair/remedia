@@ -333,6 +333,19 @@ fn execute_download(
             flags.insert(media_idx, cancel_flag.clone());
         }
 
+        let mark_queue_fail = |context: &str| {
+            match get_queue().lock() {
+                Ok(mut queue) => queue.fail(media_idx),
+                Err(poisoned) => {
+                    eprintln!(
+                        "Download queue lock poisoned {context} for media_idx {}: {}",
+                        media_idx, poisoned
+                    );
+                    poisoned.into_inner().fail(media_idx);
+                }
+            }
+        };
+
         // Robust output template: include ID for uniqueness, handle playlists
         let output_format = format!("{}{}{}", output_location, path::MAIN_SEPARATOR, "%(title)s [%(id)s].%(ext)s");
 
@@ -363,9 +376,7 @@ fn execute_download(
             Ok(child) => child,
             Err(e) => {
                 eprintln!("Failed to spawn yt-dlp: {}", e);
-                if let Ok(mut queue) = get_queue().lock() {
-                    queue.fail(media_idx);
-                }
+                mark_queue_fail("while marking fail after spawn error");
                 {
                     let mut flags = DOWNLOAD_CANCEL_FLAGS.lock().unwrap();
                     flags.remove(&media_idx);
@@ -382,9 +393,7 @@ fn execute_download(
             Some(stdout) => stdout,
             None => {
                 eprintln!("Failed to capture stdout from yt-dlp");
-                if let Ok(mut queue) = get_queue().lock() {
-                    queue.fail(media_idx);
-                }
+                mark_queue_fail("while handling missing stdout");
                 if let Err(e) = window.emit("download-error", media_idx) {
                     eprintln!("Failed to emit download error: {}", e);
                 }
@@ -401,9 +410,7 @@ fn execute_download(
             Some(stderr) => stderr,
             None => {
                 eprintln!("Failed to capture stderr from yt-dlp");
-                if let Ok(mut queue) = get_queue().lock() {
-                    queue.fail(media_idx);
-                }
+                mark_queue_fail("while handling missing stderr");
                 if let Err(e) = window.emit("download-error", media_idx) {
                     eprintln!("Failed to emit download error: {}", e);
                 }
@@ -473,9 +480,7 @@ fn execute_download(
                     if let Err(emit_err) = window.emit("download-error", media_idx) {
                         eprintln!("Failed to emit download error: {}", emit_err);
                     }
-                    if let Ok(mut queue) = get_queue().lock() {
-                        queue.fail(media_idx);
-                    }
+                    mark_queue_fail("while handling process status error");
                     break None;
                 }
             }
@@ -506,7 +511,7 @@ fn execute_download(
                     eprintln!("Failed to emit download-error: {}", e);
                 }
                 // Mark as failed in queue
-                get_queue().lock().unwrap().fail(media_idx);
+                mark_queue_fail("after non-success status");
             }
         }
 

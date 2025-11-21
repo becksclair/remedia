@@ -7,7 +7,7 @@
 		"build": "tsc && vite build",
 		"lint": "oxlint --type-aware --tsconfig tsconfig.json",
 		"lint:fix": "oxlint --type-aware --tsconfig tsconfig.json --fix",
-		"fmt": "oxfmt .",
+		"fmt": "oxfmt src e2e test vite.config.ts vitest.config.ts playwright.config.ts tsconfig.json tsconfig.node.json",
 		"dev": "vite",
 		"preview": "vite preview",
 		"sh-add": "bunx --bun shadcn@latest add",

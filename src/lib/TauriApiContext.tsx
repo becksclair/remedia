@@ -16,22 +16,24 @@ const TauriApiContext = createContext<TauriApi>(tauriApi);
  * Provider component for Tauri API
  */
 export function TauriApiProvider({
-	children,
-	api = tauriApi
+  children,
+  api = tauriApi,
 }: {
-	children: ReactNode;
-	api?: TauriApi;
+  children: ReactNode;
+  api?: TauriApi;
 }) {
-	return <TauriApiContext.Provider value={api}>{children}</TauriApiContext.Provider>;
+  return (
+    <TauriApiContext.Provider value={api}>{children}</TauriApiContext.Provider>
+  );
 }
 
 /**
  * Hook to access Tauri API in components
  */
 export function useTauriApi(): TauriApi {
-	const api = useContext(TauriApiContext);
-	if (!api) {
-		throw new Error("useTauriApi must be used within TauriApiProvider");
-	}
-	return api;
+  const api = useContext(TauriApiContext);
+  if (!api) {
+    throw new Error("useTauriApi must be used within TauriApiProvider");
+  }
+  return api;
 }

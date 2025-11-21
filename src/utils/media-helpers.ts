@@ -3,12 +3,12 @@
  */
 
 export interface VideoInfo {
-	url: string;
-	title: string;
-	thumbnail?: string;
-	audioOnly: boolean;
-	progress: number;
-	status: "Pending" | "Downloading" | "Done" | "Error" | "Cancelled";
+  url: string;
+  title: string;
+  thumbnail?: string;
+  audioOnly: boolean;
+  progress: number;
+  status: "Pending" | "Downloading" | "Done" | "Error" | "Cancelled";
 }
 
 /**
@@ -17,7 +17,7 @@ export interface VideoInfo {
  * @returns true if valid URL, false otherwise
  */
 export function isValidUrl(input: string): boolean {
-	return /^https?:\/\/.+/.test(input);
+  return /^https?:\/\/.+/.test(input);
 }
 
 /**
@@ -26,8 +26,11 @@ export function isValidUrl(input: string): boolean {
  * @param indicesToRemove - Set of indices to remove
  * @returns New array with items removed
  */
-export function removeItemsAtIndices<T>(items: T[], indicesToRemove: Set<number>): T[] {
-	return items.filter((_, index) => !indicesToRemove.has(index));
+export function removeItemsAtIndices<T>(
+  items: T[],
+  indicesToRemove: Set<number>,
+): T[] {
+  return items.filter((_, index) => !indicesToRemove.has(index));
 }
 
 /**
@@ -36,10 +39,10 @@ export function removeItemsAtIndices<T>(items: T[], indicesToRemove: Set<number>
  * @returns Average progress (0-100) or 0 if empty
  */
 export function calculateGlobalProgress(mediaList: VideoInfo[]): number {
-	if (mediaList.length === 0) return 0;
+  if (mediaList.length === 0) return 0;
 
-	const totalProgress = mediaList.reduce((sum, item) => sum + item.progress, 0);
-	return totalProgress / mediaList.length;
+  const totalProgress = mediaList.reduce((sum, item) => sum + item.progress, 0);
+  return totalProgress / mediaList.length;
 }
 
 /**
@@ -48,7 +51,7 @@ export function calculateGlobalProgress(mediaList: VideoInfo[]): number {
  * @returns true if at least one item is downloading
  */
 export function hasActiveDownloads(mediaList: VideoInfo[]): boolean {
-	return mediaList.some(media => media.status === "Downloading");
+  return mediaList.some((media) => media.status === "Downloading");
 }
 
 /**
@@ -57,7 +60,7 @@ export function hasActiveDownloads(mediaList: VideoInfo[]): boolean {
  * @returns Clamped value between 0 and 100
  */
 export function clampProgress(progress: number): number {
-	return Math.min(100, Math.max(0, progress));
+  return Math.min(100, Math.max(0, progress));
 }
 
 /**
@@ -66,8 +69,8 @@ export function clampProgress(progress: number): number {
  * @returns Formatted time string (HH:MM:SS)
  */
 export function formatTimestamp(timestamp: number): string {
-	const date = new Date(timestamp);
-	return date.toLocaleTimeString();
+  const date = new Date(timestamp);
+  return date.toLocaleTimeString();
 }
 
 /**
@@ -75,10 +78,12 @@ export function formatTimestamp(timestamp: number): string {
  * @param rowSelection - Object with row indices as keys
  * @returns Array of selected indices
  */
-export function getSelectedIndices(rowSelection: Record<string, boolean>): number[] {
-	return Object.keys(rowSelection)
-		.filter(key => rowSelection[key] === true)
-		.map(idx => Number.parseInt(idx, 10));
+export function getSelectedIndices(
+  rowSelection: Record<string, boolean>,
+): number[] {
+  return Object.keys(rowSelection)
+    .filter((key) => rowSelection[key] === true)
+    .map((idx) => Number.parseInt(idx, 10));
 }
 
 /**
@@ -87,14 +92,14 @@ export function getSelectedIndices(rowSelection: Record<string, boolean>): numbe
  * @returns New VideoInfo object with default values
  */
 export function createMediaItem(url: string): VideoInfo {
-	return {
-		audioOnly: false,
-		progress: 0,
-		status: "Pending",
-		title: url,
-		url: url,
-		thumbnail: ""
-	};
+  return {
+    audioOnly: false,
+    progress: 0,
+    status: "Pending",
+    title: url,
+    url: url,
+    thumbnail: "",
+  };
 }
 
 /**
@@ -104,5 +109,5 @@ export function createMediaItem(url: string): VideoInfo {
  * @returns true if URL exists, false otherwise
  */
 export function urlExists(mediaList: VideoInfo[], url: string): boolean {
-	return mediaList.some(media => media.url === url);
+  return mediaList.some((media) => media.url === url);
 }

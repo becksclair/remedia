@@ -8,6 +8,7 @@
 import { useEffect, useState } from "react";
 import type { JSX } from "react";
 import type { Event } from "@tauri-apps/api/event";
+import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 
 // Components
 import { DropZone } from "./components/drop-zone";
@@ -40,6 +41,7 @@ import {
   PREVIEW_WINDOW_WIDTH,
   PREVIEW_WINDOW_HEIGHT,
 } from "@/utils/constants";
+import { isTauriRuntime } from "@/utils/env";
 
 // Types
 import type { MediaInfoEvent, MediaProgressEvent } from "@/types";
@@ -106,6 +108,8 @@ function App(): JSX.Element {
    * Request notification permissions
    */
   useEffect(() => {
+    if (!isTauriRuntime()) return;
+
     void tauriApi.notification.isPermissionGranted().then((granted) => {
       if (!granted) {
         console.log("Requesting notification permission");
@@ -144,7 +148,7 @@ function App(): JSX.Element {
         process.env.NODE_ENV === "development")
     ) {
       window.__E2E_addUrl = (url: string) => {
-        if (/^https?:\/\/[^\s]{3,2000}$/.test(url)) addMediaUrl(url);
+        if (isValidUrl(url)) addMediaUrl(url);
       };
     }
   }, [addMediaUrl]);
@@ -207,19 +211,22 @@ function App(): JSX.Element {
         if (selectedItem?.url) {
           console.log(`Opening preview for item ${rowIndex}:`, selectedItem);
 
-          const win = tauriApi.window.createWindow("preview-win", {
-            url: `/player?url=${encodeURIComponent(selectedItem.url)}`,
-            width: PREVIEW_WINDOW_WIDTH,
-            height: PREVIEW_WINDOW_HEIGHT,
-            title: selectedItem.title
-              ? `Preview: ${selectedItem.title}`
-              : "ReMedia Preview",
-          });
+          const win: WebviewWindow = tauriApi.window.createWindow(
+            "preview-win",
+            {
+              url: `/player?url=${encodeURIComponent(selectedItem.url)}`,
+              width: PREVIEW_WINDOW_WIDTH,
+              height: PREVIEW_WINDOW_HEIGHT,
+              title: selectedItem.title
+                ? `Preview: ${selectedItem.title}`
+                : "ReMedia Preview",
+            },
+          );
 
-          void (win as any).once("tauri://created", () => {
+          void win.once("tauri://created", () => {
             // webview successfully created
           });
-          void (win as any).once("tauri://error", (error: unknown) => {
+          void win.once("tauri://error", (error: unknown) => {
             console.error("Error creating webview:", error);
           });
         } else {
@@ -256,34 +263,73 @@ function App(): JSX.Element {
     if (mediaList.length === 0) return;
 
     const urls = mediaList.map((item) => item.url).join("\n");
-    try {
-      await navigator.clipboard.writeText(urls);
+    const canUseBrowserClipboard =
+      typeof navigator !== "undefined" &&
+      typeof navigator.clipboard?.writeText === "function";
 
-      if (notificationPermission) {
-        tauriApi.notification.sendNotification({
-          body: `Copied ${mediaList.length} URL(s) to clipboard`,
-          title: "ReMedia",
-        });
+    if (canUseBrowserClipboard) {
+      try {
+        await navigator.clipboard.writeText(urls);
+      } catch (err) {
+        console.error("Browser clipboard write failed:", err);
+        return;
       }
-    } catch (error) {
-      console.error("Failed to copy URLs:", error);
+    } else if (tauriApi.clipboard?.writeText) {
+      try {
+        await tauriApi.clipboard.writeText(urls);
+      } catch (err) {
+        console.error("Tauri clipboard write failed:", err);
+        return;
+      }
+    } else {
+      console.warn("No clipboard API available; skipping copy");
+      return;
     }
+
+    if (notificationPermission) {
+      tauriApi.notification.sendNotification({
+        body: `Copied ${mediaList.length} URL(s) to clipboard`,
+        title: "ReMedia",
+      });
+    }
+  };
+
+  const handleCancelAll = async (): Promise<void> => {
+    await cancelAllDownloads();
+
+    mediaList.forEach((item, idx) => {
+      if (item.status === "Downloading" || item.status === "Pending") {
+        updateMediaItemByIndex(idx, { status: "Cancelled" });
+      }
+    });
+  };
+
+  const handleStartAllDownloads = async (): Promise<void> => {
+    mediaList.forEach((item, idx) => {
+      if (item.status !== "Done") {
+        updateMediaItemByIndex(idx, { status: "Downloading", progress: 0 });
+      }
+    });
+    await startDownload();
   };
 
   const handleShowDebugConsole = async (): Promise<void> => {
     try {
-      const debugWindow = tauriApi.window.createWindow("debug-console", {
-        url: "/debug",
-        width: DEBUG_CONSOLE_WIDTH,
-        height: DEBUG_CONSOLE_HEIGHT,
-        title: "ReMedia Debug Console",
-      });
+      const debugWindow: WebviewWindow = tauriApi.window.createWindow(
+        "debug-console",
+        {
+          url: "/debug",
+          width: DEBUG_CONSOLE_WIDTH,
+          height: DEBUG_CONSOLE_HEIGHT,
+          title: "ReMedia Debug Console",
+        },
+      );
 
-      void (debugWindow as any).once("tauri://created", () => {
+      void debugWindow.once("tauri://created", () => {
         console.log("Debug console window created");
       });
 
-      void (debugWindow as any).once("tauri://error", (error: unknown) => {
+      void debugWindow.once("tauri://error", (error: unknown) => {
         console.error("Error creating debug console window:", error);
       });
     } catch (error) {
@@ -326,14 +372,41 @@ function App(): JSX.Element {
   const handleYtDlpStderr = (event: Event<[number, string]>): void => {
     const [mediaIdx, message] = event.payload;
     console.log(`[yt-dlp stderr][media ${mediaIdx}]: ${message}`);
+
+    // Normalize case once for robust log-level detection
+    const messageLower = message.toLowerCase();
+
+    // Determine log level using canonical prefixes and word-boundary regex
+    let level: "error" | "warn" | "info" = "info";
+
+    // Check canonical log prefixes first (most reliable)
+    if (
+      message.startsWith("ERROR") ||
+      message.startsWith("Error") ||
+      message.startsWith("error")
+    ) {
+      level = "error";
+    } else if (
+      message.startsWith("WARNING") ||
+      message.startsWith("Warning") ||
+      message.startsWith("WARN") ||
+      message.startsWith("Warn") ||
+      message.startsWith("warn")
+    ) {
+      level = "warn";
+    } else {
+      // Fallback to word-boundary regex for whole-word severity tokens
+      if (/\b(error|err)\b/i.test(messageLower)) {
+        level = "error";
+      } else if (/\b(warn|warning)\b/i.test(messageLower)) {
+        level = "warn";
+      }
+    }
+
     addLogEntry({
       timestamp: Date.now(),
       source: "yt-dlp",
-      level: message.toLowerCase().includes("error")
-        ? "error"
-        : message.toLowerCase().includes("warn")
-          ? "warn"
-          : "info",
+      level,
       message,
       mediaIdx,
     });
@@ -365,8 +438,8 @@ function App(): JSX.Element {
 
         {/* Media List with Context Menu */}
         <MediaListContextMenu
-          onDownloadAll={startDownload}
-          onCancelAll={cancelAllDownloads}
+          onDownloadAll={handleStartAllDownloads}
+          onCancelAll={handleCancelAll}
           onRemoveSelected={handleRemoveSelected}
           onRemoveAll={handleRemoveAll}
           onCopyAllUrls={handleCopyAllUrls}
@@ -383,8 +456,8 @@ function App(): JSX.Element {
         <DownloadControls
           globalProgress={globalProgress}
           globalDownloading={globalDownloading}
-          onDownload={startDownload}
-          onCancel={cancelAllDownloads}
+          onDownload={handleStartAllDownloads}
+          onCancel={handleCancelAll}
           onPreview={preview}
           onSettings={() => setSettingsOpen(true)}
           onQuit={() => tauriApi.commands.quit()}

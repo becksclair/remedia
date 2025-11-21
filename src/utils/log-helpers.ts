@@ -3,11 +3,11 @@
  */
 
 export interface LogEntry {
-	timestamp: number;
-	source: string;
-	level: "info" | "warn" | "error";
-	message: string;
-	mediaIdx?: number;
+  timestamp: number;
+  source: string;
+  level: "info" | "warn" | "error";
+  message: string;
+  mediaIdx?: number;
 }
 
 /**
@@ -16,21 +16,24 @@ export interface LogEntry {
  * @param searchTerm - Case-insensitive search term
  * @returns Array of indices that match
  */
-export function findLogMatches(logEntries: LogEntry[], searchTerm: string): number[] {
-	if (!searchTerm) {
-		return [];
-	}
+export function findLogMatches(
+  logEntries: LogEntry[],
+  searchTerm: string,
+): number[] {
+  if (!searchTerm) {
+    return [];
+  }
 
-	const searchLower = searchTerm.toLowerCase();
-	const matches: number[] = [];
+  const searchLower = searchTerm.toLowerCase();
+  const matches: number[] = [];
 
-	logEntries.forEach((entry, index) => {
-		if (entry.message.toLowerCase().includes(searchLower)) {
-			matches.push(index);
-		}
-	});
+  logEntries.forEach((entry, index) => {
+    if (entry.message.toLowerCase().includes(searchLower)) {
+      matches.push(index);
+    }
+  });
 
-	return matches;
+  return matches;
 }
 
 /**
@@ -39,11 +42,14 @@ export function findLogMatches(logEntries: LogEntry[], searchTerm: string): numb
  * @param totalMatches - Total number of matches
  * @returns Next match index (wraps to 0 after last)
  */
-export function getNextMatchIndex(currentIndex: number, totalMatches: number): number {
-	if (totalMatches === 0) {
-		return 0;
-	}
-	return (currentIndex + 1) % totalMatches;
+export function getNextMatchIndex(
+  currentIndex: number,
+  totalMatches: number,
+): number {
+  if (totalMatches === 0) {
+    return 0;
+  }
+  return (currentIndex + 1) % totalMatches;
 }
 
 /**
@@ -53,26 +59,26 @@ export function getNextMatchIndex(currentIndex: number, totalMatches: number): n
  * @returns Object with before, match, after strings, or null if no match
  */
 export function splitTextForHighlight(
-	text: string,
-	searchTerm: string
+  text: string,
+  searchTerm: string,
 ): { before: string; match: string; after: string } | null {
-	if (!searchTerm) {
-		return null;
-	}
+  if (!searchTerm) {
+    return null;
+  }
 
-	const searchLower = searchTerm.toLowerCase();
-	const textLower = text.toLowerCase();
-	const index = textLower.indexOf(searchLower);
+  const searchLower = searchTerm.toLowerCase();
+  const textLower = text.toLowerCase();
+  const index = textLower.indexOf(searchLower);
 
-	if (index === -1) {
-		return null;
-	}
+  if (index === -1) {
+    return null;
+  }
 
-	return {
-		before: text.substring(0, index),
-		match: text.substring(index, index + searchTerm.length),
-		after: text.substring(index + searchTerm.length)
-	};
+  return {
+    before: text.substring(0, index),
+    match: text.substring(index, index + searchTerm.length),
+    after: text.substring(index + searchTerm.length),
+  };
 }
 
 /**
@@ -81,13 +87,13 @@ export function splitTextForHighlight(
  * @returns Tailwind CSS class string
  */
 export function getLogLevelClass(level: "info" | "warn" | "error"): string {
-	switch (level) {
-		case "error":
-			return "text-red-600";
-		case "warn":
-			return "text-yellow-600";
-		case "info":
-		default:
-			return "text-gray-700 dark:text-gray-300";
-	}
+  switch (level) {
+    case "error":
+      return "text-red-600";
+    case "warn":
+      return "text-yellow-600";
+    case "info":
+    default:
+      return "text-gray-700 dark:text-gray-300";
+  }
 }

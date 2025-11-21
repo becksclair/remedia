@@ -127,10 +127,12 @@ class MockCommands implements TauriCommands {
 
     // Simulate async metadata extraction
     setTimeout(() => {
+      const title =
+        mediaSourceUrl.split("/").filter(Boolean).pop() ?? mediaSourceUrl;
       mockState.emitEvent("update-media-info", [
         mediaIdx,
         mediaSourceUrl,
-        `Mock Title ${mediaIdx}`,
+        title,
         `https://mock-thumbnail.example.com/${mediaIdx}.jpg`,
       ]);
     }, 50);
@@ -275,6 +277,10 @@ class MockPath implements TauriPath {
 class MockClipboard implements TauriClipboard {
   async readText(): Promise<string> {
     return mockState.clipboardContent;
+  }
+
+  async writeText(text: string): Promise<void> {
+    mockState.clipboardContent = text;
   }
 }
 

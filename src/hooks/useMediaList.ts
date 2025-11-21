@@ -18,22 +18,22 @@ export function useMediaList() {
    */
   const addMediaUrl = useCallback(
     (url: string) => {
-      // Check if URL already exists
-      if (urlExists(mediaList, url)) {
-        console.log("URL already exists in the list");
-        return;
-      }
+      setMediaList((prevList) => {
+        if (urlExists(prevList, url)) {
+          console.log("URL already exists in the list");
+          return prevList;
+        }
 
-      const newMedia = createMediaItem(url);
-      const updatedMediaList = [...mediaList, newMedia];
-      const mediaIdx = updatedMediaList.findIndex((m) => m.url === url);
+        const nextList = [...prevList, createMediaItem(url)];
+        const mediaIdx = nextList.length - 1;
 
-      setMediaList(updatedMediaList);
+        // Request media information using the new index
+        void tauriApi.commands.getMediaInfo(mediaIdx, url);
 
-      // Request media information
-      void tauriApi.commands.getMediaInfo(mediaIdx, url);
+        return nextList;
+      });
     },
-    [mediaList, tauriApi.commands],
+    [tauriApi.commands],
   );
 
   /**
