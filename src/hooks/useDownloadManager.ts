@@ -58,12 +58,14 @@ export function useDownloadManager(mediaList: VideoInfo[]) {
     try {
       await Promise.all(
         mediaList.map((media, i) =>
-          tauriApi.commands.downloadMedia(
-            i,
-            media.url,
-            outputLocation,
-            settings,
-          ),
+          media.status === "Done"
+            ? Promise.resolve()
+            : tauriApi.commands.downloadMedia(
+                i,
+                media.url,
+                outputLocation,
+                settings,
+              ),
         ),
       );
     } catch (err) {

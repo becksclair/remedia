@@ -8,6 +8,7 @@ import {
 import { DebugConsole } from "./debug-console";
 import { logEntriesAtom } from "@/state/app-atoms";
 import type { LogEntry } from "@/utils/log-helpers";
+import { formatTimestamp } from "@/utils/media-helpers";
 
 describe("DebugConsole", () => {
   const createLogEntry = (
@@ -108,7 +109,7 @@ describe("DebugConsole", () => {
         initialAtomValues: [[logEntriesAtom, logs]],
       });
 
-      const timestamp = new Date(now).toLocaleTimeString();
+      const timestamp = formatTimestamp(now);
       expect(screen.getByText(timestamp)).toBeInTheDocument();
     });
 

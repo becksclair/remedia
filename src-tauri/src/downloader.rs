@@ -294,6 +294,8 @@ fn process_queue(window: Window) {
                     eprintln!("Failed to emit download error: {}", emit_err);
                 }
                 queue.fail(queued_download.media_idx);
+                drop(queue);
+                process_queue(window.clone());
                 return;
             }
         };

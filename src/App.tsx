@@ -110,18 +110,23 @@ function App(): JSX.Element {
   useEffect(() => {
     if (!isTauriRuntime()) return;
 
-    void tauriApi.notification.isPermissionGranted().then((granted) => {
-      if (!granted) {
-        console.log("Requesting notification permission");
-        void tauriApi.notification.requestPermission().then((permission) => {
+    void (async () => {
+      try {
+        const granted = await tauriApi.notification.isPermissionGranted();
+        if (!granted) {
+          console.log("Requesting notification permission");
+          const permission = await tauriApi.notification.requestPermission();
           console.log("Notification permission:", permission);
           setNotificationPermission(permission === "granted");
-        });
-      } else {
-        console.log("Notification permission already granted:", granted);
-        setNotificationPermission(granted);
+        } else {
+          console.log("Notification permission already granted:", granted);
+          setNotificationPermission(granted);
+        }
+      } catch (error) {
+        console.error("Notification permission check failed:", error);
+        setNotificationPermission(false);
       }
-    });
+    })();
   }, [tauriApi.notification]);
 
   /**
@@ -130,12 +135,14 @@ function App(): JSX.Element {
   useEffect(() => {
     if (outputLocation) return;
 
-    tauriApi.path
-      .getDownloadDir()
-      .then((dir) => setOutputLocation(dir))
-      .catch((error) => {
+    void (async () => {
+      try {
+        const dir = await tauriApi.path.getDownloadDir();
+        setOutputLocation(dir);
+      } catch (error) {
         console.error("Failed to get download directory:", error);
-      });
+      }
+    })();
   }, [tauriApi.path, outputLocation, setOutputLocation]);
 
   /**
@@ -157,17 +164,17 @@ function App(): JSX.Element {
    * Check clipboard for URLs on window focus
    */
   const handleWindowFocus = () => {
-    tauriApi.clipboard
-      .readText()
-      .then((text) => {
+    void (async () => {
+      try {
+        const text = await tauriApi.clipboard.readText();
         if (isValidUrl(text)) {
           addMediaUrl(text);
           console.log("URL added from clipboard");
         }
-      })
-      .catch((err) => {
+      } catch (err) {
         console.log("Error reading clipboard:", err);
-      });
+      }
+    })();
   };
 
   useWindowFocus(handleWindowFocus);
@@ -210,9 +217,11 @@ function App(): JSX.Element {
         const selectedItem = mediaList[rowIndex];
         if (selectedItem?.url) {
           console.log(`Opening preview for item ${rowIndex}:`, selectedItem);
+          // unique label per preview so Tauri opens distinct windows
+          const previewLabel = `preview-win-${rowIndex}-${Date.now()}`;
 
           const win: WebviewWindow = tauriApi.window.createWindow(
-            "preview-win",
+            previewLabel,
             {
               url: `/player?url=${encodeURIComponent(selectedItem.url)}`,
               width: PREVIEW_WINDOW_WIDTH,
