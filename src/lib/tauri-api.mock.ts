@@ -71,7 +71,7 @@ export const mockState = {
   clipboardContent: "",
 
   // Simulated download directory
-  downloadDir: "/mock/downloads",
+  downloadDir: "/tmp/remedia-tests",
 
   // Simulated Wayland state
   isWayland: false,
@@ -93,7 +93,7 @@ export const mockState = {
     this.commandCalls = [];
     this.activeDownloads.clear();
     this.clipboardContent = "";
-    this.downloadDir = "/mock/downloads";
+    this.downloadDir = "/tmp/remedia-tests";
     this.isWayland = false;
     this.notificationPermission = "granted";
     this.dialogResult = null;
@@ -124,18 +124,7 @@ class MockCommands implements TauriCommands {
       command: "get_media_info",
       args: { mediaIdx, mediaSourceUrl },
     });
-
-    // Simulate async metadata extraction
-    setTimeout(() => {
-      const title =
-        mediaSourceUrl.split("/").filter(Boolean).pop() ?? mediaSourceUrl;
-      mockState.emitEvent("update-media-info", [
-        mediaIdx,
-        mediaSourceUrl,
-        title,
-        `https://mock-thumbnail.example.com/${mediaIdx}.jpg`,
-      ]);
-    }, 50);
+    // Do not auto-emit metadata; tests inject events explicitly
   }
 
   async downloadMedia(
