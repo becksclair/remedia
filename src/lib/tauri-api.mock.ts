@@ -5,7 +5,7 @@
  * Allows testing components without needing the actual Tauri runtime.
  */
 
-import type { EventCallback } from "@tauri-apps/api/event";
+import type { Event, EventCallback } from "@tauri-apps/api/event";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import type {
   TauriApi,
@@ -82,6 +82,9 @@ export const mockState = {
   // Simulated dialog result
   dialogResult: null as string | string[] | null,
 
+  // Pending timeouts for cleanup
+  pendingTimers: new Set<ReturnType<typeof setTimeout>>(),
+
   // Download queue state
   queuedDownloads: [] as number[],
   maxConcurrentDownloads: 3,
@@ -92,6 +95,11 @@ export const mockState = {
   reset(): void {
     this.commandCalls = [];
     this.activeDownloads.clear();
+
+    // Clear all pending timeouts
+    this.pendingTimers.forEach((timer) => clearTimeout(timer));
+    this.pendingTimers.clear();
+
     this.clipboardContent = "";
     this.downloadDir = "/tmp/remedia-tests";
     this.isWayland = false;
@@ -109,7 +117,12 @@ export const mockState = {
     const listeners = mockEventListeners.get(event);
     if (listeners) {
       listeners.forEach((listener) => {
-        listener({ event, payload } as never);
+        const eventObj: Event<unknown> = {
+          event,
+          payload,
+          id: -1,
+        };
+        listener(eventObj);
       });
     }
   },
@@ -143,7 +156,8 @@ class MockCommands implements TauriCommands {
     // Simulate download progress
     const progressSteps = [0, 25, 50, 75, 100];
     progressSteps.forEach((progress, index) => {
-      setTimeout(() => {
+      const timerId = setTimeout(() => {
+        mockState.pendingTimers.delete(timerId);
         if (mockState.activeDownloads.has(mediaIdx)) {
           mockState.emitEvent("download-progress", [mediaIdx, progress]);
 
@@ -153,6 +167,7 @@ class MockCommands implements TauriCommands {
           }
         }
       }, index * 100);
+      mockState.pendingTimers.add(timerId);
     });
   }
 
@@ -225,11 +240,17 @@ class MockEvents implements TauriEvents {
     }
 
     const listeners = mockEventListeners.get(event)!;
-    listeners.add(handler as EventCallback<unknown>);
+
+    // Adapter to convert generic Event<unknown> to Event<T> for the handler
+    const adapter: EventCallback<unknown> = (e) => {
+      handler(e as Event<T>);
+    };
+
+    listeners.add(adapter);
 
     // Return unlisten function
     return () => {
-      listeners.delete(handler as EventCallback<unknown>);
+      listeners.delete(adapter);
     };
   }
 }

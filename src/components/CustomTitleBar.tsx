@@ -15,21 +15,21 @@ function CustomTitleBar() {
       <div className="window-controls">
         <button
           type="button"
-          className="mr-2 border-white border-1 rounded-md p-1"
+          className="mr-2 border-white border rounded-md p-1"
           onClick={handleMinimize}
         >
           _
         </button>
         <button
           type="button"
-          className="mr-2 border-white border-1 rounded-md p-1"
+          className="mr-2 border-white border rounded-md p-1"
           onClick={handleToggleMaximize}
         >
           []
         </button>
         <button
           type="button"
-          className="mr-2 border-white border-1 rounded-md p-1"
+          className="mr-2 border-white border rounded-md p-1"
           onClick={handleClose}
         >
           X
