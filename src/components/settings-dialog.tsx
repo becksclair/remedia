@@ -35,6 +35,8 @@ import {
   audioFormatAtom,
   audioQualityAtom,
   maxConcurrentDownloadsAtom,
+  downloadRateLimitAtom,
+  maxFileSizeAtom,
 } from "@/state/settings-atoms";
 import { useTauriApi } from "@/lib/TauriApiContext";
 
@@ -60,6 +62,10 @@ export function SettingsDialog({
   const [maxConcurrentDownloads, setMaxConcurrentDownloads] = useAtom(
     maxConcurrentDownloadsAtom,
   );
+  const [downloadRateLimit, setDownloadRateLimit] = useAtom(
+    downloadRateLimitAtom,
+  );
+  const [maxFileSize, setMaxFileSize] = useAtom(maxFileSizeAtom);
 
   useEffect(() => {
     // Check if we're running on Wayland using the Rust backend
@@ -179,6 +185,53 @@ export function SettingsDialog({
                 <SelectItem value="6">6</SelectItem>
                 <SelectItem value="8">8</SelectItem>
                 <SelectItem value="10">10</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Download Rate Limit */}
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="download-rate-limit" className="text-right">
+              Rate Limit
+            </Label>
+            <Select
+              value={downloadRateLimit}
+              onValueChange={(value) => setDownloadRateLimit(value as any)}
+            >
+              <SelectTrigger id="download-rate-limit" className="col-span-3">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="unlimited">Unlimited</SelectItem>
+                <SelectItem value="50K">50 KB/s</SelectItem>
+                <SelectItem value="100K">100 KB/s</SelectItem>
+                <SelectItem value="500K">500 KB/s</SelectItem>
+                <SelectItem value="1M">1 MB/s</SelectItem>
+                <SelectItem value="5M">5 MB/s</SelectItem>
+                <SelectItem value="10M">10 MB/s</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Max File Size */}
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="max-file-size" className="text-right">
+              Max File Size
+            </Label>
+            <Select
+              value={maxFileSize}
+              onValueChange={(value) => setMaxFileSize(value as any)}
+            >
+              <SelectTrigger id="max-file-size" className="col-span-3">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="unlimited">Unlimited</SelectItem>
+                <SelectItem value="50M">50 MB</SelectItem>
+                <SelectItem value="100M">100 MB</SelectItem>
+                <SelectItem value="500M">500 MB</SelectItem>
+                <SelectItem value="1G">1 GB</SelectItem>
+                <SelectItem value="5G">5 GB</SelectItem>
               </SelectContent>
             </Select>
           </div>

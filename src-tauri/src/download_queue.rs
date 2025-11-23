@@ -309,4 +309,41 @@ mod tests {
         assert_eq!(status.active, 1);
         assert_eq!(status.max_concurrent, 2);
     }
+
+    #[test]
+    fn test_concurrent_access() {
+        use std::sync::Barrier;
+
+        let queue = Arc::new(Mutex::new(DownloadQueue::new(2)));
+        let queue_clone = queue.clone();
+        let barrier = Arc::new(Barrier::new(2));
+        let barrier_clone = barrier.clone();
+
+        // Spawn a thread that adds downloads
+        let t1 = std::thread::spawn(move || {
+            let mut q = queue_clone.lock().unwrap();
+            q.enqueue(create_test_download(1)).unwrap();
+            q.enqueue(create_test_download(2)).unwrap();
+            barrier_clone.wait();
+        });
+
+        // Spawn a thread that processes downloads
+        let queue_clone2 = queue.clone();
+        let t2 = std::thread::spawn(move || {
+            // Wait for enqueue
+            barrier.wait();
+            let mut q = queue_clone2.lock().unwrap();
+            let next = q.next_to_start();
+            assert!(next.is_some());
+        });
+
+        t1.join().unwrap();
+        t2.join().unwrap();
+
+        let q = queue.lock().unwrap();
+        // t2 called next_to_start once, so 1 active.
+        // Total 2 enqueued.
+        assert_eq!(q.active_count(), 1);
+        assert_eq!(q.queue_size(), 1);
+    }
 }

@@ -60,3 +60,24 @@ export const maxConcurrentDownloadsAtom = atomWithStorage<number>(
   "maxConcurrentDownloads",
   3,
 );
+
+// Rate limiting settings
+export type DownloadRateLimit =
+  | "unlimited"
+  | "50K"
+  | "100K"
+  | "500K"
+  | "1M"
+  | "5M"
+  | "10M";
+export const downloadRateLimitAtom = atomWithStorage<DownloadRateLimit>(
+  "downloadRateLimit",
+  "unlimited",
+);
+
+// File size limit settings
+export type MaxFileSize = "unlimited" | "50M" | "100M" | "500M" | "1G" | "5G";
+export const maxFileSizeAtom = atomWithStorage<MaxFileSize>(
+  "maxFileSize",
+  "unlimited",
+);
