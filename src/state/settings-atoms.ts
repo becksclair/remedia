@@ -90,3 +90,7 @@ export const maxFileSizeAtom = atomWithStorage<MaxFileSize>(
   "maxFileSize",
   "unlimited",
 );
+
+// Theme settings
+export type Theme = "system" | "light" | "dark";
+export const themeAtom = atomWithStorage<Theme>("theme", "system");
