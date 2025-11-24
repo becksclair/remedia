@@ -1,34 +1,92 @@
-import { atomWithStorage } from "jotai/utils";
+import { atomWithStorage, createJSONStorage } from "jotai/utils";
 
+// Window settings
 export const alwaysOnTopAtom = atomWithStorage("alwaysOnTop", false);
 export const downloadLocationAtom = atomWithStorage<string>(
   "downloadLocation",
   "",
 );
 
-export const downloadModeAtom = atomWithStorage<"video" | "audio" | "both">(
+// Download mode settings (Phase 3.1)
+export type DownloadMode = "video" | "audio";
+export const downloadModeAtom = atomWithStorage<DownloadMode>(
   "downloadMode",
   "video",
 );
 
-export const videoQualityAtom = atomWithStorage<
-  "best" | "high" | "medium" | "low"
->("videoQuality", "best");
+// Video quality settings
+export type VideoQuality = "best" | "high" | "medium" | "low";
+export const videoQualityAtom = atomWithStorage<VideoQuality>(
+  "videoQuality",
+  "best",
+);
 
-export const maxResolutionAtom = atomWithStorage<
-  "2160p" | "1440p" | "1080p" | "720p" | "480p" | "no-limit"
->("maxResolution", "no-limit");
+// Max resolution settings
+export type MaxResolution =
+  | "2160p"
+  | "1440p"
+  | "1080p"
+  | "720p"
+  | "480p"
+  | "no-limit";
+export const maxResolutionAtom = atomWithStorage<MaxResolution>(
+  "maxResolution",
+  "no-limit",
+);
 
-export const videoFormatAtom = atomWithStorage<"mp4" | "mkv" | "webm" | "best">(
+// Video format settings
+export type VideoFormat = "mp4" | "mkv" | "webm" | "best";
+export const videoFormatAtom = atomWithStorage<VideoFormat>(
   "videoFormat",
   "best",
 );
 
-export const audioFormatAtom = atomWithStorage<"mp3" | "m4a" | "opus" | "best">(
+// Audio format settings
+export type AudioFormat = "mp3" | "m4a" | "opus" | "best";
+export const audioFormatAtom = atomWithStorage<AudioFormat>(
   "audioFormat",
   "best",
 );
 
-export const audioQualityAtom = atomWithStorage<
-  "best" | "high" | "medium" | "low"
->("audioQuality", "best");
+// Audio quality settings (yt-dlp scale: 0=best, 9=worst)
+export type AudioQuality = "0" | "2" | "5" | "9";
+export const audioQualityAtom = atomWithStorage<AudioQuality>(
+  "audioQuality",
+  "0",
+  {
+    ...createJSONStorage<AudioQuality>(() => localStorage),
+    getItem: (key, initialValue) => {
+      const storage = createJSONStorage<AudioQuality>(() => localStorage);
+      const value = storage.getItem(key, initialValue);
+      const validValues: AudioQuality[] = ["0", "2", "5", "9"];
+      return validValues.includes(value as AudioQuality) ? value : "0";
+    },
+  },
+);
+
+// Concurrency settings (Phase 6.1)
+export const maxConcurrentDownloadsAtom = atomWithStorage<number>(
+  "maxConcurrentDownloads",
+  3,
+);
+
+// Rate limiting settings
+export type DownloadRateLimit =
+  | "unlimited"
+  | "50K"
+  | "100K"
+  | "500K"
+  | "1M"
+  | "5M"
+  | "10M";
+export const downloadRateLimitAtom = atomWithStorage<DownloadRateLimit>(
+  "downloadRateLimit",
+  "unlimited",
+);
+
+// File size limit settings
+export type MaxFileSize = "unlimited" | "50M" | "100M" | "500M" | "1G" | "5G";
+export const maxFileSizeAtom = atomWithStorage<MaxFileSize>(
+  "maxFileSize",
+  "unlimited",
+);

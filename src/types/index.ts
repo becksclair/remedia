@@ -5,6 +5,8 @@
 export type MediaProgressEvent = [number, number];
 // [mediaIdx, mediaSourceUrl, title, thumbnail]
 export type MediaInfoEvent = [number, string, string, string];
+// [mediaIdx, stderrLine]
+export type YtDlpStderrEvent = [number, string];
 
 // Tauri event name constants
 export const TAURI_EVENT = {
@@ -12,17 +14,18 @@ export const TAURI_EVENT = {
   downloadProgress: "download-progress",
   downloadComplete: "download-complete",
   downloadError: "download-error",
+  ytDlpStderr: "yt-dlp-stderr",
 } as const;
 export type TauriEventName = (typeof TAURI_EVENT)[keyof typeof TAURI_EVENT];
 
 // Tauri command payloads (for invoke)
 export interface DownloadSettings {
-  downloadMode: "video" | "audio" | "both";
+  downloadMode: "video" | "audio";
   videoQuality: "best" | "high" | "medium" | "low";
   maxResolution: "2160p" | "1440p" | "1080p" | "720p" | "480p" | "no-limit";
   videoFormat: "mp4" | "mkv" | "webm" | "best";
   audioFormat: "mp3" | "m4a" | "opus" | "best";
-  audioQuality: "best" | "high" | "medium" | "low";
+  audioQuality: "0" | "2" | "5" | "9";
 }
 
 export interface DownloadMediaCommand {

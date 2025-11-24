@@ -33,7 +33,7 @@ function DropZone({
     <div
       data-testid="drop-zone"
       className={cn(
-        `min-h-[18rem] p-[4rem] text-center text-2xl drop-zone ${dragHovering ? "hover" : ""}`,
+        `min-h-72 p-16 text-center text-2xl drop-zone ${dragHovering ? "hover" : ""}`,
         className,
       )}
       onDrop={handleDrop}

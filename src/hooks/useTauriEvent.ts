@@ -1,24 +1,30 @@
-import { type EventCallback, listen } from "@tauri-apps/api/event";
-import { useEffect } from "react";
+import { type EventCallback } from "@tauri-apps/api/event";
+import { useEffect, useRef } from "react";
+import { useTauriApi } from "@/lib/TauriApiContext";
 
-let tauriEventHandlers: Record<string, unknown> = {};
+// Registry of all active hook instances, keyed by instance ID
+const handlerRegistry = new Map<number, Record<string, unknown>>();
+let nextInstanceId = 1;
+
 type PendingEvent = { eventName: string; payload: unknown };
 const pendingEvents: PendingEvent[] = [];
 
 function tryDeliverEvent(eventName: string, payload: unknown): boolean {
-  const handler = tauriEventHandlers[eventName] as
-    | EventCallback<unknown>
-    | undefined;
-  if (typeof handler === "function") {
-    handler({
-      event: eventName,
-      id: Date.now(),
-      payload,
-      windowLabel: "main",
-    } as unknown as Parameters<EventCallback<unknown>>[0]);
-    return true;
+  // Try to deliver to all registered instances that have a handler for this event
+  let delivered = false;
+  for (const handlers of handlerRegistry.values()) {
+    const handler = handlers[eventName] as EventCallback<unknown> | undefined;
+    if (typeof handler === "function") {
+      handler({
+        event: eventName,
+        id: Date.now(),
+        payload,
+        windowLabel: "main",
+      } as unknown as Parameters<EventCallback<unknown>>[0]);
+      delivered = true;
+    }
   }
-  return false;
+  return delivered;
 }
 
 // Expose a minimal test helper to emit events during Playwright tests
@@ -45,16 +51,22 @@ if (typeof window !== "undefined") {
  * @param eventHandlers - An object mapping event names to their handler functions
  */
 function useTauriEvents(eventHandlers: Record<string, unknown>) {
-  tauriEventHandlers = eventHandlers;
+  const tauriApi = useTauriApi();
+  const instanceIdRef = useRef<number | null>(null);
 
   useEffect(() => {
+    // Generate a unique instance ID and register handlers
+    const instanceId = nextInstanceId++;
+    instanceIdRef.current = instanceId;
+    handlerRegistry.set(instanceId, eventHandlers);
+
     const unlistenFunctions: Array<() => void> = [];
 
     // Set up all listeners
     const setupListeners = async () => {
-      for (const [eventName, handler] of Object.entries(tauriEventHandlers)) {
+      for (const [eventName, handler] of Object.entries(eventHandlers)) {
         try {
-          const unlistenFn = await listen(
+          const unlistenFn = await tauriApi.events.listen(
             eventName,
             handler as EventCallback<unknown>,
           );
@@ -72,19 +84,35 @@ function useTauriEvents(eventHandlers: Record<string, unknown>) {
       if (pendingEvents.length > 0) {
         const toProcess = pendingEvents.splice(0, pendingEvents.length);
         for (const { eventName, payload } of toProcess) {
-          tryDeliverEvent(eventName, payload);
+          try {
+            const delivered = tryDeliverEvent(eventName, payload);
+            if (!delivered) {
+              console.warn(
+                `Pending Tauri event '${eventName}' not delivered to any handler`,
+                { payload },
+              );
+            }
+          } catch (error) {
+            console.error(
+              `Error delivering pending Tauri event '${eventName}'`,
+              { payload, error },
+            );
+          }
         }
       }
     };
 
     void setupListeners();
 
-    // Cleanup function to remove all listeners
+    // Cleanup function to remove all listeners and unregister handlers
     return () => {
       unlistenFunctions.forEach((unlisten) => unlisten());
+      if (instanceIdRef.current !== null) {
+        handlerRegistry.delete(instanceIdRef.current);
+      }
       console.log("Removed all Tauri event listeners");
     };
-  }, []);
+  }, [tauriApi, eventHandlers]);
 }
 
 export { useTauriEvents };

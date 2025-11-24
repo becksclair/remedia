@@ -15,17 +15,13 @@ function Player() {
     <ErrorBoundary>
       <div className="w-screen h-screen bg-black relative flex justify-center items-center">
         <ReactPlayer
-          url={src}
+          src={src}
           controls
           width="100%"
           height="100%"
-          config={{
-            file: {
-              attributes: {
-                controlsList: "nodownload",
-              },
-            },
-          }}
+          config={
+            { file: { attributes: { controlsList: "nodownload" } } } as any
+          }
         />
       </div>
     </ErrorBoundary>
