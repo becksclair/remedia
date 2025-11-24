@@ -674,7 +674,7 @@ pub fn download_media(
 
 // Phase 4: Cancellation support
 #[tauri::command]
-pub fn cancel_download(window: Window, media_idx: i32) {
+pub fn cancel_download(media_idx: i32) {
     let flags = DOWNLOAD_CANCEL_FLAGS.lock().unwrap();
 
     if let Some(flag) = flags.get(&media_idx) {
@@ -682,9 +682,7 @@ pub fn cancel_download(window: Window, media_idx: i32) {
         eprintln!("Cancellation requested for media_idx {}", media_idx);
 
         // Emit cancelled event immediately
-        if let Err(e) = window.emit("download-cancelled", media_idx) {
-            eprintln!("Failed to emit download-cancelled: {}", e);
-        }
+        // Removed to avoid duplicate events (handled by execute_download)
     } else {
         eprintln!("No active download found for media_idx {}", media_idx);
     }

@@ -1,4 +1,4 @@
-import { atomWithStorage } from "jotai/utils";
+import { atomWithStorage, createJSONStorage } from "jotai/utils";
 
 // Window settings
 export const alwaysOnTopAtom = atomWithStorage("alwaysOnTop", false);
@@ -53,6 +53,15 @@ export type AudioQuality = "0" | "2" | "5" | "9";
 export const audioQualityAtom = atomWithStorage<AudioQuality>(
   "audioQuality",
   "0",
+  {
+    ...createJSONStorage<AudioQuality>(() => localStorage),
+    getItem: (key, initialValue) => {
+      const storage = createJSONStorage<AudioQuality>(() => localStorage);
+      const value = storage.getItem(key, initialValue);
+      const validValues: AudioQuality[] = ["0", "2", "5", "9"];
+      return validValues.includes(value as AudioQuality) ? value : "0";
+    },
+  },
 );
 
 // Concurrency settings (Phase 6.1)
