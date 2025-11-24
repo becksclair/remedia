@@ -37,6 +37,7 @@ import {
   maxConcurrentDownloadsAtom,
   downloadRateLimitAtom,
   maxFileSizeAtom,
+  themeAtom,
 } from "@/state/settings-atoms";
 import { useTauriApi } from "@/lib/TauriApiContext";
 
@@ -51,6 +52,7 @@ export function SettingsDialog({
   const [alwaysOnTop, setAlwaysOnTop] = useAtom(alwaysOnTopAtom);
   const [isWayland, setIsWayland] = useState(false);
   const [outputLocation, setOutputLocation] = useAtom(downloadLocationAtom);
+  const [theme, setTheme] = useAtom(themeAtom);
 
   // Advanced settings (Phase 3.2)
   const [downloadMode, setDownloadMode] = useAtom(downloadModeAtom);
@@ -118,6 +120,25 @@ export function SettingsDialog({
         </DialogHeader>
 
         <div className="grid gap-6 py-4">
+          {/* Theme settings */}
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="theme" className="text-right">
+              Theme
+            </Label>
+            <Select value={theme} onValueChange={(value) => setTheme(value as any)}>
+              <SelectTrigger id="theme" className="col-span-3">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="system">System</SelectItem>
+                <SelectItem value="light">Light</SelectItem>
+                <SelectItem value="dark">Dark</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <Separator />
+
           {/* Window settings */}
           {isWayland ? (
             <Alert variant="destructive" className="text-left">

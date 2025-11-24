@@ -22,6 +22,7 @@ import { useWindowFocus } from "@/hooks/use-window-focus";
 import { useTauriEvents } from "@/hooks/useTauriEvent";
 import { useMediaList } from "@/hooks/useMediaList";
 import { useDownloadManager } from "@/hooks/useDownloadManager";
+import { useTheme } from "@/hooks/useTheme";
 
 // State
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
@@ -74,6 +75,9 @@ function debounce(callback: () => void, delay: number): () => void {
  */
 function App(): JSX.Element {
   const tauriApi = useTauriApi();
+
+  // Apply theme
+  useTheme();
 
   // Local state
   const [notificationPermission, setNotificationPermission] = useState(false);
