@@ -25,13 +25,16 @@ export function useTheme(): void {
         let effectiveTheme: "light" | "dark" = "light";
 
         if (theme === "system") {
-          // Check system preference with error handling
-          if (!window.matchMedia) return;
-
-          const prefersDark = window.matchMedia(
-            "(prefers-color-scheme: dark)",
-          ).matches;
-          effectiveTheme = prefersDark ? "dark" : "light";
+          // Handle system preference with fallback for browsers without matchMedia
+          if (!window.matchMedia) {
+            // Fallback to light theme if matchMedia unavailable
+            effectiveTheme = "light";
+          } else {
+            const prefersDark = window.matchMedia(
+              "(prefers-color-scheme: dark)",
+            ).matches;
+            effectiveTheme = prefersDark ? "dark" : "light";
+          }
         } else {
           effectiveTheme = theme;
         }

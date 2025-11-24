@@ -130,4 +130,21 @@ describe("useTheme", () => {
     // Should not throw
     expect(() => renderHook(() => useTheme())).not.toThrow();
   });
+
+  it("cleans up event listener on unmount", () => {
+    const removeEventListenerSpy = vi.fn();
+    matchMediaMock.mockImplementation((query: string) => ({
+      matches: false,
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: removeEventListenerSpy,
+    }));
+
+    (useAtomValue as any).mockReturnValue("system");
+
+    const { unmount } = renderHook(() => useTheme());
+    unmount();
+
+    expect(removeEventListenerSpy).toHaveBeenCalled();
+  });
 });
