@@ -38,6 +38,7 @@ import {
   downloadRateLimitAtom,
   maxFileSizeAtom,
   themeAtom,
+  type Theme,
 } from "@/state/settings-atoms";
 import { useTauriApi } from "@/lib/TauriApiContext";
 
@@ -125,7 +126,10 @@ export function SettingsDialog({
             <Label htmlFor="theme" className="text-right">
               Theme
             </Label>
-            <Select value={theme} onValueChange={(value) => setTheme(value as any)}>
+            <Select
+              value={theme}
+              onValueChange={(value) => setTheme(value as Theme)}
+            >
               <SelectTrigger id="theme" className="col-span-3">
                 <SelectValue />
               </SelectTrigger>

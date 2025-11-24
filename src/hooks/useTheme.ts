@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useAtomValue } from "jotai";
 import { themeAtom } from "@/state/settings-atoms";
 
@@ -9,45 +9,67 @@ import { themeAtom } from "@/state/settings-atoms";
 export function useTheme(): void {
   const theme = useAtomValue(themeAtom);
 
+  // Performance optimization: Memoize DOM query
+  const htmlElement = useMemo(() => {
+    if (typeof document !== "undefined") {
+      return document.documentElement;
+    }
+    return null;
+  }, []);
+
   useEffect(() => {
+    if (typeof window === "undefined" || !htmlElement) return;
+
     const applyTheme = () => {
-      const htmlElement = document.documentElement;
-      let effectiveTheme: "light" | "dark" = "light";
+      try {
+        let effectiveTheme: "light" | "dark" = "light";
 
-      if (theme === "system") {
-        // Check system preference
-        const prefersDark = window.matchMedia(
-          "(prefers-color-scheme: dark)",
-        ).matches;
-        effectiveTheme = prefersDark ? "dark" : "light";
-      } else {
-        effectiveTheme = theme;
-      }
+        if (theme === "system") {
+          // Check system preference with error handling
+          if (!window.matchMedia) return;
 
-      // Apply theme by toggling the .dark class
-      if (effectiveTheme === "dark") {
-        htmlElement.classList.add("dark");
-      } else {
-        htmlElement.classList.remove("dark");
+          const prefersDark = window.matchMedia(
+            "(prefers-color-scheme: dark)",
+          ).matches;
+          effectiveTheme = prefersDark ? "dark" : "light";
+        } else {
+          effectiveTheme = theme;
+        }
+
+        // Apply theme by toggling the .dark class
+        if (effectiveTheme === "dark") {
+          htmlElement.classList.add("dark");
+        } else {
+          htmlElement.classList.remove("dark");
+        }
+      } catch (error) {
+        console.warn("Theme application failed:", error);
       }
     };
 
     applyTheme();
 
-    // Listen for system theme changes
-    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    try {
+      // Listen for system theme changes
+      if (!window.matchMedia) return;
 
-    // Handle changes (use addEventListener for better compatibility)
-    const handleChange = () => {
-      if (theme === "system") {
-        applyTheme();
-      }
-    };
+      const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+      if (!mediaQuery) return;
 
-    mediaQuery.addEventListener("change", handleChange);
+      // Handle changes (use addEventListener for better compatibility)
+      const handleChange = () => {
+        if (theme === "system") {
+          applyTheme();
+        }
+      };
 
-    return () => {
-      mediaQuery.removeEventListener("change", handleChange);
-    };
-  }, [theme]);
+      mediaQuery.addEventListener("change", handleChange);
+
+      return () => {
+        mediaQuery.removeEventListener("change", handleChange);
+      };
+    } catch (error) {
+      console.warn("Theme detection failed:", error);
+    }
+  }, [theme, htmlElement]);
 }
