@@ -39,6 +39,14 @@ import {
   maxFileSizeAtom,
   themeAtom,
   type Theme,
+  type DownloadMode,
+  type VideoQuality,
+  type MaxResolution,
+  type VideoFormat,
+  type AudioFormat,
+  type AudioQuality,
+  type DownloadRateLimit,
+  type MaxFileSize,
 } from "@/state/settings-atoms";
 import { useTauriApi } from "@/lib/TauriApiContext";
 
@@ -221,7 +229,9 @@ export function SettingsDialog({
             </Label>
             <Select
               value={downloadRateLimit}
-              onValueChange={(value) => setDownloadRateLimit(value as any)}
+              onValueChange={(value) =>
+                setDownloadRateLimit(value as DownloadRateLimit)
+              }
             >
               <SelectTrigger id="download-rate-limit" className="col-span-3">
                 <SelectValue />
@@ -245,7 +255,7 @@ export function SettingsDialog({
             </Label>
             <Select
               value={maxFileSize}
-              onValueChange={(value) => setMaxFileSize(value as any)}
+              onValueChange={(value) => setMaxFileSize(value as MaxFileSize)}
             >
               <SelectTrigger id="max-file-size" className="col-span-3">
                 <SelectValue />
@@ -270,7 +280,7 @@ export function SettingsDialog({
             </Label>
             <Select
               value={downloadMode}
-              onValueChange={(value) => setDownloadMode(value as any)}
+              onValueChange={(value) => setDownloadMode(value as DownloadMode)}
             >
               <SelectTrigger id="download-mode" className="col-span-3">
                 <SelectValue />
@@ -295,7 +305,9 @@ export function SettingsDialog({
                   </Label>
                   <Select
                     value={videoQuality}
-                    onValueChange={(value) => setVideoQuality(value as any)}
+                    onValueChange={(value) =>
+                      setVideoQuality(value as VideoQuality)
+                    }
                   >
                     <SelectTrigger id="video-quality" className="col-span-3">
                       <SelectValue />
@@ -315,7 +327,9 @@ export function SettingsDialog({
                   </Label>
                   <Select
                     value={maxResolution}
-                    onValueChange={(value) => setMaxResolution(value as any)}
+                    onValueChange={(value) =>
+                      setMaxResolution(value as MaxResolution)
+                    }
                   >
                     <SelectTrigger id="max-resolution" className="col-span-3">
                       <SelectValue />
@@ -337,7 +351,9 @@ export function SettingsDialog({
                   </Label>
                   <Select
                     value={videoFormat}
-                    onValueChange={(value) => setVideoFormat(value as any)}
+                    onValueChange={(value) =>
+                      setVideoFormat(value as VideoFormat)
+                    }
                   >
                     <SelectTrigger id="video-format" className="col-span-3">
                       <SelectValue />
@@ -365,7 +381,7 @@ export function SettingsDialog({
               </Label>
               <Select
                 value={audioFormat}
-                onValueChange={(value) => setAudioFormat(value as any)}
+                onValueChange={(value) => setAudioFormat(value as AudioFormat)}
               >
                 <SelectTrigger id="audio-format" className="col-span-3">
                   <SelectValue />
@@ -385,7 +401,9 @@ export function SettingsDialog({
               </Label>
               <Select
                 value={audioQuality}
-                onValueChange={(value) => setAudioQuality(value as any)}
+                onValueChange={(value) =>
+                  setAudioQuality(value as AudioQuality)
+                }
               >
                 <SelectTrigger id="audio-quality" className="col-span-3">
                   <SelectValue />
