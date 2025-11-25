@@ -5,9 +5,9 @@ use tauri::Manager;
 
 pub mod download_queue;
 pub mod downloader;
+pub mod events;
 pub mod remedia;
 pub mod remote_control;
-pub mod events;
 pub mod thumbnail;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -46,8 +46,20 @@ pub fn run() {
         // #[cfg(debug_assertions)] // only include this code on debug builds
         // app.get_webview_window("main").unwrap().open_devtools();
 
-        // Enable remote control by default for debugging and remote testing.
-        remote_control::start_remote_control(app.app_handle().clone());
+        let enable_remote_env = std::env::var("ENABLE_REMOTE_HARNESS").ok();
+        let enable_remote = enable_remote_env.as_deref().map(|v| v == "1").unwrap_or(cfg!(debug_assertions));
+        eprintln!(
+            "[remote] ENABLE_REMOTE_HARNESS env={:?} debug_fallback={} resolved={}",
+            enable_remote_env,
+            cfg!(debug_assertions),
+            enable_remote
+        );
+        if enable_remote {
+            eprintln!("[remote] ENABLE_REMOTE_HARNESS resolved true -> starting websocket bridge");
+            remote_control::start_remote_control(app.app_handle().clone());
+        } else {
+            eprintln!("[remote] ENABLE_REMOTE_HARNESS not set; remote control disabled");
+        }
         Ok(())
     });
 

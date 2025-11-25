@@ -4,8 +4,8 @@
  * Manages download operations and global download state.
  */
 
-import { useState, useCallback, useEffect } from "react";
-import { useAtomValue } from "jotai";
+import { useState, useCallback, useEffect, useRef } from "react";
+import { useAtomValue, useSetAtom } from "jotai";
 import {
   downloadLocationAtom,
   downloadModeAtom,
@@ -26,8 +26,12 @@ import type { VideoInfo } from "@/components/MediaTable";
 export function useDownloadManager(mediaList: VideoInfo[]) {
   const [globalProgress, setGlobalProgress] = useState(0);
   const [globalDownloading, setGlobalDownloading] = useState(false);
+  const inFlightRef = useRef(false);
+  const retryDelayMs = 400;
+  const retryLimit = 4;
 
   const tauriApi = useTauriApi();
+  const setOutputLocation = useSetAtom(downloadLocationAtom);
 
   // Read download settings
   const outputLocation = useAtomValue(downloadLocationAtom);
@@ -42,8 +46,23 @@ export function useDownloadManager(mediaList: VideoInfo[]) {
    * Start download for all media in the list
    */
   const startDownload = useCallback(async () => {
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
     setGlobalProgress(0);
     setGlobalDownloading(true);
+
+    // Ensure we always have a valid output directory before invoking backend
+    let resolvedOutput = outputLocation;
+    if (!resolvedOutput) {
+      try {
+        resolvedOutput = await tauriApi.path.getDownloadDir();
+        setOutputLocation(resolvedOutput);
+      } catch (error) {
+        console.error("Failed to resolve download directory", error);
+        setGlobalDownloading(false);
+        return;
+      }
+    }
 
     // Collect current settings
     const settings: DownloadSettings = {
@@ -56,22 +75,42 @@ export function useDownloadManager(mediaList: VideoInfo[]) {
     };
 
     try {
-      await Promise.all(
-        mediaList.map((media, i) =>
-          media.status === "Done"
-            ? Promise.resolve()
-            : tauriApi.commands.downloadMedia(
-                i,
-                media.url,
-                outputLocation,
-                settings,
-              ),
-        ),
-      );
+      const kickOff = async (attempt: number): Promise<void> => {
+        const pending = mediaList
+          .map((media, idx) => ({ media, idx }))
+          .filter(({ media }) => media.status !== "Done");
+
+        if (pending.length === 0) {
+          if (attempt < retryLimit) {
+            await new Promise((r) => setTimeout(r, retryDelayMs));
+            return kickOff(attempt + 1);
+          }
+          console.warn(
+            "startDownload: no pending items after retries, giving up",
+          );
+          setGlobalDownloading(false);
+          inFlightRef.current = false;
+          return;
+        }
+
+        await Promise.all(
+          pending.map(({ media, idx }) =>
+            tauriApi.commands.downloadMedia(
+              idx,
+              media.url,
+              resolvedOutput,
+              settings,
+            ),
+          ),
+        );
+      };
+
+      await kickOff(0);
     } catch (err) {
       console.error("Error starting download:", err);
       alert("Error starting download");
       setGlobalDownloading(false);
+      inFlightRef.current = false;
     }
   }, [
     mediaList,
@@ -103,6 +142,9 @@ export function useDownloadManager(mediaList: VideoInfo[]) {
   useEffect(() => {
     const isDownloading = hasActiveDownloads(mediaList);
     setGlobalDownloading(isDownloading);
+    if (!isDownloading) {
+      inFlightRef.current = false;
+    }
     setGlobalProgress(isDownloading ? calculateGlobalProgress(mediaList) : 0);
   }, [mediaList]);
 

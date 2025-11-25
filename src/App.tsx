@@ -5,7 +5,7 @@
  * Now uses extracted components and hooks for better maintainability.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import type { JSX } from "react";
 import type { Event } from "@tauri-apps/api/event";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
@@ -80,9 +80,18 @@ function App(): JSX.Element {
   useTheme();
 
   // Local state
+  const harnessEnabled = useMemo(() => {
+    const env = (import.meta as any).env;
+    return env?.ENABLE_REMOTE_HARNESS === "1";
+  }, []);
+  const logAction = (...args: unknown[]) => {
+    if (harnessEnabled) console.log("[remote-action]", ...args);
+  };
+
   const [notificationPermission, setNotificationPermission] = useState(false);
   const [dragHovering, setDragHovering] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [remoteStartRequested, setRemoteStartRequested] = useState(false);
 
   // Global state
   const outputLocation = useAtomValue(downloadLocationAtom);
@@ -308,6 +317,7 @@ function App(): JSX.Element {
   };
 
   const handleCancelAll = async (): Promise<void> => {
+    logAction("cancel-all");
     await cancelAllDownloads();
 
     mediaList.forEach((item, idx) => {
@@ -318,6 +328,8 @@ function App(): JSX.Element {
   };
 
   const handleStartAllDownloads = async (): Promise<void> => {
+    if (globalDownloading) return;
+    logAction("start-all", mediaList.length);
     mediaList.forEach((item, idx) => {
       if (item.status !== "Done") {
         updateMediaItemByIndex(idx, { status: "Downloading", progress: 0 });
@@ -386,17 +398,35 @@ function App(): JSX.Element {
     const url = event.payload;
     if (typeof url === "string") {
       addMediaUrl(url);
+      logAction("remote-add-url", url);
+      setRemoteStartRequested(true);
     }
   };
 
   const handleRemoteStart = (): void => {
+    logAction("remote-start-downloads");
+    setRemoteStartRequested(true);
     void handleStartAllDownloads();
   };
 
   const handleRemoteCancel = (): void => {
+    logAction("remote-cancel-downloads");
     void handleCancelAll();
   };
 
+  const handleRemoteClear = (): void => {
+    logAction("remote-clear-list");
+    removeAll();
+    setRemoteStartRequested(false);
+  };
+
+  const handleRemoteSetDownloadDir = (event: Event<string>): void => {
+    const path = event.payload;
+    if (typeof path === "string" && path.trim()) {
+      logAction("remote-set-download-dir", path);
+      setOutputLocation(path);
+    }
+  };
   const handleYtDlpStderr = (event: Event<[number, string]>): void => {
     const [mediaIdx, message] = event.payload;
     console.log(`[yt-dlp stderr][media ${mediaIdx}]: ${message}`);
@@ -450,8 +480,18 @@ function App(): JSX.Element {
     "remote-add-url": handleRemoteAddUrl,
     "remote-start-downloads": handleRemoteStart,
     "remote-cancel-downloads": handleRemoteCancel,
+    "remote-clear-list": handleRemoteClear,
+    "remote-set-download-dir": handleRemoteSetDownloadDir,
     "yt-dlp-stderr": handleYtDlpStderr,
   });
+
+  // Kick off pending remote start after media list materializes
+  useEffect(() => {
+    if (remoteStartRequested && mediaList.length > 0) {
+      setRemoteStartRequested(false);
+      void handleStartAllDownloads();
+    }
+  }, [remoteStartRequested, mediaList, handleStartAllDownloads]);
 
   return (
     <main

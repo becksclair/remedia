@@ -8,11 +8,15 @@ import { TauriApiProvider } from "@/lib/TauriApiContext";
 import { tauriApi } from "@/lib/tauri-api";
 import { mockTauriApi } from "@/lib/tauri-api.mock";
 import { isTauriRuntime } from "@/utils/env";
+import { installRemoteUI } from "@/testing/remote-ui";
 
 console.log("ReMedia starting, pathname:", window.location.pathname);
 console.log("Full URL:", window.location.href);
 
 const apiToUse = isTauriRuntime() ? tauriApi : mockTauriApi;
+
+// Install remote UI helpers for dev/e2e (no-op in production unless explicitly enabled)
+installRemoteUI();
 
 function renderWithApi(node: JSX.Element) {
   return (

@@ -122,7 +122,7 @@ export function SettingsDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Settings</DialogTitle>
+          <DialogTitle data-testid="settings-title">Settings</DialogTitle>
           <DialogDescription>
             Configure your download preferences and quality settings.
           </DialogDescription>
@@ -138,7 +138,11 @@ export function SettingsDialog({
               value={theme}
               onValueChange={(value) => setTheme(value as Theme)}
             >
-              <SelectTrigger id="theme" className="col-span-3">
+              <SelectTrigger
+                id="theme"
+                className="col-span-3"
+                data-testid="settings-theme"
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -168,6 +172,7 @@ export function SettingsDialog({
                 checked={alwaysOnTop}
                 onCheckedChange={handleAlwaysOnTopChange}
                 id="always-on-top-checkbox"
+                data-testid="settings-always-on-top"
               />
               <label htmlFor="always-on-top-checkbox">Stay on top</label>
             </div>
@@ -182,6 +187,7 @@ export function SettingsDialog({
             <Input
               type="text"
               id="download-location"
+              data-testid="settings-download-location"
               className="text-sm col-span-2"
               placeholder="Download location..."
               value={outputLocation}
@@ -192,6 +198,7 @@ export function SettingsDialog({
               type="button"
               className="min-w-32"
               onClick={chooseOutputLocation}
+              data-testid="settings-browse"
             >
               Browse...
             </Button>
@@ -206,7 +213,11 @@ export function SettingsDialog({
               value={maxConcurrentDownloads.toString()}
               onValueChange={handleMaxConcurrentChange}
             >
-              <SelectTrigger id="max-concurrent" className="col-span-3">
+              <SelectTrigger
+                id="max-concurrent"
+                className="col-span-3"
+                data-testid="settings-max-concurrent"
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -233,7 +244,11 @@ export function SettingsDialog({
                 setDownloadRateLimit(value as DownloadRateLimit)
               }
             >
-              <SelectTrigger id="download-rate-limit" className="col-span-3">
+              <SelectTrigger
+                id="download-rate-limit"
+                className="col-span-3"
+                data-testid="settings-rate-limit"
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -257,7 +272,11 @@ export function SettingsDialog({
               value={maxFileSize}
               onValueChange={(value) => setMaxFileSize(value as MaxFileSize)}
             >
-              <SelectTrigger id="max-file-size" className="col-span-3">
+              <SelectTrigger
+                id="max-file-size"
+                className="col-span-3"
+                data-testid="settings-max-file-size"
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -282,7 +301,11 @@ export function SettingsDialog({
               value={downloadMode}
               onValueChange={(value) => setDownloadMode(value as DownloadMode)}
             >
-              <SelectTrigger id="download-mode" className="col-span-3">
+              <SelectTrigger
+                id="download-mode"
+                className="col-span-3"
+                data-testid="settings-download-mode"
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -309,7 +332,11 @@ export function SettingsDialog({
                       setVideoQuality(value as VideoQuality)
                     }
                   >
-                    <SelectTrigger id="video-quality" className="col-span-3">
+                    <SelectTrigger
+                      id="video-quality"
+                      className="col-span-3"
+                      data-testid="settings-video-quality"
+                    >
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -331,7 +358,11 @@ export function SettingsDialog({
                       setMaxResolution(value as MaxResolution)
                     }
                   >
-                    <SelectTrigger id="max-resolution" className="col-span-3">
+                    <SelectTrigger
+                      id="max-resolution"
+                      className="col-span-3"
+                      data-testid="settings-max-resolution"
+                    >
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -355,7 +386,11 @@ export function SettingsDialog({
                       setVideoFormat(value as VideoFormat)
                     }
                   >
-                    <SelectTrigger id="video-format" className="col-span-3">
+                    <SelectTrigger
+                      id="video-format"
+                      className="col-span-3"
+                      data-testid="settings-video-format"
+                    >
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -383,7 +418,11 @@ export function SettingsDialog({
                 value={audioFormat}
                 onValueChange={(value) => setAudioFormat(value as AudioFormat)}
               >
-                <SelectTrigger id="audio-format" className="col-span-3">
+                <SelectTrigger
+                  id="audio-format"
+                  className="col-span-3"
+                  data-testid="settings-audio-format"
+                >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -405,7 +444,11 @@ export function SettingsDialog({
                   setAudioQuality(value as AudioQuality)
                 }
               >
-                <SelectTrigger id="audio-quality" className="col-span-3">
+                <SelectTrigger
+                  id="audio-quality"
+                  className="col-span-3"
+                  data-testid="settings-audio-quality"
+                >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -420,7 +463,11 @@ export function SettingsDialog({
         </div>
 
         <DialogFooter>
-          <Button type="submit" onClick={() => onOpenChange(false)}>
+          <Button
+            type="submit"
+            data-testid="settings-done"
+            onClick={() => onOpenChange(false)}
+          >
             Done
           </Button>
         </DialogFooter>

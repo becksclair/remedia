@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import type { JSX } from "react";
-import { useAtomValue, useSetAtom } from "jotai";
-import { addLogEntryAtom, logEntriesAtom } from "@/state/app-atoms";
-import { useTauriEvents } from "@/hooks/useTauriEvent";
+import { useAtomValue } from "jotai";
+import { logEntriesAtom } from "@/state/app-atoms";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { formatTimestamp } from "@/utils/media-helpers";
@@ -15,26 +14,11 @@ import {
 
 export function DebugConsole() {
   const logEntries = useAtomValue(logEntriesAtom);
-  const addLogEntry = useSetAtom(addLogEntryAtom);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentMatchIndex, setCurrentMatchIndex] = useState(-1);
   const [matches, setMatches] = useState<number[]>([]);
   const logContainerRef = useRef<HTMLDivElement>(null);
   const matchRefs = useRef<(HTMLSpanElement | null)[]>([]);
-
-  // Subscribe to yt-dlp stderr events
-  useTauriEvents({
-    "yt-dlp-stderr": (event: { payload: [number, string] }) => {
-      const [mediaIdx, message] = event.payload;
-      addLogEntry({
-        timestamp: Date.now(),
-        source: "yt-dlp",
-        level: "info",
-        message,
-        mediaIdx,
-      });
-    },
-  });
 
   // Update matches when search term or log entries change
   useEffect(() => {

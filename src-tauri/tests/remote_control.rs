@@ -27,10 +27,13 @@ async fn remote_control_round_trip() {
 
     // Use a test-specific port
     let addr: SocketAddr = "127.0.0.1:17815".parse().unwrap();
-    let handle = start_remote_control_on(addr, emitter, eval);
+    let handle = start_remote_control_on(addr, emitter, eval, None);
 
     // Connect client
     let (mut ws, _) = connect_async("ws://127.0.0.1:17815").await.expect("ws connect");
+    let hello =
+        timeout(Duration::from_secs(2), ws.next()).await.expect("hello").expect("msg").unwrap().into_text().unwrap();
+    assert!(hello.contains("remote-hello"));
 
     // addUrl
     ws.send(Message::Text(r#"{"action":"addUrl","url":"https://example.com/test"}"#.into())).await.unwrap();
@@ -48,11 +51,7 @@ async fn remote_control_round_trip() {
     let _resp2 = timeout(Duration::from_secs(2), ws.next()).await.expect("resp start").expect("msg");
 
     // runJs
-    ws.send(Message::Text(
-        r#"{"action":"runJs","url":"document.body.dataset.fromRemote='1';"}"#.into(),
-    ))
-    .await
-    .unwrap();
+    ws.send(Message::Text(r#"{"action":"runJs","url":"document.body.dataset.fromRemote='1';"}"#.into())).await.unwrap();
     let _resp_runjs = timeout(Duration::from_secs(2), ws.next()).await.expect("resp runJs").expect("msg");
 
     // cancelAll

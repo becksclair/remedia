@@ -45,6 +45,7 @@ function createMediaColumns(
     {
       cell: ({ row }) => (
         <Checkbox
+          data-testid={`row-${row.id}-select`}
           checked={row.getIsSelected()}
           onCheckedChange={(value) => row.toggleSelected(!!value)}
           aria-label="Select row"
@@ -54,6 +55,7 @@ function createMediaColumns(
       enableSorting: false,
       header: ({ table }) => (
         <Checkbox
+          data-testid="table-select-all"
           checked={
             table.getIsAllPageRowsSelected() ||
             (table.getIsSomePageRowsSelected() && "indeterminate")
@@ -74,6 +76,7 @@ function createMediaColumns(
 
         return (
           <img
+            data-testid={`row-${row.id}-thumb`}
             className="h-[72px] w-auto"
             alt="Media thumbnail"
             src={thumbnailSrc}
@@ -93,7 +96,10 @@ function createMediaColumns(
       accessorKey: "title",
       header: () => <div className="text-left">Title</div>,
       cell: ({ row }) => (
-        <div className="text-left w-full whitespace-pre-line text-wrap overflow-hidden text-ellipsis">
+        <div
+          data-testid={`row-${row.id}-title`}
+          className="text-left w-full whitespace-pre-line text-wrap overflow-hidden text-ellipsis"
+        >
           {row.getValue("title")}
         </div>
       ),
@@ -105,6 +111,7 @@ function createMediaColumns(
           <Checkbox
             checked={row.getValue("audioOnly")}
             aria-label="Audio only"
+            data-testid={`row-${row.id}-audio`}
           />
         );
       },
@@ -113,20 +120,37 @@ function createMediaColumns(
     {
       accessorKey: "progress",
       cell: ({ row }) => {
-        return <Progress value={row.getValue("progress")} />;
+        return (
+          <Progress
+            data-testid={`row-${row.id}-progress`}
+            value={row.getValue("progress")}
+          />
+        );
       },
       header: () => <div className="text-center">Progress</div>,
     },
     {
       accessorKey: "status",
       header: () => <div className="text-right">Status</div>,
+      cell: ({ row }) => (
+        <div
+          data-testid={`row-${row.id}-status`}
+          className="text-right capitalize"
+        >
+          {row.getValue("status")}
+        </div>
+      ),
     },
     {
       cell: ({ row }) => {
         return (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-8 w-8 p-0">
+              <Button
+                variant="ghost"
+                className="h-8 w-8 p-0"
+                data-testid={`row-${row.id}-menu`}
+              >
                 <span className="sr-only">Open menu</span>
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
@@ -134,6 +158,7 @@ function createMediaColumns(
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
               <DropdownMenuItem
+                data-testid={`row-${row.id}-copy-url`}
                 onClick={() =>
                   navigator.clipboard.writeText(row.getValue("url"))
                 }
@@ -141,6 +166,7 @@ function createMediaColumns(
                 Copy URL
               </DropdownMenuItem>
               <DropdownMenuItem
+                data-testid={`row-${row.id}-delete`}
                 onClick={() => onRemoveItem(row.getValue("title"))}
               >
                 Delete

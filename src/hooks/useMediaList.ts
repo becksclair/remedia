@@ -28,7 +28,12 @@ export function useMediaList() {
         const mediaIdx = nextList.length - 1;
 
         // Request media information using the new index
-        void tauriApi.commands.getMediaInfo(mediaIdx, url);
+        void tauriApi.commands.getMediaInfo(mediaIdx, url).catch((error) =>
+          console.warn("getMediaInfo failed; using placeholder metadata", {
+            url,
+            error,
+          }),
+        );
 
         return nextList;
       });

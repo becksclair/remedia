@@ -36,16 +36,32 @@ export function MediaListContextMenu({
 }: MediaListContextMenuProps) {
   return (
     <ContextMenu>
-      <ContextMenuTrigger>{children}</ContextMenuTrigger>
+      <ContextMenuTrigger data-testid="media-context-trigger">
+        {children}
+      </ContextMenuTrigger>
       <ContextMenuContent>
-        <ContextMenuItem onClick={onDownloadAll}>Download All</ContextMenuItem>
-        <ContextMenuItem onClick={onCancelAll}>Cancel All</ContextMenuItem>
-        <ContextMenuItem onClick={onRemoveSelected}>
+        <ContextMenuItem data-testid="ctx-download-all" onClick={onDownloadAll}>
+          Download All
+        </ContextMenuItem>
+        <ContextMenuItem data-testid="ctx-cancel-all" onClick={onCancelAll}>
+          Cancel All
+        </ContextMenuItem>
+        <ContextMenuItem
+          data-testid="ctx-remove-selected"
+          onClick={onRemoveSelected}
+        >
           Remove Selected
         </ContextMenuItem>
-        <ContextMenuItem onClick={onRemoveAll}>Remove All</ContextMenuItem>
-        <ContextMenuItem onClick={onCopyAllUrls}>Copy All URLs</ContextMenuItem>
-        <ContextMenuItem onClick={onShowDebugConsole}>
+        <ContextMenuItem data-testid="ctx-remove-all" onClick={onRemoveAll}>
+          Remove All
+        </ContextMenuItem>
+        <ContextMenuItem data-testid="ctx-copy-all" onClick={onCopyAllUrls}>
+          Copy All URLs
+        </ContextMenuItem>
+        <ContextMenuItem
+          data-testid="ctx-show-debug"
+          onClick={onShowDebugConsole}
+        >
           Show Debug Console
         </ContextMenuItem>
       </ContextMenuContent>

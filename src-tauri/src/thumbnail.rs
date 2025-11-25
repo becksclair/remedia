@@ -3,11 +3,7 @@ use serde_json::Value;
 /// Resolve a thumbnail URL from yt-dlp JSON output, including extractor-specific fallbacks.
 pub fn resolve_thumbnail(v: &Value) -> Option<String> {
     // First, honor direct fields
-    let mut thumbnail = v
-        .get("thumbnail")
-        .and_then(|t| t.as_str())
-        .filter(|s| !s.is_empty())
-        .map(|s| s.to_string());
+    let mut thumbnail = v.get("thumbnail").and_then(|t| t.as_str()).filter(|s| !s.is_empty()).map(|s| s.to_string());
 
     if thumbnail.is_none() {
         thumbnail = v
@@ -21,11 +17,7 @@ pub fn resolve_thumbnail(v: &Value) -> Option<String> {
     }
 
     if thumbnail.is_none() {
-        thumbnail = v
-            .get("thumbnail_url")
-            .and_then(|t| t.as_str())
-            .filter(|s| !s.is_empty())
-            .map(|s| s.to_string());
+        thumbnail = v.get("thumbnail_url").and_then(|t| t.as_str()).filter(|s| !s.is_empty()).map(|s| s.to_string());
     }
 
     // Extractor-specific fallbacks
@@ -40,8 +32,7 @@ pub fn resolve_thumbnail(v: &Value) -> Option<String> {
                         if let Some(url) = format.get("url").and_then(|u| u.as_str()) {
                             if url.contains("redgifs.com") && url.ends_with(".mp4") {
                                 if let Some(filename) = url.split('/').last() {
-                                    let id_part =
-                                        filename.trim_end_matches(".mp4").trim_end_matches("-mobile");
+                                    let id_part = filename.trim_end_matches(".mp4").trim_end_matches("-mobile");
                                     candidates.push(id_part.to_string());
                                     break;
                                 }

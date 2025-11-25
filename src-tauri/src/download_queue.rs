@@ -52,10 +52,12 @@ impl DownloadQueue {
     pub fn enqueue(&mut self, download: QueuedDownload) -> Result<(), String> {
         // Check if already queued or active
         if self.queue.iter().any(|d| d.media_idx == download.media_idx) {
-            return Err(format!("Download {} already queued", download.media_idx));
+            // Idempotent enqueue: if already queued, consider it success.
+            return Ok(());
         }
         if self.active.contains_key(&download.media_idx) {
-            return Err(format!("Download {} already active", download.media_idx));
+            // Already downloading; treat as success to avoid duplicate errors.
+            return Ok(());
         }
 
         self.queue.push_back(download);
@@ -292,7 +294,8 @@ mod tests {
 
         let download = create_test_download(1);
         assert!(queue.enqueue(download.clone()).is_ok());
-        assert!(queue.enqueue(download).is_err());
+        // Idempotent: second enqueue for same media idx is a no-op
+        assert!(queue.enqueue(download).is_ok());
     }
 
     #[test]

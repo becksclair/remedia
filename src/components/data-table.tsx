@@ -73,6 +73,7 @@ export function DataTable<TData, TValue>({
               <TableRow
                 className="bg-background"
                 key={row.id}
+                data-testid={`row-${row.id}`}
                 data-state={row.getIsSelected() && "selected"}
               >
                 {row.getVisibleCells().map((cell) => (

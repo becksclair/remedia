@@ -56,6 +56,21 @@ fn default_unlimited() -> String {
     "unlimited".to_string()
 }
 
+impl DownloadSettings {
+    pub fn remote_defaults() -> Self {
+        Self {
+            download_mode: "video".to_string(),
+            video_quality: "best".to_string(),
+            max_resolution: "no-limit".to_string(),
+            video_format: "best".to_string(),
+            audio_format: "best".to_string(),
+            audio_quality: "0".to_string(),
+            download_rate_limit: default_unlimited(),
+            max_file_size: default_unlimited(),
+        }
+    }
+}
+
 /// Validate download settings fields
 fn validate_settings(settings: &DownloadSettings) -> Result<(), String> {
     // Validate download mode
@@ -172,13 +187,13 @@ fn validate_output_location(location: &str) -> Result<(), String> {
 /// Parse progress percentage from yt-dlp progress line
 /// Returns None if line doesn't contain valid progress
 fn parse_progress_percent(line: &str) -> Option<f64> {
-    const PREFIX: &str = "remedia-";
+    // Progress template emits strings like:
+    // "remedia-12.3%-1:23" or "download:remedia-12.3%-1:23".
+    // Find the marker anywhere in the line to be resilient to prefix changes.
+    const MARKER: &str = "remedia-";
 
-    if !line.starts_with(PREFIX) {
-        return None;
-    }
-
-    let after_prefix = &line[PREFIX.len()..];
+    let idx = line.find(MARKER)?;
+    let after_prefix = &line[idx + MARKER.len()..];
     let percent_end = after_prefix.find('%')?;
     let percent_str = after_prefix[..percent_end].trim();
 
@@ -225,6 +240,15 @@ fn build_format_args(settings: &DownloadSettings) -> Vec<String> {
     }
 
     args
+}
+
+fn emit_download_error(window: &Window, media_idx: i32, reason: &str) {
+    eprintln!("Download error for media_idx {}: {}", media_idx, reason);
+    if let Err(e) = window.emit(EVT_DOWNLOAD_ERROR, media_idx) {
+        eprintln!("Failed to emit download error: {}", e);
+    }
+    broadcast_remote_event(EVT_DOWNLOAD_ERROR, serde_json::json!(media_idx));
+    broadcast_remote_event(EVT_DOWNLOAD_ERROR_DETAIL, serde_json::json!([media_idx, reason]));
 }
 
 async fn run_yt_dlp(cmd: &mut Command) -> Result<(String, String), std::io::Error> {
@@ -370,6 +394,10 @@ fn process_queue(window: Window) {
             eprintln!("Failed to emit download-started: {}", e);
         }
         broadcast_remote_event("download-started", serde_json::json!(queued_download.media_idx));
+        broadcast_remote_event(
+            "download-exec",
+            serde_json::json!([queued_download.media_idx, queued_download.url, queued_download.output_location]),
+        );
 
         // Start the download
         execute_download(
@@ -451,16 +479,12 @@ fn execute_download(
         let mut child = match cmd.spawn() {
             Ok(child) => child,
             Err(e) => {
-                eprintln!("Failed to spawn yt-dlp: {}", e);
                 mark_queue_fail("while marking fail after spawn error");
                 {
                     let mut flags = DOWNLOAD_CANCEL_FLAGS.lock().unwrap();
                     flags.remove(&media_idx);
                 }
-                if let Err(emit_err) = window.emit(EVT_DOWNLOAD_ERROR, media_idx) {
-                    eprintln!("Failed to emit download error: {}", emit_err);
-                }
-                broadcast_remote_event(EVT_DOWNLOAD_ERROR, serde_json::json!(media_idx));
+                emit_download_error(&window, media_idx, &format!("spawn yt-dlp failed: {e}"));
                 process_queue(window);
                 return;
             }
@@ -469,12 +493,8 @@ fn execute_download(
         let stdout = match child.stdout.take() {
             Some(stdout) => stdout,
             None => {
-                eprintln!("Failed to capture stdout from yt-dlp");
                 mark_queue_fail("while handling missing stdout");
-                if let Err(e) = window.emit(EVT_DOWNLOAD_ERROR, media_idx) {
-                    eprintln!("Failed to emit download error: {}", e);
-                }
-                broadcast_remote_event(EVT_DOWNLOAD_ERROR, serde_json::json!(media_idx));
+                emit_download_error(&window, media_idx, "yt-dlp stdout unavailable");
                 {
                     let mut flags = DOWNLOAD_CANCEL_FLAGS.lock().unwrap();
                     flags.remove(&media_idx);
@@ -487,12 +507,8 @@ fn execute_download(
         let stderr = match child.stderr.take() {
             Some(stderr) => stderr,
             None => {
-                eprintln!("Failed to capture stderr from yt-dlp");
                 mark_queue_fail("while handling missing stderr");
-                if let Err(e) = window.emit(EVT_DOWNLOAD_ERROR, media_idx) {
-                    eprintln!("Failed to emit download error: {}", e);
-                }
-                broadcast_remote_event(EVT_DOWNLOAD_ERROR, serde_json::json!(media_idx));
+                emit_download_error(&window, media_idx, "yt-dlp stderr unavailable");
                 {
                     let mut flags = DOWNLOAD_CANCEL_FLAGS.lock().unwrap();
                     flags.remove(&media_idx);
@@ -548,6 +564,7 @@ fn execute_download(
                                     last_progress_emit = std::time::Instant::now();
                                 }
                             }
+                            broadcast_remote_event("download-raw", serde_json::json!([media_idx, "stdout", line]));
                         }
                         Ok(None) => stdout_done = true,
                         Err(e) => {
@@ -581,6 +598,7 @@ fn execute_download(
                                 }
                                 broadcast_remote_event("yt-dlp-stderr", serde_json::json!([media_idx, line]));
                             }
+                            broadcast_remote_event("download-raw", serde_json::json!([media_idx, "stderr", line]));
                         }
                         Ok(None) => stderr_done = true,
                         Err(e) => {
@@ -627,19 +645,13 @@ fn execute_download(
                 // Mark as completed in queue
                 get_queue().lock().unwrap().complete(media_idx);
             } else {
-                if let Err(e) = window.emit(EVT_DOWNLOAD_ERROR, media_idx) {
-                    eprintln!("Failed to emit download-error: {}", e);
-                }
-                broadcast_remote_event(EVT_DOWNLOAD_ERROR, serde_json::json!(media_idx));
+                emit_download_error(&window, media_idx, "yt-dlp exited with error status");
                 // Mark as failed in queue
                 mark_queue_fail("after non-success status");
             }
         } else {
             // Status is None (wait error)
-            if let Err(e) = window.emit(EVT_DOWNLOAD_ERROR, media_idx) {
-                eprintln!("Failed to emit download-error: {}", e);
-            }
-            broadcast_remote_event(EVT_DOWNLOAD_ERROR, serde_json::json!(media_idx));
+            emit_download_error(&window, media_idx, "yt-dlp wait failed");
             mark_queue_fail("after wait error");
         }
 
@@ -660,50 +672,33 @@ pub fn download_media(
 ) {
     // Validate inputs at boundary
     if let Err(e) = validate_url(&media_source_url) {
-        eprintln!("URL validation failed: {}", e);
-        if let Err(emit_err) = window.emit(EVT_DOWNLOAD_ERROR, media_idx) {
-            eprintln!("Failed to emit download error: {}", emit_err);
-        }
-        broadcast_remote_event(EVT_DOWNLOAD_ERROR, serde_json::json!(media_idx));
+        emit_download_error(&window, media_idx, &format!("URL validation failed: {}", e));
         return;
     }
 
     if let Err(e) = validate_output_location(&output_location) {
-        eprintln!("Output location validation failed: {}", e);
-        if let Err(emit_err) = window.emit(EVT_DOWNLOAD_ERROR, media_idx) {
-            eprintln!("Failed to emit download error: {}", emit_err);
-        }
-        broadcast_remote_event(EVT_DOWNLOAD_ERROR, serde_json::json!(media_idx));
+        emit_download_error(&window, media_idx, &format!("Output location invalid: {}", e));
         return;
     }
 
     if let Err(e) = validate_settings(&settings) {
-        eprintln!("Settings validation failed: {}", e);
-        if let Err(emit_err) = window.emit(EVT_DOWNLOAD_ERROR, media_idx) {
-            eprintln!("Failed to emit download error: {}", emit_err);
-        }
-        broadcast_remote_event(EVT_DOWNLOAD_ERROR, serde_json::json!(media_idx));
+        emit_download_error(&window, media_idx, &format!("Settings validation failed: {}", e));
         return;
     }
 
     if media_idx < 0 {
-        eprintln!("Invalid media index: {}", media_idx);
-        if let Err(emit_err) = window.emit(EVT_DOWNLOAD_ERROR, media_idx) {
-            eprintln!("Failed to emit download error: {}", emit_err);
-        }
-        broadcast_remote_event(EVT_DOWNLOAD_ERROR, serde_json::json!(media_idx));
+        emit_download_error(&window, media_idx, "Invalid media index");
         return;
     }
+
+    broadcast_remote_event("download-invoke", serde_json::json!([media_idx, media_source_url]));
+    broadcast_remote_event(EVT_DOWNLOAD_INVOKE_ACK, serde_json::json!([media_idx, media_source_url]));
 
     // Serialize settings to JSON for queue storage
     let settings_json = match serde_json::to_string(&settings) {
         Ok(json) => json,
         Err(e) => {
-            eprintln!("Failed to serialize settings: {}", e);
-            if let Err(emit_err) = window.emit(EVT_DOWNLOAD_ERROR, media_idx) {
-                eprintln!("Failed to emit download error: {}", emit_err);
-            }
-            broadcast_remote_event(EVT_DOWNLOAD_ERROR, serde_json::json!(media_idx));
+            emit_download_error(&window, media_idx, &format!("Serialize settings failed: {}", e));
             return;
         }
     };
@@ -722,11 +717,7 @@ pub fn download_media(
     {
         let mut queue = queue.lock().unwrap();
         if let Err(e) = queue.enqueue(queued_download) {
-            eprintln!("Failed to enqueue download: {}", e);
-            if let Err(emit_err) = window.emit(EVT_DOWNLOAD_ERROR, media_idx) {
-                eprintln!("Failed to emit download error: {}", emit_err);
-            }
-            broadcast_remote_event(EVT_DOWNLOAD_ERROR, serde_json::json!(media_idx));
+            emit_download_error(&window, media_idx, &format!("Queue enqueue failed: {}", e));
             return;
         }
     } // release lock before kicking queue processor to avoid deadlock
@@ -826,6 +817,7 @@ mod tests {
         assert_eq!(parse_progress_percent("remedia-100%-0:00"), Some(100.0));
         assert_eq!(parse_progress_percent("remedia-0.5%-5:00"), Some(0.5));
         assert_eq!(parse_progress_percent("remedia-  0.5%-5:00"), Some(0.5)); // leading spaces
+        assert_eq!(parse_progress_percent("download:remedia-42.0%-0:10"), Some(42.0)); // prefixed marker
     }
 
     #[test]

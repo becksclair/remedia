@@ -47,6 +47,7 @@ export function DownloadControls({
           disabled={globalDownloading}
           onClick={onDownload}
           aria-label="Start download"
+          data-testid="download-all"
         >
           Download
         </Button>
@@ -58,6 +59,7 @@ export function DownloadControls({
             disabled={!globalDownloading}
             onClick={onCancel}
             aria-label="Cancel all downloads"
+            data-testid="cancel-all"
           >
             Cancel
           </Button>
@@ -68,6 +70,7 @@ export function DownloadControls({
           className="min-w-32"
           onClick={onPreview}
           aria-label="Preview selected media"
+          data-testid="preview-selected"
         >
           Preview
         </Button>
@@ -77,6 +80,7 @@ export function DownloadControls({
           className="min-w-32"
           onClick={onSettings}
           aria-label="Open settings"
+          data-testid="open-settings"
         >
           Settings
         </Button>
@@ -86,6 +90,7 @@ export function DownloadControls({
           className="min-w-32"
           onClick={onQuit}
           aria-label="Quit application"
+          data-testid="quit-app"
         >
           Quit
         </Button>
