@@ -26,6 +26,8 @@ export interface DownloadSettings {
   videoFormat: "mp4" | "mkv" | "webm" | "best";
   audioFormat: "mp3" | "m4a" | "opus" | "best";
   audioQuality: "0" | "2" | "5" | "9";
+  downloadRateLimit: string; // "unlimited" | "50K" | "100K" | "500K" | "1M" | "5M" | "10M"
+  maxFileSize: string; // "unlimited" | "50M" | "100M" | "500M" | "1G" | "5G"
 }
 
 export interface DownloadMediaCommand {

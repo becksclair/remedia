@@ -2,275 +2,235 @@
 
 ## 📊 **IMPLEMENTATION PROGRESS**
 
-**Overall**: ~35% complete (10/28 major features)
+**Overall**: ~75% complete (20/27 major features)
 
-**Completed**: Infrastructure, Phase 1 (Progress & Thumbnails), Phase 2 (Filename Safety)
-**In Progress**: None
-**Pending**: Advanced features, bulk operations, debug tools, performance
+**Completed**: Phases 0-5, Critical bug fixes, Testing expansion
+**In Progress**: Integration testing
+**Pending**: Virtual scrolling, Accessibility, Production polish
+
+---
+
+## ✅ **CRITICAL FIXES COMPLETED**
+
+### Bug 1: TypeScript/Rust Type Mismatch (FIXED)
+
+- [x] `src/types/index.ts` - Added `downloadRateLimit` and `maxFileSize` fields
+- [x] `useDownloadManager.ts` - Now passes rate limit and file size settings to backend
+
+### Bug 2: Player Window Error Handling (FIXED)
+
+- [x] `player.tsx` - Added error state for failed media loads
+- [x] `player.tsx` - Added loading indicator while media buffers
+- [x] `player.tsx` - Added retry button for failed loads
+- [x] `player.tsx` - Restored ReactPlayer for YouTube/Vimeo/SoundCloud support
+- [x] `player.tsx` - Added audio detection with visual UI for audio files
 
 ---
 
 ## ✅ **COMPLETED AREAS**
 
 ### Phase 0 – Baseline & Instrumentation
-
-- **Build & test health**: ✅ Confirmed working (commands in recent commits)
-- **Dev logging**: ✅ `yt-dlp-stderr` events implemented and visible
-- **E2E testing**: ✅ Playwright setup completed with GitHub Actions workflow
+- [x] Build & test health: 0 lint errors, builds pass
+- [x] Dev logging: `yt-dlp-stderr` events implemented
+- [x] E2E testing: Playwright setup with GitHub Actions (25+ tests)
+- [x] Vitest unit tests: 129 tests passing
 
 ### Core Infrastructure
-
-- **Documentation**: ✅ Comprehensive docs created (`architecture.md`, `dev-setup.md`, `IPC contracts`)
-- **TypeScript strictness**: ✅ Strict mode enabled with proper typing
-- **State management**: ✅ Jotai atoms implemented with localStorage persistence
-- **UI framework**: ✅ shadcn/ui components with proper composition
-- **Event handling**: ✅ Centralized via `useTauriEvents` hook
+- [x] Documentation: `architecture.md`, `dev-setup.md`, `ipc-contracts.md`
+- [x] TypeScript strictness: Strict mode with `noUncheckedIndexedAccess`
+- [x] State management: Jotai atoms with localStorage persistence
+- [x] UI framework: shadcn/ui components (new-york variant)
+- [x] Event handling: Centralized `useTauriEvents` hook
+- [x] Tauri API DI: `TauriApiContext` for testability
+- [x] Error boundaries: `ErrorBoundary` component implemented
 
 ### Phase 1 – Progress & Thumbnails
-
-- **Progress fixes**: ✅ Fixed 0→99→100 jumping by using yt-dlp's `_percent_stripped` field
-- **Thumbnail reliability**: ✅ Enhanced extraction with fallback strategy and added placeholder image
+- [x] Progress parsing: Uses `_percent_str` with debouncing (100ms)
+- [x] Progress clamping: 0-100 range enforced
+- [x] Thumbnail extraction: Multi-field fallback strategy in `thumbnail.rs`
+- [x] Placeholder image: SVG placeholder for missing thumbnails
 
 ### Phase 2 – Filename Safety
-
-- **Basic sanitization**: ✅ Uses `--windows-filenames` + `--no-overwrites` for collision prevention
-- **Output template**: ✅ Updated to `%(title)s [%(id)s].%(ext)s` for unique filenames
+- [x] Output template: `%(title)s [%(id)s].%(ext)s`
+- [x] Windows safety: `--windows-filenames` flag
+- [x] No overwrites: `--no-overwrites` flag
 
 ### Phase 3 – Advanced Download Settings
-
-- **Quality/Resolution controls**: ✅ Implemented with Select dropdowns
-- **Format selection**: ✅ Added video and audio format options
-- **Audio-only mode**: ✅ Implemented with proper yt-dlp flags
-- **Settings dialog enhancement**: ✅ Replaced placeholder fields with advanced controls
-
----
-
-## ❌ **NOT YET IMPLEMENTED**
+- [x] Settings atoms: All quality/format atoms implemented
+- [x] Rate limit atom: `downloadRateLimitAtom`
+- [x] File size atom: `maxFileSizeAtom`
+- [x] Settings dialog: Full UI with conditional video/audio sections
+- [x] Rust validation: `validate_settings()` with comprehensive checks
 
 ### Phase 4 – Context Menu & Bulk Operations
-
-- **Context menu**: ❌ Not implemented
-- **Bulk actions** (Download all, Cancel all, Remove selected): ❌ Not started
-- **Cancellation support**: ❌ No backend download manager
+- [x] Context menu: `MediaListContextMenu` component
+- [x] Download all: Triggers batch download
+- [x] Cancel all: `cancel_all_downloads` command
+- [x] Remove selected/all: Frontend state operations
+- [x] Copy all URLs: Clipboard API with fallback
+- [x] Show Debug Console: Opens `/debug` route
 
 ### Phase 5 – Debug Console
+- [x] Debug window: `/debug` route in `main.tsx`
+- [x] DebugConsole component: Log display with timestamps
+- [x] Log aggregation: `logEntriesAtom` in `app-atoms.ts`
+- [x] Search functionality: Find Next with highlighting
+- [x] Log level detection: error/warn/info classification
 
-- **Debug window**: ❌ Not implemented
-- **Log aggregation**: ❌ Not started
-- **Search functionality**: ❌ Not started
-
-### Phase 6 – Performance & Concurrency
-
-- **Concurrency control**: ❌ Not implemented
-- **Virtual scrolling**: ❌ Not started
-- **Performance optimizations**: ❌ Not started
-
-### Phase 7 – Testing & Quality Gates
-
-- **Unit tests**: ❌ Not implemented
-- **Expanded E2E coverage**: ❌ Basic tests only
-- **Platform testing**: ❌ Limited coverage
+### Phase 6 – Concurrency Control (Partial)
+- [x] Download queue: `DownloadQueue` struct in Rust (353 lines, 12 tests)
+- [x] Max concurrent setting: `maxConcurrentDownloadsAtom`
+- [x] Queue status API: `get_queue_status` command
+- [x] Queue events: `download-queued`, `download-started`
 
 ---
 
-## 🎯 **NEXT PRIORITIES** (based on spec order)
+## ❌ **REMAINING WORK**
 
-1. **Fix progress jumping issue** (Phase 1.1) - Use yt-dlp's `_percent` field
-2. **Implement thumbnail placeholders** (Phase 1.2) - Add fallback images
-3. **Enhance filename safety** (Phase 2) - Prevent collisions, add length limits
-4. **Build context menu** (Phase 4) - Bulk operations foundation
-5. **Add debug console** (Phase 5) - Logging and diagnostics
+### Phase 6 – Performance (Incomplete)
+- [ ] Virtual scrolling for large lists (100+ items)
+- [ ] Memoization optimizations in MediaTable
+
+### Phase 7 – Testing & Quality
+- [x] React component tests for DebugConsole
+- [x] Tests for useMediaList hook (18 tests)
+- [x] Tests for useDownloadManager hook (9 tests)
+- [x] Tests for SettingsDialog (14 tests)
+- [x] Integration tests for download flow (6 tests)
+- [ ] Tests for: MediaTable, DownloadControls (remaining components)
+- [ ] Rust tests: verify all 30+ tests pass
+
+### Phase 8 – Accessibility
+- [ ] ARIA labels on all interactive elements
+- [ ] Keyboard navigation for context menu
+- [ ] Focus management in dialogs
+- [ ] Screen reader testing
+
+### Phase 9 – Production Readiness
+- [ ] Cross-platform build testing (Windows, macOS, Linux)
+- [ ] Release workflow automation
+- [ ] Auto-updater configuration (optional)
+
+---
+
+## 🎯 **IMMEDIATE PRIORITIES**
+
+1. ~~**[CRITICAL]** Fix DownloadSettings type sync (TS ↔ Rust)~~ ✅
+2. ~~**[CRITICAL]** Wire rate limit & file size to useDownloadManager~~ ✅
+3. ~~**[HIGH]** Add Player error handling~~ ✅
+4. **[MEDIUM]** Add remaining React component tests (MediaTable, DownloadControls)
+5. **[MEDIUM]** Implement virtual scrolling
+6. **[LOW]** Verify Rust tests pass
 
 ---
 
 ## 📝 **DETAILED TASK BREAKDOWN**
 
-### Phase 1 – Progress & Thumbnails
+### Critical Fix 1: Type Sync (COMPLETED)
 
-#### 1.1 Progress fixes
+**`src/types/index.ts`**
+- [x] Add `downloadRateLimit: string` to DownloadSettings
+- [x] Add `maxFileSize: string` to DownloadSettings
 
-**Backend changes (`downloader.rs`)**
-- [ ] Revisit yt-dlp progress template usage
-- [ ] Use yt-dlp's built-in `_percent` field instead of manual calculation
-- [ ] Template: `download:remedia-%(progress._percent_stripped)s-%(progress.eta)s-%(info.id)s`
+**`src/hooks/useDownloadManager.ts`**
+- [x] Import `downloadRateLimitAtom`, `maxFileSizeAtom`
+- [x] Read atoms with `useAtomValue`
+- [x] Include in settings object passed to `downloadMedia`
 
-**Frontend changes (`App.tsx`)**
-- [ ] Add debouncing/smoothing for progress updates
-- [ ] Ensure global progress bar robust when `mediaList.length === 0`
+### Critical Fix 2: Player Error Handling (COMPLETED)
 
-#### 1.2 Thumbnail reliability & placeholders
+**`src/player.tsx`**
+- [x] Add error state for failed loads
+- [x] Add loading spinner while buffering
+- [x] Display error message with URL when playback fails
+- [x] Add retry button for recovery
 
-**Backend (`get_media_info`)**
-- [ ] Extend JSON parsing to check multiple thumbnail fields
-- [ ] Strategy: `thumbnail` → `thumbnails` array → `thumbnail_url` → placeholder
+### Testing Expansion
 
-**Frontend (`App.tsx`, table column)**
-- [ ] Add static placeholder image (`src/assets/thumbnail-placeholder.svg`)
-- [ ] Render placeholder when thumbnail is falsy
-- [ ] Add visual indicator for missing thumbnails
+**React Component Tests**
+- [x] `SettingsDialog.test.tsx`: Form persistence, rendering (14 tests)
+- [ ] `MediaTable.test.tsx`: Row selection, remove actions
+- [ ] `DownloadControls.test.tsx`: Button states, progress display
+- [x] `useMediaList.test.tsx`: Add/update/remove operations (18 tests)
+- [x] `useDownloadManager.test.tsx`: Download flow, cancellation (9 tests)
 
-### Phase 2 – Filename Safety, Sanitization & Uniqueness
+**Integration Tests**
+- [x] `download-flow.test.tsx`: Full URL → download cycle (6 tests)
 
-#### 2.1 Output template design (yt-dlp)
+**Rust Tests**
+- [ ] Verify all existing tests pass: `cargo test --manifest-path src-tauri/Cargo.toml`
+- [ ] Add tests for `thumbnail.rs` edge cases
+- [ ] Add tests for `remote_control.rs`
 
-- [ ] Implement `%(title)s [%(id)s].%(ext)s` template
-- [ ] Add playlist index when applicable
-- [ ] Use `--restrict-filenames` option for ASCII-only mode
+### Virtual Scrolling
 
-#### 2.2 Collision & length handling (Rust helper)
+**Dependencies**
+- [ ] Install `@tanstack/react-virtual`
 
-- [ ] Create `src-tauri/src/filename.rs` module
-- [ ] Implement filename normalization and truncation
-- [ ] Add collision detection and variant generation
-- [ ] Use `--no-overwrites` to prevent accidental overwrites
+**`src/components/MediaTable.tsx`**
+- [ ] Implement `useVirtualizer` for row virtualization
+- [ ] Maintain scroll position on updates
+- [ ] Test with 500+ items
 
-#### 2.3 Settings surface for naming
+### Accessibility
 
-- [ ] Add filename strategy toggle in settings
-- [ ] Default: `"Title [ID].ext"` (safe and unique)
-- [ ] Advanced: `"Title.ext"` (with collision risks)
+**Global**
+- [ ] Audit all buttons/inputs for ARIA labels
+- [ ] Add `aria-live` regions for status updates
 
-### Phase 3 – Advanced Download Settings
+**Context Menu**
+- [ ] Arrow key navigation
+- [ ] Escape to close
+- [ ] Focus trap
 
-#### 3.1 Settings model (Jotai atoms)
-
-- [ ] `downloadModeAtom`: `'video' | 'audio' | 'both'`
-- [ ] `videoQualityAtom`: `'best' | 'high' | 'medium' | 'low'`
-- [ ] `maxResolutionAtom`: `'2160p' | '1440p' | '1080p' | '720p' | '480p' | 'no-limit'`
-- [ ] `videoFormatAtom`: `'mp4' | 'mkv' | 'webm' | 'best'`
-- [ ] `audioFormatAtom`: `'mp3' | 'm4a' | 'opus' | 'best'`
-- [ ] `audioQualityAtom`: `'best' | 'high' | 'medium' | 'low'`
-
-#### 3.2 Settings dialog UI (shadcn/ui)
-
-- [ ] Remove placeholder fields (`Name`, `Username`)
-- [ ] Add advanced settings sections
-- [ ] Implement Download mode & quality controls
-- [ ] Add Video options and Audio-only options
-
-#### 3.3 Wiring settings to yt-dlp CLI
-
-- [ ] Extend command payload to include settings
-- [ ] Translate settings to yt-dlp options:
-  - Video format & resolution: `-f` expressions
-  - Audio-only mode: `-f bestaudio` with `--extract-audio`
-- [ ] Keep simple default path for new users
-
-### Phase 4 – Media List Context Menu & Bulk Operations
-
-#### 4.1 UI implementation (shadcn Context Menu + TanStack Table)
-
-- [ ] Wrap `DataTable` with `ContextMenu` from shadcn/ui
-- [ ] Implement required menu items:
-  - Download all
-  - Cancel all
-  - Remove selected
-  - Remove all
-  - Copy all URLs
-  - Show DevTools
-  - Show Debug Console
-- [ ] Ensure compatibility with row selection
-
-#### 4.2 Action semantics & backend support
-
-- [ ] **Download all**: Trigger `startDownload` for all/selected entries
-- [ ] **Cancel all**:
-  - Create `DownloadManager` in Rust
-  - Add `cancel_download(media_idx)` command
-  - Add `cancel_all_downloads()` command
-  - Emit `"download-cancelled"` events
-- [ ] **Remove selected / Remove all**: Frontend operations on `mediaList`
-- [ ] **Copy all URLs**: Use `navigator.clipboard.writeText()`
-- [ ] **Show DevTools**: Use `@tauri-apps/api/webviewWindow.openDevtools()`
-- [ ] **Show Debug Console**: Open debug window (Phase 5)
-
-### Phase 5 – Debug Console Window & Logging Experience
-
-#### 5.1 Multi-window support (Tauri)
-
-- [ ] Implement `debug-console` window in Tauri
-- [ ] Add `open_debug_console_window()` command
-- [ ] Route `/debug` in `main.tsx` to `DebugConsole` component
-
-#### 5.2 DebugConsole React UI
-
-- [ ] Large scrolling text area for log lines
-- [ ] Search input + **Find Next** button
-- [ ] Highlight and scroll to occurrences
-- [ ] Log sources: `yt-dlp-stderr`, `app-log` events
-- [ ] Use Jotai `logEntriesAtom` for state
-
-#### 5.3 Security & capabilities
-
-- [ ] Ensure debug window has minimal necessary capabilities
-- [ ] No unnecessary filesystem or shell access
-
-### Phase 6 – Performance & Concurrency Improvements
-
-#### 6.1 Concurrency control
-
-- [ ] Add setting for max concurrent downloads
-- [ ] Implement queue in Rust `DownloadManager`
-- [ ] Spawn at most N concurrent yt-dlp processes
-- [ ] Emit queue state events
-
-#### 6.2 Frontend performance
-
-- [ ] Implement virtual scrolling for large media lists
-- [ ] Batch state updates for progress events
-- [ ] Memoize heavy table cells and column definitions
-
-### Phase 7 – Testing & Quality Gates
-
-#### 7.1 Testing strategy
-
-- [ ] Unit tests for Rust: filename module, progress parsing
-- [ ] Unit tests for TS: settings mapping, log search
-- [ ] Expanded E2E coverage:
-  - Progress rendering
-  - Thumbnails & placeholders
-  - Context menu actions
-  - Debug console functionality
-- [ ] Platform checks on Windows, Linux, macOS
-
-#### 7.2 Quality checklist
-
-- [ ] All phases primary flows tested
-- [ ] Filename collisions tested with synthetic cases
-- [ ] No unhandled promise rejections
-- [ ] No panics in Rust during error conditions
+**Dialogs**
+- [ ] Focus first input on open
+- [ ] Return focus on close
 
 ---
 
 ## 📋 **VERIFICATION CHECKLISTS**
 
-### Phase 1 Verification
+### Critical Fixes Verification
+- [ ] Download with rate limit set - verify yt-dlp receives `--limit-rate`
+- [ ] Download with file size limit - verify yt-dlp receives `--max-filesize`
+- [ ] Player loads invalid URL - shows error message
+- [ ] Player loads slow URL - shows loading indicator
 
-- [ ] Manual: Observe smooth progress on large video downloads
-- [ ] E2E: Test progress UI reaction with injected events
-- [ ] Manual: Try multiple sites for thumbnails/placeholders
-- [ ] E2E: Test placeholder rendering with empty thumbnail events
+### Testing Verification
+- [x] `bun run test:run` - all 129 Vitest tests pass
+- [ ] `cargo test --manifest-path src-tauri/Cargo.toml` - all Rust tests pass
+- [ ] `bun run test:e2e` - all Playwright tests pass
 
-### Phase 2 Verification
+### Performance Verification
+- [ ] Add 200 items to list - UI remains responsive
+- [ ] Scroll through 200 items - no jank
 
-- [ ] Manual: Test long titles, non-ASCII characters, duplicate URLs
-- [ ] Confirm: No silent overwrites, files visible in OS filesystem
-
-### Phase 3 Verification
-
-- [ ] Manual: Configure different modes/formats, verify file properties
-- [ ] E2E: Test CLI flag composition with debug mode logging
-
-### Phase 4 Verification
-
-- [ ] Manual: Right-click list, trigger each action
-- [ ] E2E: Test remove/copy/show window actions
-
-### Phase 5 Verification
-
-- [ ] Manual: Trigger downloads/cancellations, verify log display/search
-- [ ] E2E: Simulate log events and confirm display/search
+### Accessibility Verification
+- [ ] Navigate entire app with keyboard only
+- [ ] Test with Windows Narrator or NVDA
 
 ---
 
-*Last updated: Based on analysis of specs/app-improvements.md and git history as of Nov 19, 2025*
+## 🔧 **DEVELOPMENT COMMANDS**
+
+```bash
+# Build & Quality
+bun run build          # Build frontend
+bun tauri build        # Build complete app
+bun run lint           # Run oxlint
+bun run fmt            # Format code
+
+# Testing
+bun run test:run       # Vitest unit tests
+bun run test:e2e       # Playwright E2E tests
+cargo test --manifest-path src-tauri/Cargo.toml  # Rust tests
+
+# Development
+bun tauri dev          # Full dev environment
+bun run dev            # Frontend only (port 1420)
+```
+
+---
+
+*Last updated: Nov 26, 2025 - Testing expansion and Player improvements completed*
