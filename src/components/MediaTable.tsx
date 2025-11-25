@@ -77,6 +77,13 @@ function createMediaColumns(
             className="h-[72px] w-auto"
             alt="Media thumbnail"
             src={thumbnailSrc}
+            loading="lazy"
+            onError={(event) => {
+              const target = event.currentTarget;
+              if (target.src !== thumbnailPlaceholder) {
+                target.src = thumbnailPlaceholder;
+              }
+            }}
           />
         );
       },

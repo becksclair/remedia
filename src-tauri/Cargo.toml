@@ -35,13 +35,20 @@ tauri      = { version = "2.9.3", features = ["devtools", "unstable"] }
 serde      = { version = "1", features = ["derive"] }
 serde_json = "1"
 once_cell  = "1.19"
-
+tokio      = { version = "1", features = ["process", "io-util", "macros", "time"] }
+futures-util = "0.3"
+tokio-tungstenite = "0.21"
 tauri-plugin-opener            = "2.5"
 tauri-plugin-shell             = "2.3"
 tauri-plugin-clipboard-manager = "2.3"
 tauri-plugin-dialog            = "2.4"
 tauri-plugin-fs                = "2.4"
 tauri-plugin-notification      = "2.3"
+
+[features]
+default = []
+# Enable websocket remote-control integration tests (disabled in CI)
+remote-e2e = []
 
 [target.'cfg(all(not(any(target_os = "android", target_os = "ios")), not(target_os = "windows")))'.dependencies]
 tauri-plugin-single-instance = "2.3"

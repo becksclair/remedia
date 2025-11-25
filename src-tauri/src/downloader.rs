@@ -1,11 +1,10 @@
 use std::collections::HashMap;
-use std::io::BufRead;
-use std::io::BufReader;
-use std::io::Read;
 use std::path;
-use std::process::Command;
 use std::process::Stdio;
 use std::sync::Mutex;
+
+use tokio::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
+use tokio::process::Command;
 
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
@@ -16,6 +15,9 @@ use tauri::Window;
 use tauri::async_runtime::spawn;
 
 use crate::download_queue::{DownloadStatus, QueuedDownload, get_queue};
+use crate::events::*;
+use crate::remote_control::broadcast_remote_event;
+use crate::thumbnail::resolve_thumbnail;
 
 // Download Manager: Track cancellation flags for active downloads
 use std::sync::Arc;
@@ -178,7 +180,7 @@ fn parse_progress_percent(line: &str) -> Option<f64> {
 
     let after_prefix = &line[PREFIX.len()..];
     let percent_end = after_prefix.find('%')?;
-    let percent_str = &after_prefix[..percent_end];
+    let percent_str = after_prefix[..percent_end].trim();
 
     if percent_str == "N/A" {
         return None;
@@ -226,26 +228,55 @@ fn build_format_args(settings: &DownloadSettings) -> Vec<String> {
 }
 
 async fn run_yt_dlp(cmd: &mut Command) -> Result<(String, String), std::io::Error> {
+    // Ensure we capture output and close stdin
+    cmd.stdin(Stdio::null());
+    cmd.stdout(Stdio::piped());
+    cmd.stderr(Stdio::piped());
+
+    // On Windows, prevent window creation if possible (though tauri usually handles this)
+    #[cfg(windows)]
+    cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+
+    println!("[DEBUG] Spawning yt-dlp command");
     let mut child = cmd.spawn()?;
+    println!("[DEBUG] yt-dlp process spawned");
 
-    let stdout = child.stdout.take().ok_or_else(|| std::io::Error::other("Could not capture stdout"))?;
-    let stderr = child.stderr.take().ok_or_else(|| std::io::Error::other("Could not capture stderr"))?;
-
-    let mut out_reader = BufReader::new(stdout);
-    let err_reader = BufReader::new(stderr);
+    let mut stdout = child.stdout.take().ok_or_else(|| std::io::Error::other("Could not capture stdout"))?;
+    let mut stderr = child.stderr.take().ok_or_else(|| std::io::Error::other("Could not capture stderr"))?;
 
     let mut output = String::new();
-    out_reader.read_to_string(&mut output)?;
-
     let mut errors = String::new();
-    for line in err_reader.lines() {
-        errors.push_str(&line?);
-        errors.push('\n');
-    }
 
-    child.wait()?;
+    // Read stdout and stderr concurrently
+    println!("[DEBUG] Reading yt-dlp output...");
+    let (out_res, err_res) = tokio::join!(stdout.read_to_string(&mut output), stderr.read_to_string(&mut errors));
+
+    out_res?;
+    err_res?;
+    println!("[DEBUG] yt-dlp output read, waiting for process...");
+
+    child.wait().await?;
+    println!("[DEBUG] yt-dlp process completed");
 
     Ok((output, errors))
+}
+
+/// Extract title and thumbnail from yt-dlp JSON output
+fn extract_media_info_from_json(json_str: &str, media_source_url: &str) -> Option<(String, String)> {
+    let v: Value = serde_json::from_str(json_str).ok()?;
+
+    let title =
+        v.get("title").and_then(|t| t.as_str()).filter(|s| !s.is_empty()).unwrap_or(media_source_url).to_string();
+
+    let thumbnail = resolve_thumbnail(&v).unwrap_or_default();
+
+    Some((title, thumbnail))
+}
+
+/// Check if a stderr line should be emitted to the frontend
+fn should_emit_stderr(line: &str) -> bool {
+    let line_lower = line.to_lowercase();
+    line_lower.contains("error") || line_lower.contains("warning") || line_lower.contains("failed")
 }
 
 #[tauri::command]
@@ -270,6 +301,9 @@ pub async fn get_media_info(
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
 
+    #[cfg(windows)]
+    cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+
     let (output, errors) = run_yt_dlp(&mut cmd).await.map_err(|e| e.to_string())?;
 
     if !errors.is_empty() {
@@ -284,44 +318,21 @@ pub async fn get_media_info(
             continue;
         }
 
-        // Parse generically to be tolerant of null / missing fields.
-        match serde_json::from_str::<Value>(trimmed) {
-            Ok(v) => {
-                let title = v
-                    .get("title")
-                    .and_then(|t| t.as_str())
-                    .filter(|s| !s.is_empty())
-                    .unwrap_or(media_source_url.as_str())
-                    .to_string();
-                // Robust thumbnail extraction: try multiple fields
-                let thumbnail = v
-                    .get("thumbnail")
-                    .and_then(|t| t.as_str())
-                    .filter(|s| !s.is_empty())
-                    .or_else(|| {
-                        // Try thumbnails array - pick the last (usually highest resolution)
-                        v.get("thumbnails")
-                            .and_then(|arr| arr.as_array())
-                            .and_then(|thumbnails| thumbnails.last())
-                            .and_then(|thumb| thumb.get("url"))
-                            .and_then(|url| url.as_str())
-                            .filter(|s| !s.is_empty())
-                    })
-                    .or_else(|| {
-                        // Try thumbnail_url as fallback
-                        v.get("thumbnail_url").and_then(|t| t.as_str()).filter(|s| !s.is_empty())
-                    })
-                    .unwrap_or_default()
-                    .to_string();
+        if let Some((title, thumbnail)) = extract_media_info_from_json(trimmed, &media_source_url) {
+            if thumbnail.is_empty() {
+                println!("Invalid thumbnail URL extracted from: '{}'", trimmed);
+            }
 
-                found_any = true;
-                window
-                    .emit("update-media-info", (media_idx, media_source_url.clone(), title, thumbnail))
-                    .map_err(|e| e.to_string())?;
-            }
-            Err(e) => {
-                println!("Failed to parse yt-dlp output line as generic JSON: {e}\nLine: {trimmed}");
-            }
+            found_any = true;
+            window
+                .emit(EVT_UPDATE_MEDIA_INFO, (media_idx, media_source_url.clone(), title.clone(), thumbnail.clone()))
+                .map_err(|e| e.to_string())?;
+            broadcast_remote_event(
+                EVT_UPDATE_MEDIA_INFO,
+                serde_json::json!([media_idx, media_source_url.clone(), title, thumbnail]),
+            );
+        } else {
+            println!("Failed to parse yt-dlp output line as generic JSON: {trimmed}");
         }
     }
     if !found_any {
@@ -343,9 +354,10 @@ fn process_queue(window: Window) {
             Ok(s) => s,
             Err(e) => {
                 eprintln!("Failed to deserialize settings for media {}: {}", queued_download.media_idx, e);
-                if let Err(emit_err) = window.emit("download-error", queued_download.media_idx) {
+                if let Err(emit_err) = window.emit(EVT_DOWNLOAD_ERROR, queued_download.media_idx) {
                     eprintln!("Failed to emit download error: {}", emit_err);
                 }
+                broadcast_remote_event(EVT_DOWNLOAD_ERROR, serde_json::json!(queued_download.media_idx));
                 queue.fail(queued_download.media_idx);
                 drop(queue);
                 process_queue(window.clone());
@@ -357,6 +369,7 @@ fn process_queue(window: Window) {
         if let Err(e) = window.emit("download-started", queued_download.media_idx) {
             eprintln!("Failed to emit download-started: {}", e);
         }
+        broadcast_remote_event("download-started", serde_json::json!(queued_download.media_idx));
 
         // Start the download
         execute_download(
@@ -432,6 +445,9 @@ fn execute_download(
 
         cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
 
+        #[cfg(windows)]
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+
         let mut child = match cmd.spawn() {
             Ok(child) => child,
             Err(e) => {
@@ -441,9 +457,10 @@ fn execute_download(
                     let mut flags = DOWNLOAD_CANCEL_FLAGS.lock().unwrap();
                     flags.remove(&media_idx);
                 }
-                if let Err(emit_err) = window.emit("download-error", media_idx) {
+                if let Err(emit_err) = window.emit(EVT_DOWNLOAD_ERROR, media_idx) {
                     eprintln!("Failed to emit download error: {}", emit_err);
                 }
+                broadcast_remote_event(EVT_DOWNLOAD_ERROR, serde_json::json!(media_idx));
                 process_queue(window);
                 return;
             }
@@ -454,9 +471,10 @@ fn execute_download(
             None => {
                 eprintln!("Failed to capture stdout from yt-dlp");
                 mark_queue_fail("while handling missing stdout");
-                if let Err(e) = window.emit("download-error", media_idx) {
+                if let Err(e) = window.emit(EVT_DOWNLOAD_ERROR, media_idx) {
                     eprintln!("Failed to emit download error: {}", e);
                 }
+                broadcast_remote_event(EVT_DOWNLOAD_ERROR, serde_json::json!(media_idx));
                 {
                     let mut flags = DOWNLOAD_CANCEL_FLAGS.lock().unwrap();
                     flags.remove(&media_idx);
@@ -471,9 +489,10 @@ fn execute_download(
             None => {
                 eprintln!("Failed to capture stderr from yt-dlp");
                 mark_queue_fail("while handling missing stderr");
-                if let Err(e) = window.emit("download-error", media_idx) {
+                if let Err(e) = window.emit(EVT_DOWNLOAD_ERROR, media_idx) {
                     eprintln!("Failed to emit download error: {}", e);
                 }
+                broadcast_remote_event(EVT_DOWNLOAD_ERROR, serde_json::json!(media_idx));
                 {
                     let mut flags = DOWNLOAD_CANCEL_FLAGS.lock().unwrap();
                     flags.remove(&media_idx);
@@ -483,76 +502,107 @@ fn execute_download(
             }
         };
 
-        let out_reader = BufReader::new(stdout);
-        let err_reader = BufReader::new(stderr);
+        let mut out_reader = BufReader::new(stdout).lines();
+        let mut err_reader = BufReader::new(stderr).lines();
 
         // Debounce progress updates
         let mut last_progress_emit = std::time::Instant::now();
         const PROGRESS_DEBOUNCE_MS: u128 = 100;
 
-        out_reader.lines().for_each(|line| {
-            if let Ok(line) = line {
-                println!("{line}");
-
-                // Parse progress using extracted function
-                if let Some(percent) = parse_progress_percent(&line) {
-                    // Check debounce (always emit 100% or if enough time passed)
-                    if percent >= 100.0 || last_progress_emit.elapsed().as_millis() >= PROGRESS_DEBOUNCE_MS {
-                        if let Err(e) = window.emit("download-progress", (media_idx, percent)) {
-                            eprintln!("Failed to emit download progress: {}", e);
-                        }
-                        last_progress_emit = std::time::Instant::now();
-                    }
-                }
-            }
-        });
-
-        // Handle child process errors
-        err_reader.lines().for_each(|line| {
-            if let Ok(line) = line {
-                // Emit stderr as event to frontend
-                if let Err(e) = window.emit("yt-dlp-stderr", (media_idx, line.clone())) {
-                    eprintln!("Failed to emit yt-dlp stderr: {}", e);
-                }
-            }
-        });
-
-        // Wait for the child process to exit, checking for cancellation
-        use std::thread;
-        use std::time::Duration;
+        // Immediately emit 0% so UI shows activity even before yt-dlp prints progress
+        if let Err(e) = window.emit(EVT_DOWNLOAD_PROGRESS, (media_idx, 0.0)) {
+            eprintln!("Failed to emit initial download progress: {}", e);
+        }
+        broadcast_remote_event(EVT_DOWNLOAD_PROGRESS, serde_json::json!([media_idx, 0.0]));
 
         let mut cancelled = false;
-        let status = loop {
-            // Check cancellation flag
-            if cancel_flag.load(Ordering::Relaxed) {
-                eprintln!("Cancelling download for media_idx {}", media_idx);
-                cancelled = true;
+        let mut stdout_done = false;
+        let mut stderr_done = false;
+        let status;
 
-                // Kill the child process
-                if let Err(e) = child.kill() {
-                    eprintln!("Failed to kill yt-dlp process: {}", e);
-                }
-
-                break None;
-            }
-
-            // Check if process has finished
-            match child.try_wait() {
-                Ok(Some(status)) => break Some(status),
-                Ok(None) => {
-                    // Still running, sleep briefly before checking again
-                    thread::sleep(Duration::from_millis(CANCELLATION_POLL_INTERVAL_MS));
-                }
-                Err(e) => {
-                    eprintln!("Error checking process status: {}", e);
-                    if let Err(emit_err) = window.emit("download-error", media_idx) {
-                        eprintln!("Failed to emit download error: {}", emit_err);
+        loop {
+            tokio::select! {
+                // Check cancellation
+                _ = tokio::time::sleep(std::time::Duration::from_millis(CANCELLATION_POLL_INTERVAL_MS)) => {
+                    if cancel_flag.load(Ordering::Relaxed) {
+                        eprintln!("Cancelling download for media_idx {}", media_idx);
+                        cancelled = true;
+                        if let Err(e) = child.start_kill() {
+                            eprintln!("Failed to kill yt-dlp process: {}", e);
+                        }
                     }
-                    mark_queue_fail("while handling process status error");
-                    break None;
+                }
+
+                // Read stdout
+                res = out_reader.next_line(), if !stdout_done => {
+                    match res {
+                        Ok(Some(line)) => {
+                            // Parse progress using extracted function
+                            if let Some(percent) = parse_progress_percent(&line) {
+                                // Check debounce (always emit 100% or if enough time passed)
+                                if percent >= 100.0 || last_progress_emit.elapsed().as_millis() >= PROGRESS_DEBOUNCE_MS {
+                                    if let Err(e) = window.emit(EVT_DOWNLOAD_PROGRESS, (media_idx, percent)) {
+                                        eprintln!("Failed to emit download progress: {}", e);
+                                    }
+                                    broadcast_remote_event(EVT_DOWNLOAD_PROGRESS, serde_json::json!([media_idx, percent]));
+                                    last_progress_emit = std::time::Instant::now();
+                                }
+                            }
+                        }
+                        Ok(None) => stdout_done = true,
+                        Err(e) => {
+                            eprintln!("Error reading stdout: {}", e);
+                            stdout_done = true;
+                        }
+                    }
+                }
+
+                // Read stderr
+                res = err_reader.next_line(), if !stderr_done => {
+                    match res {
+                        Ok(Some(line)) => {
+                            // Attempt to parse progress from stderr too (yt-dlp often writes progress there)
+                            let mut progress_emitted = false;
+                            if let Some(percent) = parse_progress_percent(&line) {
+                                if percent >= 100.0 || last_progress_emit.elapsed().as_millis() >= PROGRESS_DEBOUNCE_MS {
+                                    if let Err(e) = window.emit(EVT_DOWNLOAD_PROGRESS, (media_idx, percent)) {
+                                        eprintln!("Failed to emit download progress: {}", e);
+                                    }
+                                    last_progress_emit = std::time::Instant::now();
+                                    broadcast_remote_event(EVT_DOWNLOAD_PROGRESS, serde_json::json!([media_idx, percent]));
+                                    progress_emitted = true;
+                                }
+                            }
+
+                            // Filter stderr events to prevent flooding the frontend
+                            if !progress_emitted && should_emit_stderr(&line) {
+                                if let Err(e) = window.emit("yt-dlp-stderr", (media_idx, line.clone())) {
+                                    eprintln!("Failed to emit yt-dlp stderr: {}", e);
+                                }
+                                broadcast_remote_event("yt-dlp-stderr", serde_json::json!([media_idx, line]));
+                            }
+                        }
+                        Ok(None) => stderr_done = true,
+                        Err(e) => {
+                            eprintln!("Error reading stderr: {}", e);
+                            stderr_done = true;
+                        }
+                    }
+                }
+
+                // Wait for process exit
+                res = child.wait() => {
+                    match res {
+                        Ok(s) => status = Some(s),
+                        Err(e) => {
+                            eprintln!("Error waiting for child process: {}", e);
+                            status = None;
+                        }
+                    }
+                    break;
                 }
             }
-        };
+        }
 
         // Clean up cancellation flag
         {
@@ -562,25 +612,35 @@ fn execute_download(
 
         // Emit appropriate event based on outcome
         if cancelled {
-            if let Err(e) = window.emit("download-cancelled", media_idx) {
+            if let Err(e) = window.emit(EVT_DOWNLOAD_CANCELLED, media_idx) {
                 eprintln!("Failed to emit download-cancelled: {}", e);
             }
+            broadcast_remote_event(EVT_DOWNLOAD_CANCELLED, serde_json::json!(media_idx));
             // Mark as cancelled in queue
             get_queue().lock().unwrap().cancel(media_idx);
         } else if let Some(status) = status {
             if status.success() {
-                if let Err(e) = window.emit("download-complete", media_idx) {
+                if let Err(e) = window.emit(EVT_DOWNLOAD_COMPLETE, media_idx) {
                     eprintln!("Failed to emit download-complete: {}", e);
                 }
+                broadcast_remote_event(EVT_DOWNLOAD_COMPLETE, serde_json::json!(media_idx));
                 // Mark as completed in queue
                 get_queue().lock().unwrap().complete(media_idx);
             } else {
-                if let Err(e) = window.emit("download-error", media_idx) {
+                if let Err(e) = window.emit(EVT_DOWNLOAD_ERROR, media_idx) {
                     eprintln!("Failed to emit download-error: {}", e);
                 }
+                broadcast_remote_event(EVT_DOWNLOAD_ERROR, serde_json::json!(media_idx));
                 // Mark as failed in queue
                 mark_queue_fail("after non-success status");
             }
+        } else {
+            // Status is None (wait error)
+            if let Err(e) = window.emit(EVT_DOWNLOAD_ERROR, media_idx) {
+                eprintln!("Failed to emit download-error: {}", e);
+            }
+            broadcast_remote_event(EVT_DOWNLOAD_ERROR, serde_json::json!(media_idx));
+            mark_queue_fail("after wait error");
         }
 
         // Try to start next download from queue
@@ -601,33 +661,37 @@ pub fn download_media(
     // Validate inputs at boundary
     if let Err(e) = validate_url(&media_source_url) {
         eprintln!("URL validation failed: {}", e);
-        if let Err(emit_err) = window.emit("download-error", media_idx) {
+        if let Err(emit_err) = window.emit(EVT_DOWNLOAD_ERROR, media_idx) {
             eprintln!("Failed to emit download error: {}", emit_err);
         }
+        broadcast_remote_event(EVT_DOWNLOAD_ERROR, serde_json::json!(media_idx));
         return;
     }
 
     if let Err(e) = validate_output_location(&output_location) {
         eprintln!("Output location validation failed: {}", e);
-        if let Err(emit_err) = window.emit("download-error", media_idx) {
+        if let Err(emit_err) = window.emit(EVT_DOWNLOAD_ERROR, media_idx) {
             eprintln!("Failed to emit download error: {}", emit_err);
         }
+        broadcast_remote_event(EVT_DOWNLOAD_ERROR, serde_json::json!(media_idx));
         return;
     }
 
     if let Err(e) = validate_settings(&settings) {
         eprintln!("Settings validation failed: {}", e);
-        if let Err(emit_err) = window.emit("download-error", media_idx) {
+        if let Err(emit_err) = window.emit(EVT_DOWNLOAD_ERROR, media_idx) {
             eprintln!("Failed to emit download error: {}", emit_err);
         }
+        broadcast_remote_event(EVT_DOWNLOAD_ERROR, serde_json::json!(media_idx));
         return;
     }
 
     if media_idx < 0 {
         eprintln!("Invalid media index: {}", media_idx);
-        if let Err(emit_err) = window.emit("download-error", media_idx) {
+        if let Err(emit_err) = window.emit(EVT_DOWNLOAD_ERROR, media_idx) {
             eprintln!("Failed to emit download error: {}", emit_err);
         }
+        broadcast_remote_event(EVT_DOWNLOAD_ERROR, serde_json::json!(media_idx));
         return;
     }
 
@@ -636,9 +700,10 @@ pub fn download_media(
         Ok(json) => json,
         Err(e) => {
             eprintln!("Failed to serialize settings: {}", e);
-            if let Err(emit_err) = window.emit("download-error", media_idx) {
+            if let Err(emit_err) = window.emit(EVT_DOWNLOAD_ERROR, media_idx) {
                 eprintln!("Failed to emit download error: {}", emit_err);
             }
+            broadcast_remote_event(EVT_DOWNLOAD_ERROR, serde_json::json!(media_idx));
             return;
         }
     };
@@ -654,19 +719,23 @@ pub fn download_media(
 
     // Enqueue the download
     let queue = get_queue();
-    let mut queue = queue.lock().unwrap();
-    if let Err(e) = queue.enqueue(queued_download) {
-        eprintln!("Failed to enqueue download: {}", e);
-        if let Err(emit_err) = window.emit("download-error", media_idx) {
-            eprintln!("Failed to emit download error: {}", emit_err);
+    {
+        let mut queue = queue.lock().unwrap();
+        if let Err(e) = queue.enqueue(queued_download) {
+            eprintln!("Failed to enqueue download: {}", e);
+            if let Err(emit_err) = window.emit(EVT_DOWNLOAD_ERROR, media_idx) {
+                eprintln!("Failed to emit download error: {}", emit_err);
+            }
+            broadcast_remote_event(EVT_DOWNLOAD_ERROR, serde_json::json!(media_idx));
+            return;
         }
-        return;
-    }
+    } // release lock before kicking queue processor to avoid deadlock
 
     // Emit download-queued event
-    if let Err(e) = window.emit("download-queued", media_idx) {
+    if let Err(e) = window.emit(EVT_DOWNLOAD_QUEUED, media_idx) {
         eprintln!("Failed to emit download-queued: {}", e);
     }
+    broadcast_remote_event(EVT_DOWNLOAD_QUEUED, serde_json::json!(media_idx));
 
     // Try to start next download from queue
     process_queue(window);
@@ -691,37 +760,36 @@ pub fn cancel_download(media_idx: i32) {
 #[tauri::command]
 pub fn cancel_all_downloads(window: Window) {
     // Cancel all downloads in queue (both queued and active)
-    let queue = get_queue();
-    let mut queue = queue.lock().unwrap();
-    let cancelled_indices = queue.cancel_all();
+    let cancelled_indices = {
+        let queue = get_queue();
+        let mut queue = queue.lock().unwrap();
+        queue.cancel_all()
+    }; // release queue lock before doing any emits
 
-    // Set cancellation flags for active downloads
-    let mut flags = DOWNLOAD_CANCEL_FLAGS.lock().unwrap();
-
-    eprintln!("Cancelling all {} active downloads and {} queued downloads", flags.len(), cancelled_indices.len());
-
-    // Set flags for active downloads
-    for (media_idx, flag) in flags.iter() {
-        flag.store(true, Ordering::Relaxed);
-
-        // Emit cancelled event for each
-        if let Err(e) = window.emit("download-cancelled", *media_idx) {
-            eprintln!("Failed to emit download-cancelled for {}: {}", media_idx, e);
+    // Mark all active downloads as cancelled (atomic flags) without emitting yet
+    let active_indices: Vec<i32> = {
+        let flags = DOWNLOAD_CANCEL_FLAGS.lock().unwrap();
+        for (_idx, flag) in flags.iter() {
+            flag.store(true, Ordering::Relaxed);
         }
-    }
+        flags.keys().copied().collect()
+    }; // release flags lock before emitting to avoid holding locks during JS IPC
 
-    // Emit cancelled events for queued downloads
+    eprintln!(
+        "Cancelling all {} active downloads and {} queued downloads",
+        active_indices.len(),
+        cancelled_indices.len()
+    );
+
+    // Emit cancelled events only for queued items; active ones will emit when their tasks observe the flag
     for media_idx in cancelled_indices {
-        if !flags.contains_key(&media_idx) {
-            // Only emit if not already in active (to avoid duplicates)
-            if let Err(e) = window.emit("download-cancelled", media_idx) {
+        if !active_indices.contains(&media_idx) {
+            if let Err(e) = window.emit(EVT_DOWNLOAD_CANCELLED, media_idx) {
                 eprintln!("Failed to emit download-cancelled for {}: {}", media_idx, e);
             }
+            broadcast_remote_event(EVT_DOWNLOAD_CANCELLED, serde_json::json!(media_idx));
         }
     }
-
-    // Clear all flags
-    flags.clear();
 }
 
 /// Update the maximum number of concurrent downloads
@@ -757,6 +825,7 @@ mod tests {
         assert_eq!(parse_progress_percent("remedia-45.2%-2:30"), Some(45.2));
         assert_eq!(parse_progress_percent("remedia-100%-0:00"), Some(100.0));
         assert_eq!(parse_progress_percent("remedia-0.5%-5:00"), Some(0.5));
+        assert_eq!(parse_progress_percent("remedia-  0.5%-5:00"), Some(0.5)); // leading spaces
     }
 
     #[test]
@@ -764,6 +833,68 @@ mod tests {
         // Should clamp to 0-100 range
         assert_eq!(parse_progress_percent("remedia--5%-2:30"), Some(0.0));
         assert_eq!(parse_progress_percent("remedia-150%-0:00"), Some(100.0));
+    }
+
+    #[tokio::test]
+    #[ignore = "Requires network access and yt-dlp installed"]
+    async fn test_redgifs_integration() {
+        let url = "https://www.redgifs.com/watch/unrulygleamingalaskanmalamute";
+
+        let mut cmd = Command::new("yt-dlp");
+        cmd.arg(url)
+            .arg("-j")
+            .arg("--extractor-args")
+            .arg("generic:impersonate")
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+
+        #[cfg(windows)]
+        cmd.creation_flags(0x08000000);
+
+        let (output, errors) = run_yt_dlp(&mut cmd).await.expect("Failed to run yt-dlp");
+
+        if !errors.is_empty() {
+            println!("yt-dlp stderr: {}", errors);
+        }
+
+        let mut found = false;
+        for line in output.lines() {
+            let trimmed = line.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+
+            if let Some((title, thumbnail)) = extract_media_info_from_json(trimmed, url) {
+                println!("Found media: Title='{}', Thumbnail='{}'", title, thumbnail);
+                if thumbnail.is_empty() {
+                    println!("Full JSON for debugging: {}", trimmed);
+                }
+                assert!(!title.is_empty(), "Title should not be empty");
+                assert!(!thumbnail.is_empty(), "Thumbnail should not be empty");
+                assert!(thumbnail.starts_with("http"), "Thumbnail should be a URL");
+                found = true;
+            }
+        }
+
+        assert!(found, "Should have found at least one media item");
+
+        assert!(found, "Should have found at least one media item");
+    }
+
+    #[test]
+    fn test_redgifs_thumbnail_fallback_from_id() {
+        let json = r#"{
+            "id":"UnrulyGleamingAlaskanmalamute",
+            "extractor":"RedGifs",
+            "formats":[{"url":"https://media.redgifs.com/UnrulyGleamingAlaskanmalamute-mobile.mp4"}]
+        }"#;
+
+        let source_url = "https://www.redgifs.com/watch/unrulygleamingalaskanmalamute";
+        let (_title, thumbnail) = extract_media_info_from_json(json, source_url).expect("should parse redgifs json");
+
+        assert!(!thumbnail.is_empty(), "Thumbnail should be constructed");
+        assert!(thumbnail.contains("UnrulyGleamingAlaskanmalamute"));
+        assert!(thumbnail.starts_with("https://thumbs"));
     }
 
     #[test]
@@ -957,5 +1088,14 @@ mod tests {
 
         settings.max_file_size = "50T".to_string(); // Unsupported unit
         assert!(validate_settings(&settings).is_err());
+    }
+
+    #[test]
+    fn test_should_emit_stderr() {
+        assert!(should_emit_stderr("ERROR: Something went wrong"));
+        assert!(should_emit_stderr("WARNING: Deprecated feature"));
+        assert!(should_emit_stderr("Download failed"));
+        assert!(!should_emit_stderr("[download] Downloading video 1 of 3"));
+        assert!(!should_emit_stderr("[info] Metadata downloaded"));
     }
 }

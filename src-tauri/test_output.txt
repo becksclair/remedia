@@ -1,0 +1,20 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.85s
+     Running unittests src\lib.rs (target\debug\deps\remedia_lib-9ad85baa34fda947.exe)
+
+running 1 test
+Found media: Title='Big Dick Homemade OnlyFans', Thumbnail=''
+
+thread 'downloader::tests::test_redgifs_integration' (21056) panicked at src\downloader.rs:851:17:
+Thumbnail should not be empty
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+Full JSON for debugging: {"id": "unrulygleamingalaskanmalamute", "webpage_url": "https://redgifs.com/watch/unrulygleamingalaskanmalamute", "extractor_key": "RedGifs", "extractor": "RedGifs", "title": "Big Dick Homemade OnlyFans", "timestamp": 1682432042, "uploader": "kinklifecouple", "duration": 23, "view_count": 78511, "like_count": 23, "categories": ["Big Dick", "Homemade", "OnlyFans"], "tags": ["Big Dick", "Homemade", "OnlyFans"], "age_limit": 18, "formats": [{"url": "https://media.redgifs.com/UnrulyGleamingAlaskanmalamute-mobile.mp4", "format_id": "sd", "width": 341.05263157894734, "height": 480, "quality": 1, "protocol": "https", "ext": "mp4", "video_ext": "mp4", "audio_ext": "none", "vbr": null, "abr": null, "tbr": null, "resolution": "341x480", "dynamic_range": "SDR", "aspect_ratio": 0.71, "filesize_approx": null, "http_headers": {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.55 Safari/537.36", "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", "Accept-Language": "en-us,en;q=0.5", "Sec-Fetch-Mode": "navigate"}, "format": "sd - 341x480"}, {"url": "https://media.redgifs.com/UnrulyGleamingAlaskanmalamute.mp4", "format_id": "hd", "width": 767.3684210526316, "height": 1080, "quality": 2, "protocol": "https", "ext": "mp4", "video_ext": "mp4", "audio_ext": "none", "vbr": null, "abr": null, "tbr": null, "resolution": "767x1080", "dynamic_range": "SDR", "aspect_ratio": 0.71, "filesize_approx": null, "http_headers": {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.55 Safari/537.36", "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", "Accept-Language": "en-us,en;q=0.5", "Sec-Fetch-Mode": "navigate"}, "format": "hd - 767x1080"}], "original_url": "https://www.redgifs.com/watch/unrulygleamingalaskanmalamute", "webpage_url_basename": "unrulygleamingalaskanmalamute", "webpage_url_domain": "redgifs.com", "playlist": null, "playlist_index": null, "display_id": "unrulygleamingalaskanmalamute", "fulltitle": "Big Dick Homemade OnlyFans", "duration_string": "23", "upload_date": "20230425", "release_year": null, "requested_subtitles": null, "_has_drm": null, "epoch": 1764005665, "url": "https://media.redgifs.com/UnrulyGleamingAlaskanmalamute.mp4", "format_id": "hd", "width": 767.3684210526316, "height": 1080, "quality": 2, "protocol": "https", "ext": "mp4", "video_ext": "mp4", "audio_ext": "none", "vbr": null, "abr": null, "tbr": null, "resolution": "767x1080", "dynamic_range": "SDR", "aspect_ratio": 0.71, "filesize_approx": null, "http_headers": {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.55 Safari/537.36", "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", "Accept-Language": "en-us,en;q=0.5", "Sec-Fetch-Mode": "navigate"}, "format": "hd - 767x1080", "_filename": "Big Dick Homemade OnlyFans [unrulygleamingalaskanmalamute].mp4", "filename": "Big Dick Homemade OnlyFans [unrulygleamingalaskanmalamute].mp4", "_type": "video", "_version": {"version": "2025.07.21", "current_git_head": null, "release_git_head": "9951fdd0d08b655cb1af8cd7f32a3fb7e2b1324e", "repository": "yt-dlp/yt-dlp"}}
+test downloader::tests::test_redgifs_integration ... FAILED
+
+failures:
+
+failures:
+    downloader::tests::test_redgifs_integration
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 19 filtered out; finished in 2.19s
+
+error: test failed, to rerun pass `--lib`

@@ -139,6 +139,14 @@ bun run test:e2e           # Run Playwright end-to-end tests
 bun run test:e2e:web       # Run web-only Playwright tests
 bun run test:e2e:headed    # Run Playwright tests with headed browser
 bun run test:e2e:install   # Install Playwright browsers
+
+# Remote control websocket (opt-in)
+# Local WS for automation: ws://127.0.0.1:17814
+# Commands: {"action":"addUrl","url":"https://..."}, {"action":"startDownloads"}, {"action":"cancelAll"}, {"action":"status"}
+# Bun helper will connect to a running dev app or launch one if needed:
+bun run test:remote            # uses ws bridge (dev builds auto-enable; set REMEDIA_REMOTE_WS=1 for release)
+# Lower-level Rust test (opt-in/CI-safe):
+cmd /C "set CARGO_TARGET_DIR=target-remote&& cargo test --manifest-path src-tauri/Cargo.toml --features remote-e2e --tests"  # works even if dev app holds the default target dir
 ```
 
 **Test Coverage:**

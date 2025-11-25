@@ -28,3 +28,5 @@ coverage/
 coverage.xml
 junit*.xml
 .claude/settings.local.json
+target-remote
+target-remote2

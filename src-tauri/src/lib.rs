@@ -3,9 +3,12 @@ use remedia::quit;
 #[allow(unused_imports)]
 use tauri::Manager;
 
-mod downloader;
-mod download_queue;
-mod remedia;
+pub mod download_queue;
+pub mod downloader;
+pub mod remedia;
+pub mod remote_control;
+pub mod events;
+pub mod thumbnail;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -39,9 +42,12 @@ pub fn run() {
         }
     }
 
-    builder = builder.setup(|_app| {
+    builder = builder.setup(|app| {
         // #[cfg(debug_assertions)] // only include this code on debug builds
         // app.get_webview_window("main").unwrap().open_devtools();
+
+        // Enable remote control by default for debugging and remote testing.
+        remote_control::start_remote_control(app.app_handle().clone());
         Ok(())
     });
 

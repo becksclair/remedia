@@ -382,6 +382,21 @@ function App(): JSX.Element {
     updateMediaItemByIndex(mediaIdx, { status: "Cancelled" });
   };
 
+  const handleRemoteAddUrl = (event: Event<string>): void => {
+    const url = event.payload;
+    if (typeof url === "string") {
+      addMediaUrl(url);
+    }
+  };
+
+  const handleRemoteStart = (): void => {
+    void handleStartAllDownloads();
+  };
+
+  const handleRemoteCancel = (): void => {
+    void handleCancelAll();
+  };
+
   const handleYtDlpStderr = (event: Event<[number, string]>): void => {
     const [mediaIdx, message] = event.payload;
     console.log(`[yt-dlp stderr][media ${mediaIdx}]: ${message}`);
@@ -432,6 +447,9 @@ function App(): JSX.Element {
     "download-complete": handleComplete,
     "download-error": handleError,
     "download-cancelled": handleCancelled,
+    "remote-add-url": handleRemoteAddUrl,
+    "remote-start-downloads": handleRemoteStart,
+    "remote-cancel-downloads": handleRemoteCancel,
     "yt-dlp-stderr": handleYtDlpStderr,
   });
 
