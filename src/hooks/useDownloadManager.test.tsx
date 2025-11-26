@@ -19,6 +19,7 @@ import {
   audioQualityAtom,
   downloadRateLimitAtom,
   maxFileSizeAtom,
+  appendUniqueIdAtom,
 } from "@/state/settings-atoms";
 import type { ReactNode } from "react";
 import type { VideoInfo } from "@/components/MediaTable";
@@ -236,6 +237,7 @@ describe("useDownloadManager", () => {
             audioQuality: "2",
             downloadRateLimit: "1M",
             maxFileSize: "100M",
+            appendUniqueId: true,
           }),
         );
       });
@@ -309,6 +311,88 @@ describe("useDownloadManager", () => {
       });
 
       expect(result.current.globalProgress).toBe(0);
+    });
+  });
+
+  describe("appendUniqueId setting", () => {
+    it("passes appendUniqueId=true by default", async () => {
+      const wrapper = createWrapper([
+        [downloadLocationAtom, "/tmp/downloads"],
+        [downloadModeAtom, "video"],
+        [videoQualityAtom, "best"],
+        [maxResolutionAtom, "no-limit"],
+        [videoFormatAtom, "best"],
+        [audioFormatAtom, "best"],
+        [audioQualityAtom, "0"],
+        [downloadRateLimitAtom, "unlimited"],
+        [maxFileSizeAtom, "unlimited"],
+        // Default is true
+      ]);
+
+      const mediaList = createMockMediaList([
+        { url: "https://example.com/video1", status: "Pending" },
+      ]);
+
+      const downloadMediaSpy = vi.spyOn(mockTauriApi.commands, "downloadMedia");
+
+      const { result } = renderHook(() => useDownloadManager(mediaList), {
+        wrapper,
+      });
+
+      await act(async () => {
+        await result.current.startDownload();
+      });
+
+      await waitFor(() => {
+        expect(downloadMediaSpy).toHaveBeenCalledWith(
+          0,
+          "https://example.com/video1",
+          "/tmp/downloads",
+          expect.objectContaining({
+            appendUniqueId: true,
+          }),
+        );
+      });
+    });
+
+    it("passes appendUniqueId=false when disabled", async () => {
+      const wrapper = createWrapper([
+        [downloadLocationAtom, "/tmp/downloads"],
+        [downloadModeAtom, "video"],
+        [videoQualityAtom, "best"],
+        [maxResolutionAtom, "no-limit"],
+        [videoFormatAtom, "best"],
+        [audioFormatAtom, "best"],
+        [audioQualityAtom, "0"],
+        [downloadRateLimitAtom, "unlimited"],
+        [maxFileSizeAtom, "unlimited"],
+        [appendUniqueIdAtom, false],
+      ]);
+
+      const mediaList = createMockMediaList([
+        { url: "https://example.com/video1", status: "Pending" },
+      ]);
+
+      const downloadMediaSpy = vi.spyOn(mockTauriApi.commands, "downloadMedia");
+
+      const { result } = renderHook(() => useDownloadManager(mediaList), {
+        wrapper,
+      });
+
+      await act(async () => {
+        await result.current.startDownload();
+      });
+
+      await waitFor(() => {
+        expect(downloadMediaSpy).toHaveBeenCalledWith(
+          0,
+          "https://example.com/video1",
+          "/tmp/downloads",
+          expect.objectContaining({
+            appendUniqueId: false,
+          }),
+        );
+      });
     });
   });
 });

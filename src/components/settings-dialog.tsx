@@ -38,6 +38,7 @@ import {
   downloadRateLimitAtom,
   maxFileSizeAtom,
   themeAtom,
+  appendUniqueIdAtom,
   type Theme,
   type DownloadMode,
   type VideoQuality,
@@ -77,6 +78,7 @@ export function SettingsDialog({
     downloadRateLimitAtom,
   );
   const [maxFileSize, setMaxFileSize] = useAtom(maxFileSizeAtom);
+  const [appendUniqueId, setAppendUniqueId] = useAtom(appendUniqueIdAtom);
 
   useEffect(() => {
     // Check if we're running on Wayland using the Rust backend
@@ -202,6 +204,22 @@ export function SettingsDialog({
             >
               Browse...
             </Button>
+          </div>
+
+          {/* Append unique ID to filenames */}
+          <div className="flex items-center gap-x-2">
+            <Checkbox
+              checked={appendUniqueId}
+              onCheckedChange={(checked) => setAppendUniqueId(Boolean(checked))}
+              id="append-unique-id-checkbox"
+              data-testid="settings-append-unique-id"
+            />
+            <label htmlFor="append-unique-id-checkbox" className="text-sm">
+              Append unique ID to filenames
+              <span className="text-muted-foreground ml-1">
+                (prevents overwrites)
+              </span>
+            </label>
           </div>
 
           {/* Max concurrent downloads */}

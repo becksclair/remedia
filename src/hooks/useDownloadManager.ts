@@ -16,6 +16,7 @@ import {
   audioQualityAtom,
   downloadRateLimitAtom,
   maxFileSizeAtom,
+  appendUniqueIdAtom,
 } from "@/state/settings-atoms";
 import {
   calculateGlobalProgress,
@@ -45,6 +46,7 @@ export function useDownloadManager(mediaList: VideoInfo[]) {
   const audioQuality = useAtomValue(audioQualityAtom);
   const downloadRateLimit = useAtomValue(downloadRateLimitAtom);
   const maxFileSize = useAtomValue(maxFileSizeAtom);
+  const appendUniqueId = useAtomValue(appendUniqueIdAtom);
 
   /**
    * Start download for all media in the list
@@ -78,6 +80,7 @@ export function useDownloadManager(mediaList: VideoInfo[]) {
       audioQuality,
       downloadRateLimit,
       maxFileSize,
+      appendUniqueId,
     };
 
     try {
@@ -129,6 +132,7 @@ export function useDownloadManager(mediaList: VideoInfo[]) {
     audioQuality,
     downloadRateLimit,
     maxFileSize,
+    appendUniqueId,
     tauriApi.commands,
     tauriApi.path,
     setOutputLocation,

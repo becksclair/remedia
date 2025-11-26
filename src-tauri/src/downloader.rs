@@ -50,6 +50,12 @@ pub struct DownloadSettings {
     download_rate_limit: String, // "50K" | "1M" | ... | "unlimited"
     #[serde(default = "default_unlimited")]
     max_file_size: String, // "50M" | "1G" | ... | "unlimited"
+    #[serde(default = "default_true")]
+    append_unique_id: bool, // Append short hash to filenames
+}
+
+fn default_true() -> bool {
+    true
 }
 
 fn default_unlimited() -> String {
@@ -67,8 +73,42 @@ impl DownloadSettings {
             audio_quality: "0".to_string(),
             download_rate_limit: default_unlimited(),
             max_file_size: default_unlimited(),
+            append_unique_id: true,
         }
     }
+}
+
+/// Generate a short, idempotent unique ID from a URL using FNV-1a hash.
+/// Returns an 11-character base36 string (lowercase alphanumeric).
+/// This is extremely fast: FNV-1a is a simple multiply-xor loop.
+fn generate_unique_id(url: &str) -> String {
+    // FNV-1a 64-bit hash constants
+    const FNV_OFFSET: u64 = 0xcbf29ce484222325;
+    const FNV_PRIME: u64 = 0x100000001b3;
+
+    let mut hash = FNV_OFFSET;
+    for byte in url.bytes() {
+        hash ^= byte as u64;
+        hash = hash.wrapping_mul(FNV_PRIME);
+    }
+
+    // Encode as base36 (0-9, a-z) for short representation
+    // 64-bit in base36 is max 13 chars, we take 11 for consistency
+    let mut result = String::with_capacity(11);
+    let mut value = hash;
+    const CHARS: &[u8] = b"0123456789abcdefghijklmnopqrstuvwxyz";
+
+    while value > 0 && result.len() < 11 {
+        result.push(CHARS[(value % 36) as usize] as char);
+        value /= 36;
+    }
+
+    // Pad if needed (should rarely happen)
+    while result.len() < 11 {
+        result.push('0');
+    }
+
+    result
 }
 
 /// Validate download settings fields
@@ -437,12 +477,17 @@ fn execute_download(
             }
         };
 
-        // Robust output template: include ID for uniqueness, handle playlists
-        let output_format = format!("{}{}{}", output_location, path::MAIN_SEPARATOR, "%(title)s [%(id)s].%(ext)s");
+        // Build output template: optionally include unique ID for avoiding collisions
+        let output_format = if settings.append_unique_id {
+            let unique_id = generate_unique_id(&media_source_url);
+            format!("{}{}%(title)s [{}].%(ext)s", output_location, path::MAIN_SEPARATOR, unique_id)
+        } else {
+            format!("{}{}%(title)s.%(ext)s", output_location, path::MAIN_SEPARATOR)
+        };
 
         // Build the yt-dlp command
         let mut cmd = Command::new("yt-dlp");
-        cmd.arg(media_source_url)
+        cmd.arg(&media_source_url)
             .arg("--progress-template")
             .arg("download:remedia-%(progress._percent_str)s-%(progress.eta)s")
             .arg("--newline")
@@ -918,6 +963,7 @@ mod tests {
             audio_quality: "0".to_string(),
             download_rate_limit: "unlimited".to_string(),
             max_file_size: "unlimited".to_string(),
+            append_unique_id: true,
         };
 
         let args = build_format_args(&settings);
@@ -942,6 +988,7 @@ mod tests {
             audio_quality: "0".to_string(),
             download_rate_limit: "unlimited".to_string(),
             max_file_size: "unlimited".to_string(),
+            append_unique_id: true,
         };
 
         let args = build_format_args(&settings);
@@ -961,6 +1008,7 @@ mod tests {
             audio_quality: "0".to_string(),
             download_rate_limit: "unlimited".to_string(),
             max_file_size: "unlimited".to_string(),
+            append_unique_id: true,
         };
 
         let args = build_format_args(&settings);
@@ -981,6 +1029,7 @@ mod tests {
             audio_quality: "0".to_string(),
             download_rate_limit: "unlimited".to_string(),
             max_file_size: "unlimited".to_string(),
+            append_unique_id: true,
         };
 
         let args = build_format_args(&settings);
@@ -1000,6 +1049,7 @@ mod tests {
             audio_quality: "0".to_string(),
             download_rate_limit: "unlimited".to_string(),
             max_file_size: "unlimited".to_string(),
+            append_unique_id: true,
         };
 
         let args = build_format_args(&settings);
@@ -1019,6 +1069,7 @@ mod tests {
             audio_quality: "0".to_string(),
             download_rate_limit: "unlimited".to_string(),
             max_file_size: "unlimited".to_string(),
+            append_unique_id: true,
         };
 
         assert!(validate_settings(&settings).is_ok());
@@ -1095,5 +1146,46 @@ mod tests {
         assert!(should_emit_stderr("Download failed"));
         assert!(!should_emit_stderr("[download] Downloading video 1 of 3"));
         assert!(!should_emit_stderr("[info] Metadata downloaded"));
+    }
+
+    #[test]
+    fn test_generate_unique_id_deterministic() {
+        // Same URL should always produce same ID (idempotent)
+        let url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
+        let id1 = generate_unique_id(url);
+        let id2 = generate_unique_id(url);
+        assert_eq!(id1, id2);
+    }
+
+    #[test]
+    fn test_generate_unique_id_different_urls() {
+        // Different URLs should produce different IDs
+        let id1 = generate_unique_id("https://www.youtube.com/watch?v=abc123");
+        let id2 = generate_unique_id("https://www.youtube.com/watch?v=xyz789");
+        assert_ne!(id1, id2);
+    }
+
+    #[test]
+    fn test_generate_unique_id_format() {
+        // ID should be exactly 11 characters, all lowercase alphanumeric
+        let id = generate_unique_id("https://example.com/video");
+        assert_eq!(id.len(), 11);
+        assert!(id.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit()));
+    }
+
+    #[test]
+    fn test_generate_unique_id_empty_url() {
+        // Even empty URL should produce valid 11-char ID
+        let id = generate_unique_id("");
+        assert_eq!(id.len(), 11);
+        assert!(id.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit()));
+    }
+
+    #[test]
+    fn test_generate_unique_id_special_characters() {
+        // URLs with special characters should work
+        let id = generate_unique_id("https://example.com/video?a=1&b=2#section");
+        assert_eq!(id.len(), 11);
+        assert!(id.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit()));
     }
 }

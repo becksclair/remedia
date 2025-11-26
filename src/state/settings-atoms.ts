@@ -94,3 +94,9 @@ export const maxFileSizeAtom = atomWithStorage<MaxFileSize>(
 // Theme settings
 export type Theme = "system" | "light" | "dark";
 export const themeAtom = atomWithStorage<Theme>("theme", "system");
+
+// Filename unique ID toggle (appends short hash to filenames for uniqueness)
+export const appendUniqueIdAtom = atomWithStorage<boolean>(
+  "appendUniqueId",
+  true,
+);

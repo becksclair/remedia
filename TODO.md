@@ -130,9 +130,30 @@
 1. ~~**[CRITICAL]** Fix DownloadSettings type sync (TS ↔ Rust)~~ ✅
 2. ~~**[CRITICAL]** Wire rate limit & file size to useDownloadManager~~ ✅
 3. ~~**[HIGH]** Add Player error handling~~ ✅
-4. **[MEDIUM]** Add remaining React component tests (MediaTable, DownloadControls)
-5. **[MEDIUM]** Implement virtual scrolling
-6. **[LOW]** Verify Rust tests pass
+4. ~~**[HIGH]** Unique ID filename toggle feature~~ ✅
+5. **[MEDIUM]** Add remaining React component tests (MediaTable, DownloadControls)
+6. **[MEDIUM]** Implement virtual scrolling
+7. **[LOW]** Verify Rust tests pass
+
+---
+
+## ✅ **COMPLETED: Unique ID Filename Toggle**
+
+**Feature**: Settings toggle to append short unique ID to downloaded filenames.
+- Format: `"some title [ekksothshrl].mp4"`
+- ID is idempotent (same video URL = same ID)
+- ID generation is fast (FNV-1a hash)
+
+### Tasks (All Complete)
+
+- [x] Add `appendUniqueId` setting atom in `src/state/settings-atoms.ts`
+- [x] Add `append_unique_id` field to `DownloadSettings` in Rust
+- [x] Implement fast ID generation using FNV-1a hash in `downloader.rs`
+- [x] Conditionally modify output template based on setting
+- [x] Add toggle UI in `SettingsDialog.tsx`
+- [x] Add Rust unit tests for ID generation (5 tests)
+- [x] Add TypeScript tests for the setting (2 tests)
+- [x] Verify lint/build/tests pass (131 TS tests, 26 Rust tests)
 
 ---
 
