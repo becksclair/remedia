@@ -51,7 +51,13 @@ pub struct DownloadSettings {
     #[serde(default = "default_unlimited")]
     max_file_size: String, // "50M" | "1G" | ... | "unlimited"
     #[serde(default = "default_true")]
-    append_unique_id: bool, // Append short hash to filenames
+    append_unique_id: bool, // Append unique ID to filenames
+    #[serde(default = "default_native")]
+    unique_id_type: String, // "native" = yt-dlp's %(id)s, "hash" = FNV-1a hash
+}
+
+fn default_native() -> String {
+    "native".to_string()
 }
 
 fn default_true() -> bool {
@@ -74,17 +80,20 @@ impl DownloadSettings {
             download_rate_limit: default_unlimited(),
             max_file_size: default_unlimited(),
             append_unique_id: true,
+            unique_id_type: default_native(),
         }
     }
 }
 
 /// Generate a short, idempotent unique ID from a URL using FNV-1a hash.
-/// Returns an 11-character base36 string (lowercase alphanumeric).
+/// Returns an 8-character base36 string (lowercase alphanumeric).
 /// This is extremely fast: FNV-1a is a simple multiply-xor loop.
+/// 8 chars in base36 = 36^8 = ~2.8 trillion unique values.
 fn generate_unique_id(url: &str) -> String {
     // FNV-1a 64-bit hash constants
     const FNV_OFFSET: u64 = 0xcbf29ce484222325;
     const FNV_PRIME: u64 = 0x100000001b3;
+    const ID_LENGTH: usize = 8;
 
     let mut hash = FNV_OFFSET;
     for byte in url.bytes() {
@@ -93,18 +102,17 @@ fn generate_unique_id(url: &str) -> String {
     }
 
     // Encode as base36 (0-9, a-z) for short representation
-    // 64-bit in base36 is max 13 chars, we take 11 for consistency
-    let mut result = String::with_capacity(11);
+    let mut result = String::with_capacity(ID_LENGTH);
     let mut value = hash;
     const CHARS: &[u8] = b"0123456789abcdefghijklmnopqrstuvwxyz";
 
-    while value > 0 && result.len() < 11 {
+    while value > 0 && result.len() < ID_LENGTH {
         result.push(CHARS[(value % 36) as usize] as char);
         value /= 36;
     }
 
     // Pad if needed (should rarely happen)
-    while result.len() < 11 {
+    while result.len() < ID_LENGTH {
         result.push('0');
     }
 
@@ -479,8 +487,14 @@ fn execute_download(
 
         // Build output template: optionally include unique ID for avoiding collisions
         let output_format = if settings.append_unique_id {
-            let unique_id = generate_unique_id(&media_source_url);
-            format!("{}{}%(title)s [{}].%(ext)s", output_location, path::MAIN_SEPARATOR, unique_id)
+            if settings.unique_id_type == "hash" {
+                // Custom short hash - consistent 8-char format across all platforms
+                let unique_id = generate_unique_id(&media_source_url);
+                format!("{}{}%(title)s [{}].%(ext)s", output_location, path::MAIN_SEPARATOR, unique_id)
+            } else {
+                // Native yt-dlp ID - truly idempotent per video (handles URL variations)
+                format!("{}{}%(title)s [%(id)s].%(ext)s", output_location, path::MAIN_SEPARATOR)
+            }
         } else {
             format!("{}{}%(title)s.%(ext)s", output_location, path::MAIN_SEPARATOR)
         };
@@ -964,6 +978,7 @@ mod tests {
             download_rate_limit: "unlimited".to_string(),
             max_file_size: "unlimited".to_string(),
             append_unique_id: true,
+            unique_id_type: "native".to_string(),
         };
 
         let args = build_format_args(&settings);
@@ -989,6 +1004,7 @@ mod tests {
             download_rate_limit: "unlimited".to_string(),
             max_file_size: "unlimited".to_string(),
             append_unique_id: true,
+            unique_id_type: "native".to_string(),
         };
 
         let args = build_format_args(&settings);
@@ -1009,6 +1025,7 @@ mod tests {
             download_rate_limit: "unlimited".to_string(),
             max_file_size: "unlimited".to_string(),
             append_unique_id: true,
+            unique_id_type: "native".to_string(),
         };
 
         let args = build_format_args(&settings);
@@ -1030,6 +1047,7 @@ mod tests {
             download_rate_limit: "unlimited".to_string(),
             max_file_size: "unlimited".to_string(),
             append_unique_id: true,
+            unique_id_type: "native".to_string(),
         };
 
         let args = build_format_args(&settings);
@@ -1050,6 +1068,7 @@ mod tests {
             download_rate_limit: "unlimited".to_string(),
             max_file_size: "unlimited".to_string(),
             append_unique_id: true,
+            unique_id_type: "native".to_string(),
         };
 
         let args = build_format_args(&settings);
@@ -1070,6 +1089,7 @@ mod tests {
             download_rate_limit: "unlimited".to_string(),
             max_file_size: "unlimited".to_string(),
             append_unique_id: true,
+            unique_id_type: "native".to_string(),
         };
 
         assert!(validate_settings(&settings).is_ok());
@@ -1167,17 +1187,17 @@ mod tests {
 
     #[test]
     fn test_generate_unique_id_format() {
-        // ID should be exactly 11 characters, all lowercase alphanumeric
+        // ID should be exactly 8 characters, all lowercase alphanumeric
         let id = generate_unique_id("https://example.com/video");
-        assert_eq!(id.len(), 11);
+        assert_eq!(id.len(), 8);
         assert!(id.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit()));
     }
 
     #[test]
     fn test_generate_unique_id_empty_url() {
-        // Even empty URL should produce valid 11-char ID
+        // Even empty URL should produce valid 8-char ID
         let id = generate_unique_id("");
-        assert_eq!(id.len(), 11);
+        assert_eq!(id.len(), 8);
         assert!(id.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit()));
     }
 
@@ -1185,7 +1205,7 @@ mod tests {
     fn test_generate_unique_id_special_characters() {
         // URLs with special characters should work
         let id = generate_unique_id("https://example.com/video?a=1&b=2#section");
-        assert_eq!(id.len(), 11);
+        assert_eq!(id.len(), 8);
         assert!(id.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit()));
     }
 }

@@ -20,6 +20,7 @@ import {
   downloadRateLimitAtom,
   maxFileSizeAtom,
   appendUniqueIdAtom,
+  uniqueIdTypeAtom,
 } from "@/state/settings-atoms";
 import type { ReactNode } from "react";
 import type { VideoInfo } from "@/components/MediaTable";
@@ -238,6 +239,7 @@ describe("useDownloadManager", () => {
             downloadRateLimit: "1M",
             maxFileSize: "100M",
             appendUniqueId: true,
+            uniqueIdType: "native",
           }),
         );
       });
@@ -350,6 +352,7 @@ describe("useDownloadManager", () => {
           "/tmp/downloads",
           expect.objectContaining({
             appendUniqueId: true,
+            uniqueIdType: "native",
           }),
         );
       });
@@ -390,6 +393,48 @@ describe("useDownloadManager", () => {
           "/tmp/downloads",
           expect.objectContaining({
             appendUniqueId: false,
+          }),
+        );
+      });
+    });
+
+    it("passes uniqueIdType=hash when set", async () => {
+      const wrapper = createWrapper([
+        [downloadLocationAtom, "/tmp/downloads"],
+        [downloadModeAtom, "video"],
+        [videoQualityAtom, "best"],
+        [maxResolutionAtom, "no-limit"],
+        [videoFormatAtom, "best"],
+        [audioFormatAtom, "best"],
+        [audioQualityAtom, "0"],
+        [downloadRateLimitAtom, "unlimited"],
+        [maxFileSizeAtom, "unlimited"],
+        [appendUniqueIdAtom, true],
+        [uniqueIdTypeAtom, "hash"],
+      ]);
+
+      const mediaList = createMockMediaList([
+        { url: "https://example.com/video1", status: "Pending" },
+      ]);
+
+      const downloadMediaSpy = vi.spyOn(mockTauriApi.commands, "downloadMedia");
+
+      const { result } = renderHook(() => useDownloadManager(mediaList), {
+        wrapper,
+      });
+
+      await act(async () => {
+        await result.current.startDownload();
+      });
+
+      await waitFor(() => {
+        expect(downloadMediaSpy).toHaveBeenCalledWith(
+          0,
+          "https://example.com/video1",
+          "/tmp/downloads",
+          expect.objectContaining({
+            appendUniqueId: true,
+            uniqueIdType: "hash",
           }),
         );
       });

@@ -28,7 +28,8 @@ export interface DownloadSettings {
   audioQuality: "0" | "2" | "5" | "9";
   downloadRateLimit: string; // "unlimited" | "50K" | "100K" | "500K" | "1M" | "5M" | "10M"
   maxFileSize: string; // "unlimited" | "50M" | "100M" | "500M" | "1G" | "5G"
-  appendUniqueId: boolean; // Append short unique hash to filenames
+  appendUniqueId: boolean; // Append unique ID to filenames
+  uniqueIdType: "native" | "hash"; // "native" = yt-dlp's video ID, "hash" = FNV-1a hash
 }
 
 export interface DownloadMediaCommand {

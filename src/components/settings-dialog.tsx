@@ -39,6 +39,7 @@ import {
   maxFileSizeAtom,
   themeAtom,
   appendUniqueIdAtom,
+  uniqueIdTypeAtom,
   type Theme,
   type DownloadMode,
   type VideoQuality,
@@ -48,6 +49,7 @@ import {
   type AudioQuality,
   type DownloadRateLimit,
   type MaxFileSize,
+  type UniqueIdType,
 } from "@/state/settings-atoms";
 import { useTauriApi } from "@/lib/TauriApiContext";
 
@@ -79,6 +81,7 @@ export function SettingsDialog({
   );
   const [maxFileSize, setMaxFileSize] = useAtom(maxFileSizeAtom);
   const [appendUniqueId, setAppendUniqueId] = useAtom(appendUniqueIdAtom);
+  const [uniqueIdType, setUniqueIdType] = useAtom(uniqueIdTypeAtom);
 
   useEffect(() => {
     // Check if we're running on Wayland using the Rust backend
@@ -207,19 +210,62 @@ export function SettingsDialog({
           </div>
 
           {/* Append unique ID to filenames */}
-          <div className="flex items-center gap-x-2">
-            <Checkbox
-              checked={appendUniqueId}
-              onCheckedChange={(checked) => setAppendUniqueId(Boolean(checked))}
-              id="append-unique-id-checkbox"
-              data-testid="settings-append-unique-id"
-            />
-            <label htmlFor="append-unique-id-checkbox" className="text-sm">
-              Append unique ID to filenames
-              <span className="text-muted-foreground ml-1">
-                (prevents overwrites)
-              </span>
-            </label>
+          <div className="space-y-3">
+            <div className="flex items-center gap-x-2">
+              <Checkbox
+                checked={appendUniqueId}
+                onCheckedChange={(checked) =>
+                  setAppendUniqueId(Boolean(checked))
+                }
+                id="append-unique-id-checkbox"
+                data-testid="settings-append-unique-id"
+              />
+              <label htmlFor="append-unique-id-checkbox" className="text-sm">
+                Append unique ID to filenames
+                <span className="text-muted-foreground ml-1">
+                  (prevents overwrites)
+                </span>
+              </label>
+            </div>
+
+            {appendUniqueId && (
+              <>
+                <div className="grid grid-cols-4 items-center gap-4 ml-6">
+                  <Label
+                    htmlFor="unique-id-type"
+                    className="text-right text-sm"
+                  >
+                    ID Type
+                  </Label>
+                  <Select
+                    value={uniqueIdType}
+                    onValueChange={(value) =>
+                      setUniqueIdType(value as UniqueIdType)
+                    }
+                  >
+                    <SelectTrigger
+                      id="unique-id-type"
+                      className="col-span-3"
+                      data-testid="settings-unique-id-type"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="native">Native (video ID)</SelectItem>
+                      <SelectItem value="hash">Short Hash (8 chars)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="ml-6 text-xs text-muted-foreground">
+                  <span className="font-medium">Preview:</span>{" "}
+                  <code className="bg-muted px-1 py-0.5 rounded">
+                    My Video [
+                    {uniqueIdType === "native" ? "dQw4w9WgXcQ" : "k8df92a1"}
+                    ].mp4
+                  </code>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Max concurrent downloads */}

@@ -137,23 +137,23 @@
 
 ---
 
-## ✅ **COMPLETED: Unique ID Filename Toggle**
+## ✅ **COMPLETED: Unique ID Filename Toggle (v2)**
 
-**Feature**: Settings toggle to append short unique ID to downloaded filenames.
-- Format: `"some title [ekksothshrl].mp4"`
-- ID is idempotent (same video URL = same ID)
-- ID generation is fast (FNV-1a hash)
+**Feature**: Settings toggle to append unique ID to downloaded filenames with choice of ID type.
+- Format: `"My Video [dQw4w9WgXcQ].mp4"` (native) or `"My Video [k8df92a1].mp4"` (hash)
+- **Native ID**: Uses yt-dlp's `%(id)s` - truly idempotent per video (handles URL variations)
+- **Short Hash**: 8-char FNV-1a hash of URL - consistent format across all platforms
 
 ### Tasks (All Complete)
 
-- [x] Add `appendUniqueId` setting atom in `src/state/settings-atoms.ts`
-- [x] Add `append_unique_id` field to `DownloadSettings` in Rust
-- [x] Implement fast ID generation using FNV-1a hash in `downloader.rs`
-- [x] Conditionally modify output template based on setting
-- [x] Add toggle UI in `SettingsDialog.tsx`
+- [x] Add `appendUniqueId` + `uniqueIdType` atoms in `src/state/settings-atoms.ts`
+- [x] Add `append_unique_id` + `unique_id_type` fields to `DownloadSettings` in Rust
+- [x] Implement conditional output template (native vs hash mode)
+- [x] Shorten custom hash from 11 to 8 chars (still ~2.8 trillion unique values)
+- [x] Add toggle UI with type dropdown and filename preview
 - [x] Add Rust unit tests for ID generation (5 tests)
-- [x] Add TypeScript tests for the setting (2 tests)
-- [x] Verify lint/build/tests pass (131 TS tests, 26 Rust tests)
+- [x] Add TypeScript tests for settings (3 tests)
+- [x] Verify lint/build/tests pass (132 TS tests, 26 Rust tests)
 
 ---
 

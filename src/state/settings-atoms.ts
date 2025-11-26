@@ -95,8 +95,16 @@ export const maxFileSizeAtom = atomWithStorage<MaxFileSize>(
 export type Theme = "system" | "light" | "dark";
 export const themeAtom = atomWithStorage<Theme>("theme", "system");
 
-// Filename unique ID toggle (appends short hash to filenames for uniqueness)
+// Filename unique ID toggle (appends short ID to filenames for uniqueness)
 export const appendUniqueIdAtom = atomWithStorage<boolean>(
   "appendUniqueId",
   true,
+);
+
+// Unique ID type: "native" uses yt-dlp's video ID (truly idempotent per video),
+// "hash" uses a short FNV-1a hash of URL (consistent 8-char format)
+export type UniqueIdType = "native" | "hash";
+export const uniqueIdTypeAtom = atomWithStorage<UniqueIdType>(
+  "uniqueIdType",
+  "native",
 );
