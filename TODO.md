@@ -30,12 +30,14 @@
 ## ✅ **COMPLETED AREAS**
 
 ### Phase 0 – Baseline & Instrumentation
+
 - [x] Build & test health: 0 lint errors, builds pass
 - [x] Dev logging: `yt-dlp-stderr` events implemented
 - [x] E2E testing: Playwright setup with GitHub Actions (25+ tests)
 - [x] Vitest unit tests: 129 tests passing
 
 ### Core Infrastructure
+
 - [x] Documentation: `architecture.md`, `dev-setup.md`, `ipc-contracts.md`
 - [x] TypeScript strictness: Strict mode with `noUncheckedIndexedAccess`
 - [x] State management: Jotai atoms with localStorage persistence
@@ -45,17 +47,20 @@
 - [x] Error boundaries: `ErrorBoundary` component implemented
 
 ### Phase 1 – Progress & Thumbnails
+
 - [x] Progress parsing: Uses `_percent_str` with debouncing (100ms)
 - [x] Progress clamping: 0-100 range enforced
 - [x] Thumbnail extraction: Multi-field fallback strategy in `thumbnail.rs`
 - [x] Placeholder image: SVG placeholder for missing thumbnails
 
 ### Phase 2 – Filename Safety
+
 - [x] Output template: `%(title)s [%(id)s].%(ext)s`
 - [x] Windows safety: `--windows-filenames` flag
 - [x] No overwrites: `--no-overwrites` flag
 
 ### Phase 3 – Advanced Download Settings
+
 - [x] Settings atoms: All quality/format atoms implemented
 - [x] Rate limit atom: `downloadRateLimitAtom`
 - [x] File size atom: `maxFileSizeAtom`
@@ -63,6 +68,7 @@
 - [x] Rust validation: `validate_settings()` with comprehensive checks
 
 ### Phase 4 – Context Menu & Bulk Operations
+
 - [x] Context menu: `MediaListContextMenu` component
 - [x] Download all: Triggers batch download
 - [x] Cancel all: `cancel_all_downloads` command
@@ -71,6 +77,7 @@
 - [x] Show Debug Console: Opens `/debug` route
 
 ### Phase 5 – Debug Console
+
 - [x] Debug window: `/debug` route in `main.tsx`
 - [x] DebugConsole component: Log display with timestamps
 - [x] Log aggregation: `logEntriesAtom` in `app-atoms.ts`
@@ -78,6 +85,7 @@
 - [x] Log level detection: error/warn/info classification
 
 ### Phase 6 – Concurrency Control (Partial)
+
 - [x] Download queue: `DownloadQueue` struct in Rust (353 lines, 12 tests)
 - [x] Max concurrent setting: `maxConcurrentDownloadsAtom`
 - [x] Queue status API: `get_queue_status` command
@@ -88,10 +96,12 @@
 ## ❌ **REMAINING WORK**
 
 ### Phase 6 – Performance (Incomplete)
+
 - [ ] Virtual scrolling for large lists (100+ items)
 - [ ] Memoization optimizations in MediaTable
 
 ### Phase 7 – Testing & Quality
+
 - [x] React component tests for DebugConsole
 - [x] Tests for useMediaList hook (18 tests)
 - [x] Tests for useDownloadManager hook (9 tests)
@@ -101,12 +111,14 @@
 - [ ] Rust tests: verify all 30+ tests pass
 
 ### Phase 8 – Accessibility
+
 - [ ] ARIA labels on all interactive elements
 - [ ] Keyboard navigation for context menu
 - [ ] Focus management in dialogs
 - [ ] Screen reader testing
 
 ### Phase 9 – Production Readiness
+
 - [ ] Cross-platform build testing (Windows, macOS, Linux)
 - [ ] Release workflow automation
 - [ ] Auto-updater configuration (optional)
@@ -192,21 +204,25 @@
 ## 📋 **VERIFICATION CHECKLISTS**
 
 ### Critical Fixes Verification
+
 - [ ] Download with rate limit set - verify yt-dlp receives `--limit-rate`
 - [ ] Download with file size limit - verify yt-dlp receives `--max-filesize`
 - [ ] Player loads invalid URL - shows error message
 - [ ] Player loads slow URL - shows loading indicator
 
 ### Testing Verification
+
 - [x] `bun run test:run` - all 129 Vitest tests pass
 - [ ] `cargo test --manifest-path src-tauri/Cargo.toml` - all Rust tests pass
 - [ ] `bun run test:e2e` - all Playwright tests pass
 
 ### Performance Verification
+
 - [ ] Add 200 items to list - UI remains responsive
 - [ ] Scroll through 200 items - no jank
 
 ### Accessibility Verification
+
 - [ ] Navigate entire app with keyboard only
 - [ ] Test with Windows Narrator or NVDA
 

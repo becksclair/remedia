@@ -580,15 +580,21 @@ fn execute_download(
                         Ok(Some(line)) => {
                             // Attempt to parse progress from stderr too (yt-dlp often writes progress there)
                             let mut progress_emitted = false;
-                            if let Some(percent) = parse_progress_percent(&line) {
-                                if percent >= 100.0 || last_progress_emit.elapsed().as_millis() >= PROGRESS_DEBOUNCE_MS {
-                                    if let Err(e) = window.emit(EVT_DOWNLOAD_PROGRESS, (media_idx, percent)) {
-                                        eprintln!("Failed to emit download progress: {}", e);
-                                    }
-                                    last_progress_emit = std::time::Instant::now();
-                                    broadcast_remote_event(EVT_DOWNLOAD_PROGRESS, serde_json::json!([media_idx, percent]));
-                                    progress_emitted = true;
+                            if let Some(percent) = parse_progress_percent(&line)
+                                && (percent >= 100.0
+                                    || last_progress_emit.elapsed().as_millis() >= PROGRESS_DEBOUNCE_MS)
+                            {
+                                if let Err(e) =
+                                    window.emit(EVT_DOWNLOAD_PROGRESS, (media_idx, percent))
+                                {
+                                    eprintln!("Failed to emit download progress: {}", e);
                                 }
+                                last_progress_emit = std::time::Instant::now();
+                                broadcast_remote_event(
+                                    EVT_DOWNLOAD_PROGRESS,
+                                    serde_json::json!([media_idx, percent]),
+                                );
+                                progress_emitted = true;
                             }
 
                             // Filter stderr events to prevent flooding the frontend

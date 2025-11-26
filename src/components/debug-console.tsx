@@ -1,7 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import type { JSX } from "react";
-import { useAtomValue } from "jotai";
-import { logEntriesAtom } from "@/state/app-atoms";
+import { useAtomValue, useSetAtom } from "jotai";
+import { logEntriesAtom, addLogEntryAtom } from "@/state/app-atoms";
+import { useTauriEvents } from "@/hooks/useTauriEvent";
+import type { Event } from "@tauri-apps/api/event";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { formatTimestamp } from "@/utils/media-helpers";
@@ -14,6 +16,53 @@ import {
 
 export function DebugConsole() {
   const logEntries = useAtomValue(logEntriesAtom);
+  const addLogEntry = useSetAtom(addLogEntryAtom);
+
+  // Handle yt-dlp-stderr events to populate logs
+  const handleYtDlpStderr = useCallback(
+    (event: Event<[number, string]>): void => {
+      const [mediaIdx, message] = event.payload;
+
+      // Normalize case for log-level detection
+      const messageLower = message.toLowerCase();
+
+      // Determine log level
+      let level: "error" | "warn" | "info" = "info";
+      if (
+        message.startsWith("ERROR") ||
+        message.startsWith("Error") ||
+        message.startsWith("error")
+      ) {
+        level = "error";
+      } else if (
+        message.startsWith("WARNING") ||
+        message.startsWith("Warning") ||
+        message.startsWith("WARN") ||
+        message.startsWith("Warn") ||
+        message.startsWith("warn")
+      ) {
+        level = "warn";
+      } else if (/\b(error|err)\b/i.test(messageLower)) {
+        level = "error";
+      } else if (/\b(warn|warning)\b/i.test(messageLower)) {
+        level = "warn";
+      }
+
+      addLogEntry({
+        timestamp: Date.now(),
+        source: "yt-dlp",
+        level,
+        message,
+        mediaIdx,
+      });
+    },
+    [addLogEntry],
+  );
+
+  // Subscribe to Tauri events for logs
+  useTauriEvents({
+    "yt-dlp-stderr": handleYtDlpStderr,
+  });
   const [searchTerm, setSearchTerm] = useState("");
   const [currentMatchIndex, setCurrentMatchIndex] = useState(-1);
   const [matches, setMatches] = useState<number[]>([]);

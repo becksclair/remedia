@@ -68,7 +68,10 @@ describe("Download Flow Integration", () => {
     // Set up spies on mock commands
     getMediaInfoSpy = vi.spyOn(mockTauriApi.commands, "getMediaInfo");
     downloadMediaSpy = vi.spyOn(mockTauriApi.commands, "downloadMedia");
-    cancelAllDownloadsSpy = vi.spyOn(mockTauriApi.commands, "cancelAllDownloads");
+    cancelAllDownloadsSpy = vi.spyOn(
+      mockTauriApi.commands,
+      "cancelAllDownloads",
+    );
   });
 
   afterEach(() => {
@@ -115,7 +118,9 @@ describe("Download Flow Integration", () => {
         });
       });
 
-      expect(mediaListHook.result.current.mediaList[0]?.title).toBe("Test Video");
+      expect(mediaListHook.result.current.mediaList[0]?.title).toBe(
+        "Test Video",
+      );
 
       // Step 4: Start download
       // Re-render download manager with updated media list
@@ -175,7 +180,9 @@ describe("Download Flow Integration", () => {
 
       // Add URL and mark as Done
       act(() => {
-        mediaListHook.result.current.addMediaUrl("https://example.com/done.mp4");
+        mediaListHook.result.current.addMediaUrl(
+          "https://example.com/done.mp4",
+        );
         mediaListHook.result.current.updateMediaItem({
           url: "https://example.com/done.mp4",
           status: "Done",
@@ -185,7 +192,9 @@ describe("Download Flow Integration", () => {
 
       // Add another URL that's pending
       act(() => {
-        mediaListHook.result.current.addMediaUrl("https://example.com/pending.mp4");
+        mediaListHook.result.current.addMediaUrl(
+          "https://example.com/pending.mp4",
+        );
       });
 
       const downloadManagerHook = renderHook(
@@ -246,7 +255,9 @@ describe("Download Flow Integration", () => {
       });
 
       act(() => {
-        mediaListHook.result.current.addMediaUrl("https://example.com/audio.mp3");
+        mediaListHook.result.current.addMediaUrl(
+          "https://example.com/audio.mp3",
+        );
       });
 
       const downloadManagerHook = renderHook(
@@ -300,7 +311,9 @@ describe("Download Flow Integration", () => {
       const mediaListHook = renderHook(() => useMediaList(), { wrapper });
 
       act(() => {
-        mediaListHook.result.current.addMediaUrl("https://example.com/video.mp4");
+        mediaListHook.result.current.addMediaUrl(
+          "https://example.com/video.mp4",
+        );
       });
 
       const downloadManagerHook = renderHook(

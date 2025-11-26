@@ -342,10 +342,10 @@ pub fn start_remote_control_on(
 pub fn start_remote_control(app: AppHandle) {
     let app_for_emit = app.clone();
     let emitter: RemoteEmitter = Arc::new(move |event, payload| {
-        if let Some(win) = app_for_emit.get_webview_window("main") {
-            if let Err(e) = win.emit(event, payload.clone()) {
-                eprintln!("[remote] emit failed {event}: {e}");
-            }
+        if let Some(win) = app_for_emit.get_webview_window("main")
+            && let Err(e) = win.emit(event, payload.clone())
+        {
+            eprintln!("[remote] emit failed {event}: {e}");
         }
     });
 

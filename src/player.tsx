@@ -91,7 +91,9 @@ function Player() {
         {isLoading && !error && (
           <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-black/80">
             <Loader2 className="w-12 h-12 text-white animate-spin" />
-            <p className="text-white mt-4">Loading {isAudio ? "audio" : "media"}...</p>
+            <p className="text-white mt-4">
+              Loading {isAudio ? "audio" : "media"}...
+            </p>
           </div>
         )}
 
@@ -100,8 +102,12 @@ function Player() {
           <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-black/90 text-white gap-4 p-8">
             <AlertCircle className="w-12 h-12 text-red-500" />
             <p className="text-lg font-medium">Failed to load media</p>
-            <p className="text-sm text-gray-400 text-center max-w-md">{error}</p>
-            <p className="text-xs text-gray-500 text-center max-w-md break-all mt-2">URL: {src}</p>
+            <p className="text-sm text-gray-400 text-center max-w-md">
+              {error}
+            </p>
+            <p className="text-xs text-gray-500 text-center max-w-md break-all mt-2">
+              URL: {src}
+            </p>
             <Button onClick={handleRetry} variant="outline" className="mt-4">
               Try Again
             </Button>

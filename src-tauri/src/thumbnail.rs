@@ -21,53 +21,42 @@ pub fn resolve_thumbnail(v: &Value) -> Option<String> {
     }
 
     // Extractor-specific fallbacks
-    if thumbnail.is_none() {
-        if let Some(extractor) = v.get("extractor").and_then(|e| e.as_str()) {
-            if extractor == "RedGifs" {
-                // Prefer format-derived ID
-                let mut candidates: Vec<String> = Vec::new();
+    if thumbnail.is_none() && v.get("extractor").and_then(|e| e.as_str()) == Some("RedGifs") {
+        // Prefer format-derived ID
+        let mut candidates: Vec<String> = Vec::new();
 
-                if let Some(formats) = v.get("formats").and_then(|f| f.as_array()) {
-                    for format in formats {
-                        if let Some(url) = format.get("url").and_then(|u| u.as_str()) {
-                            if url.contains("redgifs.com") && url.ends_with(".mp4") {
-                                if let Some(filename) = url.split('/').last() {
-                                    let id_part = filename.trim_end_matches(".mp4").trim_end_matches("-mobile");
-                                    candidates.push(id_part.to_string());
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
-
-                if candidates.is_empty() {
-                    if let Some(id) = v.get("id").and_then(|i| i.as_str()) {
-                        candidates.push(id.to_string());
-                    }
-                }
-                if candidates.is_empty() {
-                    if let Some(display_id) = v.get("display_id").and_then(|i| i.as_str()) {
-                        candidates.push(display_id.to_string());
-                    }
-                }
-
-                for id in candidates {
-                    let id = id.trim();
-                    if id.is_empty() {
-                        continue;
-                    }
-                    let thumb_urls = [
-                        format!("https://thumbs2.redgifs.com/{}-mobile.jpg", id),
-                        format!("https://thumbs2.redgifs.com/{}.jpg", id),
-                        format!("https://thumbs4.redgifs.com/{}-mobile.jpg", id),
-                    ];
-                    if let Some(first) = thumb_urls.into_iter().next() {
-                        thumbnail = Some(first);
-                        break;
-                    }
+        if let Some(formats) = v.get("formats").and_then(|f| f.as_array()) {
+            for format in formats {
+                if let Some(url) = format.get("url").and_then(|u| u.as_str())
+                    && url.contains("redgifs.com")
+                    && url.ends_with(".mp4")
+                    && let Some(filename) = url.split('/').next_back()
+                {
+                    let id_part = filename.trim_end_matches(".mp4").trim_end_matches("-mobile");
+                    candidates.push(id_part.to_string());
+                    break;
                 }
             }
+        }
+
+        if candidates.is_empty()
+            && let Some(id) = v.get("id").and_then(|i| i.as_str())
+        {
+            candidates.push(id.to_string());
+        }
+        if candidates.is_empty()
+            && let Some(display_id) = v.get("display_id").and_then(|i| i.as_str())
+        {
+            candidates.push(display_id.to_string());
+        }
+
+        for id in candidates {
+            let id = id.trim();
+            if id.is_empty() {
+                continue;
+            }
+            thumbnail = Some(format!("https://thumbs2.redgifs.com/{}-mobile.jpg", id));
+            break;
         }
     }
 

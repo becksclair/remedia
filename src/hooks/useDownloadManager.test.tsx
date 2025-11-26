@@ -49,7 +49,9 @@ function HydrateAtoms({
 }
 
 // Create a mock media list for testing
-function createMockMediaList(items: Array<Partial<VideoInfo> & { url: string }>): VideoInfo[] {
+function createMockMediaList(
+  items: Array<Partial<VideoInfo> & { url: string }>,
+): VideoInfo[] {
   return items.map((item) => ({
     url: item.url,
     title: item.title || item.url,
@@ -274,7 +276,11 @@ describe("useDownloadManager", () => {
       ]);
 
       const mediaList = createMockMediaList([
-        { url: "https://example.com/video1", progress: 50, status: "Downloading" },
+        {
+          url: "https://example.com/video1",
+          progress: 50,
+          status: "Downloading",
+        },
         { url: "https://example.com/video2", progress: 100, status: "Done" },
       ]);
 
