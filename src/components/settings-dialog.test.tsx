@@ -56,11 +56,14 @@ describe("SettingsDialog", () => {
       expect(screen.getByLabelText(/theme/i)).toBeVisible();
     });
 
-    it("renders download mode selector", () => {
+    it("renders download mode selector", async () => {
+      const user = userEvent.setup();
       renderWithProviders(
         <SettingsDialog open={true} onOpenChange={() => {}} />,
       );
 
+      // Navigate to Downloads tab
+      await user.click(screen.getByRole("tab", { name: /downloads/i }));
       expect(screen.getByLabelText(/download mode/i)).toBeVisible();
     });
 
@@ -104,7 +107,8 @@ describe("SettingsDialog", () => {
   });
 
   describe("download mode", () => {
-    it("shows video settings when in video mode", () => {
+    it("shows video settings when in video mode", async () => {
+      const user = userEvent.setup();
       renderWithProviders(
         <SettingsDialog open={true} onOpenChange={() => {}} />,
         {
@@ -112,10 +116,13 @@ describe("SettingsDialog", () => {
         },
       );
 
+      // Navigate to Quality tab
+      await user.click(screen.getByRole("tab", { name: /quality/i }));
       expect(screen.getByText("Video Settings")).toBeVisible();
     });
 
     it("hides video settings when in audio mode", async () => {
+      const user = userEvent.setup();
       renderWithProviders(
         <SettingsDialog open={true} onOpenChange={() => {}} />,
         {
@@ -123,10 +130,13 @@ describe("SettingsDialog", () => {
         },
       );
 
+      // Navigate to Quality tab
+      await user.click(screen.getByRole("tab", { name: /quality/i }));
       expect(screen.queryByText("Video Settings")).not.toBeInTheDocument();
     });
 
-    it("always shows audio settings", () => {
+    it("always shows audio settings", async () => {
+      const user = userEvent.setup();
       renderWithProviders(
         <SettingsDialog open={true} onOpenChange={() => {}} />,
         {
@@ -134,6 +144,8 @@ describe("SettingsDialog", () => {
         },
       );
 
+      // Navigate to Quality tab
+      await user.click(screen.getByRole("tab", { name: /quality/i }));
       expect(screen.getByText("Audio Settings")).toBeVisible();
     });
   });
@@ -152,7 +164,8 @@ describe("SettingsDialog", () => {
   });
 
   describe("concurrent downloads", () => {
-    it("displays max concurrent downloads setting", () => {
+    it("displays max concurrent downloads setting", async () => {
+      const user = userEvent.setup();
       renderWithProviders(
         <SettingsDialog open={true} onOpenChange={() => {}} />,
         {
@@ -160,6 +173,8 @@ describe("SettingsDialog", () => {
         },
       );
 
+      // Navigate to Downloads tab
+      await user.click(screen.getByRole("tab", { name: /downloads/i }));
       // Find by text content since the label may not be directly associated
       expect(screen.getByText(/concurrent/i)).toBeVisible();
     });

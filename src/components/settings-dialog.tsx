@@ -1,6 +1,4 @@
-import { open as openDialog } from "@tauri-apps/plugin-dialog";
-import { useEffect, useState } from "react";
-import { AlertCircle } from "lucide-react";
+import { Settings, Download, Sliders } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -11,47 +9,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-import { useAtom } from "jotai";
-import {
-  alwaysOnTopAtom,
-  downloadLocationAtom,
-  downloadModeAtom,
-  videoQualityAtom,
-  maxResolutionAtom,
-  videoFormatAtom,
-  audioFormatAtom,
-  audioQualityAtom,
-  maxConcurrentDownloadsAtom,
-  downloadRateLimitAtom,
-  maxFileSizeAtom,
-  themeAtom,
-  appendUniqueIdAtom,
-  uniqueIdTypeAtom,
-  type Theme,
-  type DownloadMode,
-  type VideoQuality,
-  type MaxResolution,
-  type VideoFormat,
-  type AudioFormat,
-  type AudioQuality,
-  type DownloadRateLimit,
-  type MaxFileSize,
-  type UniqueIdType,
-} from "@/state/settings-atoms";
-import { useTauriApi } from "@/lib/TauriApiContext";
+import { GeneralTab, DownloadsTab, QualityTab } from "./settings";
 
 export function SettingsDialog({
   open,
@@ -60,69 +20,6 @@ export function SettingsDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const tauriApi = useTauriApi();
-  const [alwaysOnTop, setAlwaysOnTop] = useAtom(alwaysOnTopAtom);
-  const [isWayland, setIsWayland] = useState(false);
-  const [outputLocation, setOutputLocation] = useAtom(downloadLocationAtom);
-  const [theme, setTheme] = useAtom(themeAtom);
-
-  // Advanced settings (Phase 3.2)
-  const [downloadMode, setDownloadMode] = useAtom(downloadModeAtom);
-  const [videoQuality, setVideoQuality] = useAtom(videoQualityAtom);
-  const [maxResolution, setMaxResolution] = useAtom(maxResolutionAtom);
-  const [videoFormat, setVideoFormat] = useAtom(videoFormatAtom);
-  const [audioFormat, setAudioFormat] = useAtom(audioFormatAtom);
-  const [audioQuality, setAudioQuality] = useAtom(audioQualityAtom);
-  const [maxConcurrentDownloads, setMaxConcurrentDownloads] = useAtom(
-    maxConcurrentDownloadsAtom,
-  );
-  const [downloadRateLimit, setDownloadRateLimit] = useAtom(
-    downloadRateLimitAtom,
-  );
-  const [maxFileSize, setMaxFileSize] = useAtom(maxFileSizeAtom);
-  const [appendUniqueId, setAppendUniqueId] = useAtom(appendUniqueIdAtom);
-  const [uniqueIdType, setUniqueIdType] = useAtom(uniqueIdTypeAtom);
-
-  useEffect(() => {
-    // Check if we're running on Wayland using the Rust backend
-    tauriApi.commands
-      .isWayland()
-      .then((value) => {
-        setIsWayland(value);
-      })
-      .catch((err) => {
-        console.error("Failed to check Wayland status:", err);
-      });
-  }, [tauriApi.commands]);
-
-  const handleAlwaysOnTopChange = async (checked: unknown) => {
-    const boolValue = Boolean(checked);
-    setAlwaysOnTop(boolValue);
-    await tauriApi.commands.setAlwaysOnTop(boolValue);
-  };
-
-  const handleMaxConcurrentChange = async (value: string) => {
-    const numValue = Number.parseInt(value, 10);
-    setMaxConcurrentDownloads(numValue);
-    try {
-      await tauriApi.commands.setMaxConcurrentDownloads(numValue);
-    } catch (err) {
-      console.error("Failed to update max concurrent downloads:", err);
-    }
-  };
-
-  const chooseOutputLocation = async () => {
-    const directory = await openDialog({
-      defaultPath: outputLocation,
-      directory: true,
-      multiple: false,
-      title: "Choose location to save downloads",
-    });
-    if (directory && typeof directory === "string") {
-      setOutputLocation(directory);
-    }
-  };
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
@@ -133,398 +30,34 @@ export function SettingsDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-6 py-4">
-          {/* Theme settings */}
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="theme" className="text-right">
-              Theme
-            </Label>
-            <Select
-              value={theme}
-              onValueChange={(value) => setTheme(value as Theme)}
-            >
-              <SelectTrigger
-                id="theme"
-                className="col-span-3"
-                data-testid="settings-theme"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="system">System</SelectItem>
-                <SelectItem value="light">Light</SelectItem>
-                <SelectItem value="dark">Dark</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+        <Tabs defaultValue="general" className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="general" className="gap-2">
+              <Settings className="h-4 w-4" />
+              General
+            </TabsTrigger>
+            <TabsTrigger value="downloads" className="gap-2">
+              <Download className="h-4 w-4" />
+              Downloads
+            </TabsTrigger>
+            <TabsTrigger value="quality" className="gap-2">
+              <Sliders className="h-4 w-4" />
+              Quality
+            </TabsTrigger>
+          </TabsList>
 
-          <Separator />
+          <TabsContent value="general" className="pt-4">
+            <GeneralTab />
+          </TabsContent>
 
-          {/* Window settings */}
-          {isWayland ? (
-            <Alert variant="destructive" className="text-left">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>
-                "Stay on top" is not supported on Wayland yet.
-              </AlertTitle>
-              <AlertDescription>
-                Try X11 or watch for Tauri updates.
-              </AlertDescription>
-            </Alert>
-          ) : (
-            <div className="flex items-center gap-x-2">
-              <Checkbox
-                checked={alwaysOnTop}
-                onCheckedChange={handleAlwaysOnTopChange}
-                id="always-on-top-checkbox"
-                data-testid="settings-always-on-top"
-              />
-              <label htmlFor="always-on-top-checkbox">Stay on top</label>
-            </div>
-          )}
+          <TabsContent value="downloads" className="pt-4">
+            <DownloadsTab />
+          </TabsContent>
 
-          {/* Download location */}
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="download-location" className="text-right">
-              Download location
-            </Label>
-
-            <Input
-              type="text"
-              id="download-location"
-              data-testid="settings-download-location"
-              className="text-sm col-span-2"
-              placeholder="Download location..."
-              value={outputLocation}
-              onChange={(e) => setOutputLocation(e.target.value)}
-            />
-
-            <Button
-              type="button"
-              className="min-w-32"
-              onClick={chooseOutputLocation}
-              data-testid="settings-browse"
-            >
-              Browse...
-            </Button>
-          </div>
-
-          {/* Append unique ID to filenames */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-x-2">
-              <Checkbox
-                checked={appendUniqueId}
-                onCheckedChange={(checked) =>
-                  setAppendUniqueId(Boolean(checked))
-                }
-                id="append-unique-id-checkbox"
-                data-testid="settings-append-unique-id"
-              />
-              <label htmlFor="append-unique-id-checkbox" className="text-sm">
-                Append unique ID to filenames
-                <span className="text-muted-foreground ml-1">
-                  (prevents overwrites)
-                </span>
-              </label>
-            </div>
-
-            {appendUniqueId && (
-              <>
-                <div className="grid grid-cols-4 items-center gap-4 ml-6">
-                  <Label
-                    htmlFor="unique-id-type"
-                    className="text-right text-sm"
-                  >
-                    ID Type
-                  </Label>
-                  <Select
-                    value={uniqueIdType}
-                    onValueChange={(value) =>
-                      setUniqueIdType(value as UniqueIdType)
-                    }
-                  >
-                    <SelectTrigger
-                      id="unique-id-type"
-                      className="col-span-3"
-                      data-testid="settings-unique-id-type"
-                    >
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="native">Native (video ID)</SelectItem>
-                      <SelectItem value="hash">Short Hash (8 chars)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="ml-6 text-xs text-muted-foreground">
-                  <span className="font-medium">Preview:</span>{" "}
-                  <code className="bg-muted px-1 py-0.5 rounded">
-                    My Video [
-                    {uniqueIdType === "native" ? "dQw4w9WgXcQ" : "k8df92a1"}
-                    ].mp4
-                  </code>
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* Max concurrent downloads */}
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="max-concurrent" className="text-right">
-              Concurrent downloads
-            </Label>
-            <Select
-              value={maxConcurrentDownloads.toString()}
-              onValueChange={handleMaxConcurrentChange}
-            >
-              <SelectTrigger
-                id="max-concurrent"
-                className="col-span-3"
-                data-testid="settings-max-concurrent"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="1">1 (Sequential)</SelectItem>
-                <SelectItem value="2">2</SelectItem>
-                <SelectItem value="3">3 (Default)</SelectItem>
-                <SelectItem value="4">4</SelectItem>
-                <SelectItem value="5">5</SelectItem>
-                <SelectItem value="6">6</SelectItem>
-                <SelectItem value="8">8</SelectItem>
-                <SelectItem value="10">10</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Download Rate Limit */}
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="download-rate-limit" className="text-right">
-              Rate Limit
-            </Label>
-            <Select
-              value={downloadRateLimit}
-              onValueChange={(value) =>
-                setDownloadRateLimit(value as DownloadRateLimit)
-              }
-            >
-              <SelectTrigger
-                id="download-rate-limit"
-                className="col-span-3"
-                data-testid="settings-rate-limit"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="unlimited">Unlimited</SelectItem>
-                <SelectItem value="50K">50 KB/s</SelectItem>
-                <SelectItem value="100K">100 KB/s</SelectItem>
-                <SelectItem value="500K">500 KB/s</SelectItem>
-                <SelectItem value="1M">1 MB/s</SelectItem>
-                <SelectItem value="5M">5 MB/s</SelectItem>
-                <SelectItem value="10M">10 MB/s</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Max File Size */}
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="max-file-size" className="text-right">
-              Max File Size
-            </Label>
-            <Select
-              value={maxFileSize}
-              onValueChange={(value) => setMaxFileSize(value as MaxFileSize)}
-            >
-              <SelectTrigger
-                id="max-file-size"
-                className="col-span-3"
-                data-testid="settings-max-file-size"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="unlimited">Unlimited</SelectItem>
-                <SelectItem value="50M">50 MB</SelectItem>
-                <SelectItem value="100M">100 MB</SelectItem>
-                <SelectItem value="500M">500 MB</SelectItem>
-                <SelectItem value="1G">1 GB</SelectItem>
-                <SelectItem value="5G">5 GB</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <Separator />
-
-          {/* Download mode */}
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="download-mode" className="text-right">
-              Download mode
-            </Label>
-            <Select
-              value={downloadMode}
-              onValueChange={(value) => setDownloadMode(value as DownloadMode)}
-            >
-              <SelectTrigger
-                id="download-mode"
-                className="col-span-3"
-                data-testid="settings-download-mode"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="video">Video (with audio)</SelectItem>
-                <SelectItem value="audio">Audio only</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Video settings (only show when video mode) */}
-          {downloadMode === "video" && (
-            <>
-              <Separator />
-              <div className="space-y-4">
-                <h3 className="text-sm font-medium">Video Settings</h3>
-
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="video-quality" className="text-right">
-                    Quality
-                  </Label>
-                  <Select
-                    value={videoQuality}
-                    onValueChange={(value) =>
-                      setVideoQuality(value as VideoQuality)
-                    }
-                  >
-                    <SelectTrigger
-                      id="video-quality"
-                      className="col-span-3"
-                      data-testid="settings-video-quality"
-                    >
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="best">Best</SelectItem>
-                      <SelectItem value="high">High</SelectItem>
-                      <SelectItem value="medium">Medium</SelectItem>
-                      <SelectItem value="low">Low</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="max-resolution" className="text-right">
-                    Max resolution
-                  </Label>
-                  <Select
-                    value={maxResolution}
-                    onValueChange={(value) =>
-                      setMaxResolution(value as MaxResolution)
-                    }
-                  >
-                    <SelectTrigger
-                      id="max-resolution"
-                      className="col-span-3"
-                      data-testid="settings-max-resolution"
-                    >
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="no-limit">No limit</SelectItem>
-                      <SelectItem value="2160p">2160p (4K)</SelectItem>
-                      <SelectItem value="1440p">1440p (2K)</SelectItem>
-                      <SelectItem value="1080p">1080p (Full HD)</SelectItem>
-                      <SelectItem value="720p">720p (HD)</SelectItem>
-                      <SelectItem value="480p">480p (SD)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="video-format" className="text-right">
-                    Format
-                  </Label>
-                  <Select
-                    value={videoFormat}
-                    onValueChange={(value) =>
-                      setVideoFormat(value as VideoFormat)
-                    }
-                  >
-                    <SelectTrigger
-                      id="video-format"
-                      className="col-span-3"
-                      data-testid="settings-video-format"
-                    >
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="best">Best available</SelectItem>
-                      <SelectItem value="mp4">MP4</SelectItem>
-                      <SelectItem value="mkv">MKV</SelectItem>
-                      <SelectItem value="webm">WebM</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* Audio settings (show for both modes) */}
-          <Separator />
-          <div className="space-y-4">
-            <h3 className="text-sm font-medium">Audio Settings</h3>
-
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="audio-format" className="text-right">
-                Format
-              </Label>
-              <Select
-                value={audioFormat}
-                onValueChange={(value) => setAudioFormat(value as AudioFormat)}
-              >
-                <SelectTrigger
-                  id="audio-format"
-                  className="col-span-3"
-                  data-testid="settings-audio-format"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="best">Best available</SelectItem>
-                  <SelectItem value="mp3">MP3</SelectItem>
-                  <SelectItem value="m4a">M4A</SelectItem>
-                  <SelectItem value="opus">Opus</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="audio-quality" className="text-right">
-                Quality
-              </Label>
-              <Select
-                value={audioQuality}
-                onValueChange={(value) =>
-                  setAudioQuality(value as AudioQuality)
-                }
-              >
-                <SelectTrigger
-                  id="audio-quality"
-                  className="col-span-3"
-                  data-testid="settings-audio-quality"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="0">Best (320 kbps)</SelectItem>
-                  <SelectItem value="2">High (256 kbps)</SelectItem>
-                  <SelectItem value="5">Medium (192 kbps)</SelectItem>
-                  <SelectItem value="9">Low (128 kbps)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </div>
+          <TabsContent value="quality" className="pt-4">
+            <QualityTab />
+          </TabsContent>
+        </Tabs>
 
         <DialogFooter>
           <Button
