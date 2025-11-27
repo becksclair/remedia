@@ -5,7 +5,7 @@
  * Now uses extracted components and hooks for better maintainability.
  */
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import type { JSX } from "react";
 import type { Event } from "@tauri-apps/api/event";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
@@ -30,13 +30,8 @@ import { downloadLocationAtom } from "@/state/settings-atoms";
 import { tableRowSelectionAtom, addLogEntryAtom } from "@/state/app-atoms";
 
 // Utils
+import { isValidUrl, clampProgress, getSelectedIndices } from "@/utils/media-helpers";
 import {
-  isValidUrl,
-  clampProgress,
-  getSelectedIndices,
-} from "@/utils/media-helpers";
-import {
-  DRAG_HOVER_DEBOUNCE_MS,
   DEBUG_CONSOLE_WIDTH,
   DEBUG_CONSOLE_HEIGHT,
   PREVIEW_WINDOW_WIDTH,
@@ -60,17 +55,6 @@ declare global {
 }
 
 /**
- * Debounce helper function
- */
-function debounce(callback: () => void, delay: number): () => void {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  return () => {
-    if (timer !== undefined) clearTimeout(timer);
-    timer = setTimeout(callback, delay);
-  };
-}
-
-/**
  * Main App Component
  */
 function App(): JSX.Element {
@@ -78,6 +62,11 @@ function App(): JSX.Element {
 
   // Apply theme
   useTheme();
+
+  // Ref to track when a drop occurred (skip clipboard on focus after drop)
+  const lastDropTimeRef = useRef<number>(0);
+  // Counter for drag enter/leave to prevent flashing on child elements
+  const dragCounterRef = useRef<number>(0);
 
   // Local state
   const harnessEnabled = useMemo(() => {
@@ -110,12 +99,8 @@ function App(): JSX.Element {
     removeItemsAtIndices,
   } = useMediaList();
 
-  const {
-    globalProgress,
-    globalDownloading,
-    startDownload,
-    cancelAllDownloads,
-  } = useDownloadManager(mediaList);
+  const { globalProgress, globalDownloading, startDownload, cancelAllDownloads } =
+    useDownloadManager(mediaList);
 
   /**
    * Request notification permissions
@@ -164,8 +149,7 @@ function App(): JSX.Element {
   useEffect(() => {
     if (
       typeof window !== "undefined" &&
-      (process.env.NODE_ENV === "test" ||
-        process.env.NODE_ENV === "development")
+      (process.env.NODE_ENV === "test" || process.env.NODE_ENV === "development")
     ) {
       window.__E2E_addUrl = (url: string) => {
         if (isValidUrl(url)) addMediaUrl(url);
@@ -174,9 +158,16 @@ function App(): JSX.Element {
   }, [addMediaUrl]);
 
   /**
-   * Check clipboard for URLs on window focus
+   * Check clipboard for URLs on window focus.
+   * Skip if a drop just occurred (within 500ms) to avoid adding clipboard URL on drag-drop.
    */
   const handleWindowFocus = () => {
+    const timeSinceLastDrop = Date.now() - lastDropTimeRef.current;
+    if (timeSinceLastDrop < 500) {
+      console.log("Skipping clipboard check - drop just occurred");
+      return;
+    }
+
     void (async () => {
       try {
         const text = await tauriApi.clipboard.readText();
@@ -195,17 +186,29 @@ function App(): JSX.Element {
   /**
    * Handle drag and drop
    */
+  const handleDragEnter = (event: React.DragEvent<HTMLDivElement>): void => {
+    event.preventDefault();
+    dragCounterRef.current++;
+    if (dragCounterRef.current === 1) {
+      setDragHovering(true);
+    }
+  };
+
   const handleDragOver = (event: React.DragEvent<HTMLDivElement>): void => {
     event.preventDefault();
-    setDragHovering(true);
   };
 
   const handleDragLeave = (event: React.DragEvent<HTMLDivElement>): void => {
     event.preventDefault();
-    debounce(() => setDragHovering(false), DRAG_HOVER_DEBOUNCE_MS)();
+    dragCounterRef.current--;
+    if (dragCounterRef.current === 0) {
+      setDragHovering(false);
+    }
   };
 
   const dropHandler = (input: string): void => {
+    lastDropTimeRef.current = Date.now();
+    dragCounterRef.current = 0;
     setDragHovering(false);
     if (isValidUrl(input)) {
       addMediaUrl(input);
@@ -235,9 +238,7 @@ function App(): JSX.Element {
           url: `/player?url=${encodeURIComponent(selectedItem.url)}`,
           width: PREVIEW_WINDOW_WIDTH,
           height: PREVIEW_WINDOW_HEIGHT,
-          title: selectedItem.title
-            ? `Preview: ${selectedItem.title}`
-            : "ReMedia Preview",
+          title: selectedItem.title ? `Preview: ${selectedItem.title}` : "ReMedia Preview",
         });
 
         void win.once("tauri://error", (error: unknown) => {
@@ -275,8 +276,7 @@ function App(): JSX.Element {
 
     const urls = mediaList.map((item) => item.url).join("\n");
     const canUseBrowserClipboard =
-      typeof navigator !== "undefined" &&
-      typeof navigator.clipboard?.writeText === "function";
+      typeof navigator !== "undefined" && typeof navigator.clipboard?.writeText === "function";
 
     if (canUseBrowserClipboard) {
       try {
@@ -329,15 +329,12 @@ function App(): JSX.Element {
 
   const handleShowDebugConsole = async (): Promise<void> => {
     try {
-      const debugWindow: WebviewWindow = tauriApi.window.createWindow(
-        "debug-console",
-        {
-          url: "/debug",
-          width: DEBUG_CONSOLE_WIDTH,
-          height: DEBUG_CONSOLE_HEIGHT,
-          title: "ReMedia Debug Console",
-        },
-      );
+      const debugWindow: WebviewWindow = tauriApi.window.createWindow("debug-console", {
+        url: "/debug",
+        width: DEBUG_CONSOLE_WIDTH,
+        height: DEBUG_CONSOLE_HEIGHT,
+        title: "ReMedia Debug Console",
+      });
 
       void debugWindow.once("tauri://created", () => {
         console.log("Debug console window created");
@@ -432,11 +429,7 @@ function App(): JSX.Element {
     let level: "error" | "warn" | "info" = "info";
 
     // Check canonical log prefixes first (most reliable)
-    if (
-      message.startsWith("ERROR") ||
-      message.startsWith("Error") ||
-      message.startsWith("error")
-    ) {
+    if (message.startsWith("ERROR") || message.startsWith("Error") || message.startsWith("error")) {
       level = "error";
     } else if (
       message.startsWith("WARNING") ||
@@ -490,6 +483,7 @@ function App(): JSX.Element {
   return (
     <main
       className="container"
+      onDragEnter={handleDragEnter}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
     >

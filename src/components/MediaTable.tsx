@@ -39,9 +39,7 @@ interface MediaTableProps {
 /**
  * Creates table column definitions for the media list
  */
-function createMediaColumns(
-  onRemoveItem: (title: string) => void,
-): ColumnDef<VideoInfo>[] {
+function createMediaColumns(onRemoveItem: (title: string) => void): ColumnDef<VideoInfo>[] {
   return [
     {
       cell: ({ row }) => (
@@ -71,9 +69,7 @@ function createMediaColumns(
       accessorKey: "thumbnail",
       cell: ({ row }) => {
         const thumbnail = row.getValue("thumbnail");
-        const thumbnailSrc = thumbnail
-          ? (thumbnail as string)
-          : thumbnailPlaceholder;
+        const thumbnailSrc = thumbnail ? (thumbnail as string) : thumbnailPlaceholder;
 
         return (
           <img
@@ -99,11 +95,13 @@ function createMediaColumns(
       cell: ({ row }) => (
         <div
           data-testid={`row-${row.id}-title`}
-          className="text-left w-full whitespace-pre-line text-wrap overflow-hidden text-ellipsis"
+          className="text-left truncate"
+          title={row.getValue("title")}
         >
           {row.getValue("title")}
         </div>
       ),
+      size: 300,
     },
     {
       accessorKey: "audioOnly",
@@ -121,12 +119,7 @@ function createMediaColumns(
     {
       accessorKey: "progress",
       cell: ({ row }) => {
-        return (
-          <Progress
-            data-testid={`row-${row.id}-progress`}
-            value={row.getValue("progress")}
-          />
-        );
+        return <Progress data-testid={`row-${row.id}-progress`} value={row.getValue("progress")} />;
       },
       header: () => <div className="text-center">Progress</div>,
     },
@@ -134,10 +127,7 @@ function createMediaColumns(
       accessorKey: "status",
       header: () => <div className="text-right">Status</div>,
       cell: ({ row }) => (
-        <div
-          data-testid={`row-${row.id}-status`}
-          className="text-right capitalize"
-        >
+        <div data-testid={`row-${row.id}-status`} className="text-right capitalize">
           {row.getValue("status")}
         </div>
       ),
@@ -147,11 +137,7 @@ function createMediaColumns(
         return (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                className="h-8 w-8 p-0"
-                data-testid={`row-${row.id}-menu`}
-              >
+              <Button variant="ghost" className="h-8 w-8 p-0" data-testid={`row-${row.id}-menu`}>
                 <span className="sr-only">Open menu</span>
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
@@ -160,9 +146,7 @@ function createMediaColumns(
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
               <DropdownMenuItem
                 data-testid={`row-${row.id}-copy-url`}
-                onClick={() =>
-                  navigator.clipboard.writeText(row.getValue("url"))
-                }
+                onClick={() => navigator.clipboard.writeText(row.getValue("url"))}
               >
                 Copy URL
               </DropdownMenuItem>
@@ -184,11 +168,7 @@ function createMediaColumns(
 /**
  * Media Table Component
  */
-export function MediaTable({
-  mediaList,
-  onRemoveItem,
-  className,
-}: MediaTableProps) {
+export function MediaTable({ mediaList, onRemoveItem, className }: MediaTableProps) {
   const columns = createMediaColumns(onRemoveItem);
 
   return <DataTable className={className} columns={columns} data={mediaList} />;
