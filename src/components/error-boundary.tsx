@@ -90,15 +90,11 @@ export class ErrorBoundary extends Component<Props, State> {
           <div className="max-w-2xl w-full space-y-6">
             {/* Error Icon and Title */}
             <div className="flex items-center gap-4">
-              <AlertCircle
-                className="h-12 w-12 text-destructive"
-                aria-hidden="true"
-              />
+              <AlertCircle className="h-12 w-12 text-destructive" aria-hidden="true" />
               <div>
                 <h1 className="text-2xl font-bold">Something went wrong</h1>
                 <p className="text-muted-foreground">
-                  An unexpected error occurred. You can try to recover or reload
-                  the application.
+                  An unexpected error occurred. You can try to recover or reload the application.
                 </p>
               </div>
             </div>
@@ -106,9 +102,7 @@ export class ErrorBoundary extends Component<Props, State> {
             {/* Error Details (Development) */}
             {process.env.NODE_ENV === "development" && this.state.error && (
               <details className="bg-muted p-4 rounded-lg overflow-auto max-h-64">
-                <summary className="cursor-pointer font-medium mb-2">
-                  Error Details
-                </summary>
+                <summary className="cursor-pointer font-medium mb-2">Error Details</summary>
                 <div className="space-y-2 text-sm font-mono">
                   <div>
                     <strong>Error:</strong> {this.state.error.toString()}
@@ -134,11 +128,7 @@ export class ErrorBoundary extends Component<Props, State> {
               >
                 Try Again
               </Button>
-              <Button
-                onClick={this.handleReload}
-                variant="outline"
-                aria-label="Reload application"
-              >
+              <Button onClick={this.handleReload} variant="outline" aria-label="Reload application">
                 Reload App
               </Button>
             </div>

@@ -1,10 +1,5 @@
 import { useRef } from "react";
-import {
-  type ColumnDef,
-  flexRender,
-  getCoreRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import { type ColumnDef, flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
@@ -72,10 +67,7 @@ export function DataTable<TData, TValue>({
                 >
                   {header.isPlaceholder
                     ? null
-                    : flexRender(
-                        header.column.columnDef.header,
-                        header.getContext(),
-                      )}
+                    : flexRender(header.column.columnDef.header, header.getContext())}
                 </div>
               );
             })}
@@ -120,6 +112,12 @@ export function DataTable<TData, TValue>({
                         data-testid={`row-${row.id}`}
                         data-state={row.getIsSelected() && "selected"}
                         data-index={virtualRow.index}
+                        onContextMenu={() => {
+                          // Right-click should target the row under the cursor so selection-aware actions enable
+                          if (!row.getIsSelected()) {
+                            setRowSelection({ [row.id]: true });
+                          }
+                        }}
                         style={{
                           height: `${virtualRow.size}px`,
                           transform: `translateY(${virtualRow.start}px)`,
@@ -131,16 +129,9 @@ export function DataTable<TData, TValue>({
                             <TableCell
                               key={cell.id}
                               className={`flex items-center px-2 ${isFlexColumn ? "flex-1 min-w-0" : "shrink-0"}`}
-                              style={
-                                isFlexColumn
-                                  ? undefined
-                                  : { width: cell.column.getSize() }
-                              }
+                              style={isFlexColumn ? undefined : { width: cell.column.getSize() }}
                             >
-                              {flexRender(
-                                cell.column.columnDef.cell,
-                                cell.getContext(),
-                              )}
+                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
                             </TableCell>
                           );
                         })}

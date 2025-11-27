@@ -19,10 +19,7 @@ import {
   appendUniqueIdAtom,
   uniqueIdTypeAtom,
 } from "@/state/settings-atoms";
-import {
-  calculateGlobalProgress,
-  hasActiveDownloads,
-} from "@/utils/media-helpers";
+import { calculateGlobalProgress, hasActiveDownloads } from "@/utils/media-helpers";
 import type { DownloadSettings } from "@/types";
 import { useTauriApi } from "@/lib/TauriApiContext";
 import type { VideoInfo } from "@/components/MediaTable";
@@ -97,9 +94,7 @@ export function useDownloadManager(mediaList: VideoInfo[]) {
             await new Promise((r) => setTimeout(r, retryDelayMs));
             return kickOff(attempt + 1);
           }
-          console.warn(
-            "startDownload: no pending items after retries, giving up",
-          );
+          console.warn("startDownload: no pending items after retries, giving up");
           setGlobalDownloading(false);
           inFlightRef.current = false;
           return;
@@ -107,12 +102,7 @@ export function useDownloadManager(mediaList: VideoInfo[]) {
 
         await Promise.all(
           pending.map(({ media, idx }) =>
-            tauriApi.commands.downloadMedia(
-              idx,
-              media.url,
-              resolvedOutput,
-              settings,
-            ),
+            tauriApi.commands.downloadMedia(idx, media.url, resolvedOutput, settings),
           ),
         );
       };

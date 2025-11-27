@@ -1,10 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import {
-  renderWithProviders,
-  screen,
-  userEvent,
-  waitForAsync,
-} from "@/test/test-utils";
+import { renderWithProviders, screen, userEvent, waitForAsync } from "@/test/test-utils";
 import { DebugConsole } from "./debug-console";
 import { logEntriesAtom } from "@/state/app-atoms";
 import type { LogEntry } from "@/utils/log-helpers";
@@ -38,9 +33,7 @@ describe("DebugConsole", () => {
       renderWithProviders(<DebugConsole />);
 
       expect(screen.getByPlaceholderText(/search logs/i)).toBeInTheDocument();
-      expect(
-        screen.getByRole("button", { name: /find next/i }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /find next/i })).toBeInTheDocument();
     });
 
     it("has disabled Find Next button when no matches", () => {
@@ -147,10 +140,7 @@ describe("DebugConsole", () => {
 
     it("enables Find Next button when search has matches", async () => {
       const user = userEvent.setup();
-      const logs = [
-        createLogEntry("error occurred"),
-        createLogEntry("normal message"),
-      ];
+      const logs = [createLogEntry("error occurred"), createLogEntry("normal message")];
 
       renderWithProviders(<DebugConsole />, {
         initialAtomValues: [[logEntriesAtom, logs]],
@@ -165,9 +155,7 @@ describe("DebugConsole", () => {
       expect(findNextButton).not.toBeDisabled();
       await user.click(findNextButton);
       await waitForAsync(50);
-      expect(
-        screen.getByRole("button", { name: /find next \(1\/1\)/i }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /find next \(1\/1\)/i })).toBeInTheDocument();
     });
 
     it("shows match count in Find Next button", async () => {
@@ -189,17 +177,12 @@ describe("DebugConsole", () => {
       const findNextButton = screen.getByRole("button", { name: /find next/i });
       await user.click(findNextButton);
       await waitForAsync(50);
-      expect(
-        screen.getByRole("button", { name: /find next \(1\/2\)/i }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /find next \(1\/2\)/i })).toBeInTheDocument();
     });
 
     it("performs case-insensitive search", async () => {
       const user = userEvent.setup();
-      const logs = [
-        createLogEntry("ERROR message"),
-        createLogEntry("error message"),
-      ];
+      const logs = [createLogEntry("ERROR message"), createLogEntry("error message")];
 
       renderWithProviders(<DebugConsole />, {
         initialAtomValues: [[logEntriesAtom, logs]],
@@ -212,9 +195,7 @@ describe("DebugConsole", () => {
       const findNextButton = screen.getByRole("button", { name: /find next/i });
       await user.click(findNextButton);
       await waitForAsync(50);
-      expect(
-        screen.getByRole("button", { name: /find next \(1\/2\)/i }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /find next \(1\/2\)/i })).toBeInTheDocument();
     });
 
     it("resets match index when search term changes", async () => {
@@ -237,9 +218,7 @@ describe("DebugConsole", () => {
       const findNextButton = screen.getByRole("button", { name: /find next/i });
       await user.click(findNextButton);
       await waitForAsync(50);
-      expect(
-        screen.getByRole("button", { name: /find next \(1\/2\)/i }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /find next \(1\/2\)/i })).toBeInTheDocument();
 
       // Clear and search for "warning" - should reset to 1/1
       await user.clear(searchInput);
@@ -247,9 +226,7 @@ describe("DebugConsole", () => {
       await waitForAsync(100);
       await user.click(findNextButton);
       await waitForAsync(50);
-      expect(
-        screen.getByRole("button", { name: /find next \(1\/1\)/i }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /find next \(1\/1\)/i })).toBeInTheDocument();
     });
   });
 
@@ -273,30 +250,22 @@ describe("DebugConsole", () => {
       const findNextButton = screen.getByRole("button", { name: /find next/i });
       await user.click(findNextButton);
       await waitForAsync(50);
-      expect(
-        screen.getByRole("button", { name: /find next \(1\/3\)/i }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /find next \(1\/3\)/i })).toBeInTheDocument();
 
       // Click to go to match 2
       await user.click(findNextButton);
       await waitForAsync(50);
-      expect(
-        screen.getByRole("button", { name: /find next \(2\/3\)/i }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /find next \(2\/3\)/i })).toBeInTheDocument();
 
       // Click to go to match 3
       await user.click(findNextButton);
       await waitForAsync(50);
-      expect(
-        screen.getByRole("button", { name: /find next \(3\/3\)/i }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /find next \(3\/3\)/i })).toBeInTheDocument();
 
       // Click to wrap around to match 1
       await user.click(findNextButton);
       await waitForAsync(50);
-      expect(
-        screen.getByRole("button", { name: /find next \(1\/3\)/i }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /find next \(1\/3\)/i })).toBeInTheDocument();
     });
 
     it("does nothing when clicking Find Next with no matches", async () => {

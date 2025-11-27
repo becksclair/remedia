@@ -92,24 +92,21 @@ export function useMediaList() {
   /**
    * Update media item by index
    */
-  const updateMediaItemByIndex = useCallback(
-    (index: number, updates: Partial<VideoInfo>): void => {
-      setMediaList((prev) => {
-        if (index < 0 || index >= prev.length) return prev;
-        const next = [...prev];
-        const existing = next[index];
-        if (!existing) return prev;
-        next[index] = {
-          ...existing,
-          ...updates,
-          title: updates.title ?? existing.title,
-          url: existing.url,
-        };
-        return next;
-      });
-    },
-    [],
-  );
+  const updateMediaItemByIndex = useCallback((index: number, updates: Partial<VideoInfo>): void => {
+    setMediaList((prev) => {
+      if (index < 0 || index >= prev.length) return prev;
+      const next = [...prev];
+      const existing = next[index];
+      if (!existing) return prev;
+      next[index] = {
+        ...existing,
+        ...updates,
+        title: updates.title ?? existing.title,
+        url: existing.url,
+      };
+      return next;
+    });
+  }, []);
 
   /**
    * Remove an item by title
@@ -129,9 +126,7 @@ export function useMediaList() {
    * Remove items at specific indices
    */
   const removeItemsAtIndices = useCallback((indices: Set<number>) => {
-    setMediaList((prevList) =>
-      prevList.filter((_, index) => !indices.has(index)),
-    );
+    setMediaList((prevList) => prevList.filter((_, index) => !indices.has(index)));
   }, []);
 
   return {

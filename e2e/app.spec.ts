@@ -33,9 +33,7 @@ test.describe("ReMedia app", () => {
     await page.evaluate((url) => window.__E2E_addUrl?.(url), url);
 
     // After adding, the table should show the URL as title initially
-    await expect(
-      page.getByRole("cell", { name: "daybreak.mp4" }),
-    ).toBeVisible();
+    await expect(page.getByRole("cell", { name: "daybreak.mp4" })).toBeVisible();
   });
 
   test("receives media info and progress events", async ({ page }) => {
@@ -62,9 +60,7 @@ test.describe("ReMedia app", () => {
   test("settings persistence via Jotai storage", async ({ page }) => {
     await page.goto("/");
     await page.getByRole("button", { name: "Settings" }).click();
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true }),
-    ).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible();
 
     const input = page.locator("#download-location");
     await input.fill("/tmp/remedia-tests");
@@ -73,20 +69,14 @@ test.describe("ReMedia app", () => {
     // Reload and ensure value persisted
     await page.reload();
     await page.getByRole("button", { name: "Settings" }).click();
-    await expect(page.locator("#download-location")).toHaveValue(
-      "/tmp/remedia-tests",
-    );
+    await expect(page.locator("#download-location")).toHaveValue("/tmp/remedia-tests");
   });
 
-  test("opens player window route for selected item (Tauri only)", async ({
-    page,
-    context,
-  }) => {
+  test("opens player window route for selected item (Tauri only)", async ({ page, context }) => {
     await page.goto("/");
 
     const isTauri = await page.evaluate(() => Boolean(window.__TAURI__));
-    if (!isTauri)
-      test.skip(true, "Skipping multi-window test outside Tauri runtime");
+    if (!isTauri) test.skip(true, "Skipping multi-window test outside Tauri runtime");
 
     const url = new URL("/daybreak.mp4", page.url()).toString();
     await page.evaluate((url) => window.__E2E_addUrl?.(url), url);
@@ -114,20 +104,14 @@ test.describe("ReMedia app", () => {
     await page.reload();
     await page.getByRole("button", { name: "Settings" }).click();
     if (initiallyChecked) {
-      await expect(
-        page.getByRole("checkbox", { name: "Stay on top" }),
-      ).not.toBeChecked();
+      await expect(page.getByRole("checkbox", { name: "Stay on top" })).not.toBeChecked();
     } else {
-      await expect(
-        page.getByRole("checkbox", { name: "Stay on top" }),
-      ).toBeChecked();
+      await expect(page.getByRole("checkbox", { name: "Stay on top" })).toBeChecked();
     }
   });
 
   // Phase 1 Tests: Progress & Thumbnails
-  test("shows thumbnail placeholder when no thumbnail provided", async ({
-    page,
-  }) => {
+  test("shows thumbnail placeholder when no thumbnail provided", async ({ page }) => {
     await page.goto("/");
 
     const url = "https://example.com/video";
@@ -202,13 +186,7 @@ test.describe("ReMedia app", () => {
     },
   ] as const;
 
-  for (const {
-    name,
-    tab,
-    selector,
-    optionName,
-    expectedText,
-  } of settingsPersistenceTests) {
+  for (const { name, tab, selector, optionName, expectedText } of settingsPersistenceTests) {
     test(`${name} setting persists`, async ({ page }) => {
       await page.goto("/");
       await page.getByRole("button", { name: "Settings" }).click();
@@ -245,10 +223,7 @@ test.describe("ReMedia app", () => {
     await expect(page.getByText("Audio Settings")).toBeVisible();
   });
 
-  test("completion events update status correctly", async ({
-    page,
-    browserName,
-  }) => {
+  test("completion events update status correctly", async ({ page, browserName }) => {
     test.skip(browserName === "webkit", "WebKit JSDOM event delivery flaky");
     await page.goto("/");
 
@@ -262,10 +237,7 @@ test.describe("ReMedia app", () => {
     await expect(page.getByRole("cell", { name: "Done" })).toBeVisible();
   });
 
-  test("error events update status correctly", async ({
-    page,
-    browserName,
-  }) => {
+  test("error events update status correctly", async ({ page, browserName }) => {
     test.skip(browserName === "webkit", "WebKit JSDOM event delivery flaky");
     await page.goto("/");
 
@@ -281,39 +253,55 @@ test.describe("ReMedia app", () => {
 
   // Phase 4: Context Menu Tests
   test("context menu appears on right-click", async ({ page, browserName }) => {
-    test.skip(
-      browserName === "webkit",
-      "WebKit context menu flaky in web mode",
-    );
+    test.skip(browserName === "webkit", "WebKit context menu flaky in web mode");
     await page.goto("/");
 
     const url = "https://example.com/video1";
     await page.evaluate((url) => window.__E2E_addUrl?.(url), url);
 
-    // Right-click on the table row
+    // Right-click on the table row using coordinates for better Chromium support
     const row = page.getByRole("row").filter({ hasText: "video1" });
-    await row.click({ button: "right" });
+    const box = await row.boundingBox();
+    if (box) {
+      await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2, { button: "right" });
+    } else {
+      await row.click({ button: "right" });
+    }
+
+    // Debug: Check if context menu content is actually visible
+    try {
+      await page.waitForSelector('[data-slot="context-menu-content"]', {
+        state: "visible",
+        timeout: 3000,
+      });
+    } catch (e) {
+      // If context menu doesn't appear, try alternative right-click method
+      // eslint-disable-next-line no-console
+      console.debug("Context menu not visible with first attempt, retrying:", e);
+      await row.click({ button: "right" });
+      await page.waitForSelector('[data-slot="context-menu-content"]', {
+        state: "visible",
+        timeout: 3000,
+      });
+    }
+
+    // Take screenshot for debugging
+    await page.screenshot({ path: "debug-context-menu.png" });
 
     // Context menu should appear with expected items
     await expect(
-      page.getByRole("menuitem", { name: "Remove Selected" }),
-    ).toBeVisible();
+      page.locator('[data-slot="context-menu-item"]').filter({ hasText: "Remove Selected" }),
+    ).toBeVisible({ timeout: 5000 });
     await expect(
-      page.getByRole("menuitem", { name: "Remove All" }),
-    ).toBeVisible();
+      page.locator('[data-slot="context-menu-item"]').filter({ hasText: "Remove All" }),
+    ).toBeVisible({ timeout: 5000 });
     await expect(
-      page.getByRole("menuitem", { name: "Copy All URLs" }),
-    ).toBeVisible();
+      page.locator('[data-slot="context-menu-item"]').filter({ hasText: "Copy All URLs" }),
+    ).toBeVisible({ timeout: 5000 });
   });
 
-  test("remove selected removes checked items", async ({
-    page,
-    browserName,
-  }) => {
-    test.skip(
-      browserName === "webkit",
-      "WebKit context menu flaky in web mode",
-    );
+  test("remove selected removes checked items", async ({ page, browserName }) => {
+    test.skip(browserName === "webkit", "WebKit context menu flaky in web mode");
     await page.goto("/");
 
     // Add multiple URLs
@@ -326,9 +314,7 @@ test.describe("ReMedia app", () => {
       await page.evaluate((url) => window.__E2E_addUrl?.(url), url);
     }
 
-    await expect(
-      page.getByRole("row").filter({ hasText: "video1" }),
-    ).toBeVisible();
+    await expect(page.getByRole("row").filter({ hasText: "video1" })).toBeVisible();
 
     // Select first two items using checkboxes
     const firstCheckbox = page
@@ -343,10 +329,7 @@ test.describe("ReMedia app", () => {
     await secondCheckbox.check();
 
     // Right-click and select "Remove Selected"
-    await page
-      .getByRole("row")
-      .filter({ hasText: "video1" })
-      .click({ button: "right" });
+    await page.getByRole("row").filter({ hasText: "video1" }).click({ button: "right" });
     await page.getByRole("menuitem", { name: "Remove Selected" }).click();
 
     // First two should be gone, third should remain
@@ -356,10 +339,7 @@ test.describe("ReMedia app", () => {
   });
 
   test("remove all clears entire list", async ({ page, browserName }) => {
-    test.skip(
-      browserName === "webkit",
-      "WebKit context menu flaky in web mode",
-    );
+    test.skip(browserName === "webkit", "WebKit context menu flaky in web mode");
     await page.goto("/");
 
     // Add multiple URLs
@@ -368,16 +348,19 @@ test.describe("ReMedia app", () => {
       await page.evaluate((url) => window.__E2E_addUrl?.(url), url);
     }
 
-    await expect(
-      page.getByRole("row").filter({ hasText: "video1" }),
-    ).toBeVisible();
+    await expect(page.getByRole("row").filter({ hasText: "video1" })).toBeVisible();
 
     // Right-click and select "Remove All"
+    await page.getByRole("row").filter({ hasText: "video1" }).click({ button: "right" });
+
+    // Wait for context menu portal to be attached and visible
+    await page.waitForSelector('[data-slot="context-menu-content"]', { state: "attached" });
+    await page.waitForTimeout(100); // Allow animation to complete
+
     await page
-      .getByRole("row")
-      .filter({ hasText: "video1" })
-      .click({ button: "right" });
-    await page.getByRole("menuitem", { name: "Remove All" }).click();
+      .locator('[data-slot="context-menu-item"]')
+      .filter({ hasText: "Remove All" })
+      .click({ timeout: 10000 });
 
     // All items should be gone, drop zone should be visible again
     await expect(page.getByRole("cell", { name: "video1" })).not.toBeVisible();
@@ -399,41 +382,34 @@ test.describe("ReMedia app", () => {
       await page.evaluate((url) => window.__E2E_addUrl?.(url), url);
     }
 
-    await expect(
-      page.getByRole("row").filter({ hasText: "video1" }),
-    ).toBeVisible();
+    await expect(page.getByRole("row").filter({ hasText: "video1" })).toBeVisible();
 
     // Grant clipboard permissions where supported (Chromium). Other browsers skip permissions.
     if (browserName === "chromium") {
-      await page
-        .context()
-        .grantPermissions(["clipboard-read", "clipboard-write"]);
+      await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
     }
 
     // Right-click and select "Copy All URLs"
+    await page.getByRole("row").filter({ hasText: "video1" }).click({ button: "right" });
+
+    // Wait for context menu portal to be attached and visible
+    await page.waitForSelector('[data-slot="context-menu-content"]', { state: "attached" });
+    await page.waitForTimeout(100); // Allow animation to complete
+
     await page
-      .getByRole("row")
-      .filter({ hasText: "video1" })
-      .click({ button: "right" });
-    await page.getByRole("menuitem", { name: "Copy All URLs" }).click();
+      .locator('[data-slot="context-menu-item"]')
+      .filter({ hasText: "Copy All URLs" })
+      .click({ timeout: 10000 });
 
     // Check clipboard contents
-    const clipboardContent = await page.evaluate(() =>
-      navigator.clipboard.readText(),
-    );
+    const clipboardContent = await page.evaluate(() => navigator.clipboard.readText());
     expect(clipboardContent).toContain("https://example.com/video1");
     expect(clipboardContent).toContain("https://example.com/video2");
     expect(clipboardContent).toContain("https://example.com/video3");
   });
 
-  test("download all triggers download for all items", async ({
-    page,
-    browserName,
-  }) => {
-    test.skip(
-      browserName === "webkit",
-      "WebKit context menu flaky in web mode",
-    );
+  test("download all triggers download for all items", async ({ page, browserName }) => {
+    test.skip(browserName === "webkit", "WebKit context menu flaky in web mode");
     await page.goto("/");
 
     // Add multiple URLs
@@ -442,35 +418,22 @@ test.describe("ReMedia app", () => {
       await page.evaluate((url) => window.__E2E_addUrl?.(url), url);
     }
 
-    await expect(
-      page.getByRole("row").filter({ hasText: "video1" }),
-    ).toBeVisible();
+    await expect(page.getByRole("row").filter({ hasText: "video1" })).toBeVisible();
 
     // Right-click and select "Download All"
-    await page
-      .getByRole("row")
-      .filter({ hasText: "video1" })
-      .click({ button: "right" });
+    await page.getByRole("row").filter({ hasText: "video1" }).click({ button: "right" });
     await page.getByRole("menuitem", { name: "Download All" }).click();
 
     // Items should transition to "Downloading" status
     // Note: This test may need backend mocking for full validation
-    await expect(
-      page.getByRole("cell", { name: /Downloading|Done/ }).first(),
-    ).toBeVisible({
+    await expect(page.getByRole("cell", { name: /Downloading|Done/ }).first()).toBeVisible({
       timeout: 3000,
     });
   });
 
   // Phase 4: Cancellation Tests
-  test("cancel button appears during download", async ({
-    page,
-    browserName,
-  }) => {
-    test.skip(
-      browserName === "webkit",
-      "WebKit context menu flaky in web mode",
-    );
+  test("cancel button appears during download", async ({ page, browserName }) => {
+    test.skip(browserName === "webkit", "WebKit context menu flaky in web mode");
     await page.goto("/");
 
     const url = "https://example.com/video1";
@@ -481,16 +444,11 @@ test.describe("ReMedia app", () => {
 
     // Cancel button should be visible
     await expect(page.getByRole("button", { name: "Cancel" })).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: "Start download" }),
-    ).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Start download" })).toBeDisabled();
   });
 
   test("cancel all stops all downloads", async ({ page, browserName }) => {
-    test.skip(
-      browserName === "webkit",
-      "WebKit context menu flaky in web mode",
-    );
+    test.skip(browserName === "webkit", "WebKit context menu flaky in web mode");
     await page.goto("/");
 
     // Add multiple URLs
@@ -499,9 +457,7 @@ test.describe("ReMedia app", () => {
       await page.evaluate((url) => window.__E2E_addUrl?.(url), url);
     }
 
-    await expect(
-      page.getByRole("row").filter({ hasText: "video1" }),
-    ).toBeVisible();
+    await expect(page.getByRole("row").filter({ hasText: "video1" })).toBeVisible();
 
     // Simulate downloads in progress
     await emitTauriEvent(page, "download-progress", [0, 25]);
@@ -511,38 +467,25 @@ test.describe("ReMedia app", () => {
     await page.getByRole("button", { name: "Cancel" }).click();
 
     // Both items should show "Cancelled" status
-    await expect(
-      page.getByRole("cell", { name: "Cancelled" }).first(),
-    ).toBeVisible({
+    await expect(page.getByRole("cell", { name: "Cancelled" }).first()).toBeVisible({
       timeout: 2000,
     });
   });
 
-  test("cancel all menu item stops all downloads", async ({
-    page,
-    browserName,
-  }) => {
-    test.skip(
-      browserName === "webkit",
-      "WebKit context menu flaky in web mode",
-    );
+  test("cancel all menu item stops all downloads", async ({ page, browserName }) => {
+    test.skip(browserName === "webkit", "WebKit context menu flaky in web mode");
     await page.goto("/");
 
     const url = "https://example.com/video1";
     await page.evaluate((url) => window.__E2E_addUrl?.(url), url);
 
-    await expect(
-      page.getByRole("row").filter({ hasText: "video1" }),
-    ).toBeVisible();
+    await expect(page.getByRole("row").filter({ hasText: "video1" })).toBeVisible();
 
     // Simulate download in progress
     await emitTauriEvent(page, "download-progress", [0, 25]);
 
     // Right-click and select "Cancel All"
-    await page
-      .getByRole("row")
-      .filter({ hasText: "video1" })
-      .click({ button: "right" });
+    await page.getByRole("row").filter({ hasText: "video1" }).click({ button: "right" });
     await page.getByRole("menuitem", { name: "Cancel All" }).click();
 
     // Status should update to "Cancelled"
@@ -551,14 +494,8 @@ test.describe("ReMedia app", () => {
     });
   });
 
-  test("cancelled downloads emit cancelled event", async ({
-    page,
-    browserName,
-  }) => {
-    test.skip(
-      browserName === "webkit",
-      "WebKit context menu flaky in web mode",
-    );
+  test("cancelled downloads emit cancelled event", async ({ page, browserName }) => {
+    test.skip(browserName === "webkit", "WebKit context menu flaky in web mode");
     await page.goto("/");
 
     const url = "https://example.com/video1";
@@ -576,10 +513,7 @@ test.describe("ReMedia app", () => {
     await page.goto("/debug");
 
     // Emit a yt-dlp stderr event
-    await emitTauriEvent(page, "yt-dlp-stderr", [
-      0,
-      "Downloading video metadata",
-    ]);
+    await emitTauriEvent(page, "yt-dlp-stderr", [0, "Downloading video metadata"]);
 
     // Log entry should appear
     await expect(page.getByText("Downloading video metadata")).toBeVisible({

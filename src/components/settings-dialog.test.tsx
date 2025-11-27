@@ -23,44 +23,32 @@ describe("SettingsDialog", () => {
 
   describe("rendering", () => {
     it("renders when open", () => {
-      renderWithProviders(
-        <SettingsDialog open={true} onOpenChange={() => {}} />,
-      );
+      renderWithProviders(<SettingsDialog open={true} onOpenChange={() => {}} />);
 
       expect(screen.getByRole("heading", { name: "Settings" })).toBeVisible();
     });
 
     it("does not render content when closed", () => {
-      renderWithProviders(
-        <SettingsDialog open={false} onOpenChange={() => {}} />,
-      );
+      renderWithProviders(<SettingsDialog open={false} onOpenChange={() => {}} />);
 
-      expect(
-        screen.queryByRole("heading", { name: "Settings" }),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByRole("heading", { name: "Settings" })).not.toBeInTheDocument();
     });
 
     it("renders download location input", () => {
-      renderWithProviders(
-        <SettingsDialog open={true} onOpenChange={() => {}} />,
-      );
+      renderWithProviders(<SettingsDialog open={true} onOpenChange={() => {}} />);
 
       expect(screen.getByLabelText(/download location/i)).toBeVisible();
     });
 
     it("renders theme selector", () => {
-      renderWithProviders(
-        <SettingsDialog open={true} onOpenChange={() => {}} />,
-      );
+      renderWithProviders(<SettingsDialog open={true} onOpenChange={() => {}} />);
 
       expect(screen.getByLabelText(/theme/i)).toBeVisible();
     });
 
     it("renders download mode selector", async () => {
       const user = userEvent.setup();
-      renderWithProviders(
-        <SettingsDialog open={true} onOpenChange={() => {}} />,
-      );
+      renderWithProviders(<SettingsDialog open={true} onOpenChange={() => {}} />);
 
       // Navigate to Downloads tab
       await user.click(screen.getByRole("tab", { name: /downloads/i }));
@@ -68,9 +56,7 @@ describe("SettingsDialog", () => {
     });
 
     it("renders Done button", () => {
-      renderWithProviders(
-        <SettingsDialog open={true} onOpenChange={() => {}} />,
-      );
+      renderWithProviders(<SettingsDialog open={true} onOpenChange={() => {}} />);
 
       expect(screen.getByRole("button", { name: "Done" })).toBeVisible();
     });
@@ -78,12 +64,9 @@ describe("SettingsDialog", () => {
 
   describe("download location", () => {
     it("displays initial download location", () => {
-      renderWithProviders(
-        <SettingsDialog open={true} onOpenChange={() => {}} />,
-        {
-          initialAtomValues: [[downloadLocationAtom, "/home/user/downloads"]],
-        },
-      );
+      renderWithProviders(<SettingsDialog open={true} onOpenChange={() => {}} />, {
+        initialAtomValues: [[downloadLocationAtom, "/home/user/downloads"]],
+      });
 
       const input = screen.getByLabelText(/download location/i);
       expect(input).toHaveValue("/home/user/downloads");
@@ -91,12 +74,9 @@ describe("SettingsDialog", () => {
 
     it("allows editing download location", async () => {
       const user = userEvent.setup();
-      renderWithProviders(
-        <SettingsDialog open={true} onOpenChange={() => {}} />,
-        {
-          initialAtomValues: [[downloadLocationAtom, ""]],
-        },
-      );
+      renderWithProviders(<SettingsDialog open={true} onOpenChange={() => {}} />, {
+        initialAtomValues: [[downloadLocationAtom, ""]],
+      });
 
       const input = screen.getByLabelText(/download location/i);
       await user.clear(input);
@@ -109,12 +89,9 @@ describe("SettingsDialog", () => {
   describe("download mode", () => {
     it("shows video settings when in video mode", async () => {
       const user = userEvent.setup();
-      renderWithProviders(
-        <SettingsDialog open={true} onOpenChange={() => {}} />,
-        {
-          initialAtomValues: [[downloadModeAtom, "video"]],
-        },
-      );
+      renderWithProviders(<SettingsDialog open={true} onOpenChange={() => {}} />, {
+        initialAtomValues: [[downloadModeAtom, "video"]],
+      });
 
       // Navigate to Quality tab
       await user.click(screen.getByRole("tab", { name: /quality/i }));
@@ -123,12 +100,9 @@ describe("SettingsDialog", () => {
 
     it("hides video settings when in audio mode", async () => {
       const user = userEvent.setup();
-      renderWithProviders(
-        <SettingsDialog open={true} onOpenChange={() => {}} />,
-        {
-          initialAtomValues: [[downloadModeAtom, "audio"]],
-        },
-      );
+      renderWithProviders(<SettingsDialog open={true} onOpenChange={() => {}} />, {
+        initialAtomValues: [[downloadModeAtom, "audio"]],
+      });
 
       // Navigate to Quality tab
       await user.click(screen.getByRole("tab", { name: /quality/i }));
@@ -137,12 +111,9 @@ describe("SettingsDialog", () => {
 
     it("always shows audio settings", async () => {
       const user = userEvent.setup();
-      renderWithProviders(
-        <SettingsDialog open={true} onOpenChange={() => {}} />,
-        {
-          initialAtomValues: [[downloadModeAtom, "video"]],
-        },
-      );
+      renderWithProviders(<SettingsDialog open={true} onOpenChange={() => {}} />, {
+        initialAtomValues: [[downloadModeAtom, "video"]],
+      });
 
       // Navigate to Quality tab
       await user.click(screen.getByRole("tab", { name: /quality/i }));
@@ -152,12 +123,9 @@ describe("SettingsDialog", () => {
 
   describe("theme", () => {
     it("displays current theme", () => {
-      renderWithProviders(
-        <SettingsDialog open={true} onOpenChange={() => {}} />,
-        {
-          initialAtomValues: [[themeAtom, "dark"]],
-        },
-      );
+      renderWithProviders(<SettingsDialog open={true} onOpenChange={() => {}} />, {
+        initialAtomValues: [[themeAtom, "dark"]],
+      });
 
       expect(screen.getByLabelText(/theme/i)).toHaveTextContent(/dark/i);
     });
@@ -166,12 +134,9 @@ describe("SettingsDialog", () => {
   describe("concurrent downloads", () => {
     it("displays max concurrent downloads setting", async () => {
       const user = userEvent.setup();
-      renderWithProviders(
-        <SettingsDialog open={true} onOpenChange={() => {}} />,
-        {
-          initialAtomValues: [[maxConcurrentDownloadsAtom, 3]],
-        },
-      );
+      renderWithProviders(<SettingsDialog open={true} onOpenChange={() => {}} />, {
+        initialAtomValues: [[maxConcurrentDownloadsAtom, 3]],
+      });
 
       // Navigate to Downloads tab
       await user.click(screen.getByRole("tab", { name: /downloads/i }));
@@ -185,9 +150,7 @@ describe("SettingsDialog", () => {
       const user = userEvent.setup();
       const onOpenChange = vi.fn();
 
-      renderWithProviders(
-        <SettingsDialog open={true} onOpenChange={onOpenChange} />,
-      );
+      renderWithProviders(<SettingsDialog open={true} onOpenChange={onOpenChange} />);
 
       await user.click(screen.getByRole("button", { name: "Done" }));
 

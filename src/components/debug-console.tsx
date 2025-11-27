@@ -88,9 +88,7 @@ export function DebugConsole() {
 
   const handleFindNext = () => {
     if (matches.length === 0) return;
-    setCurrentMatchIndex((prev) =>
-      prev === -1 ? 0 : getNextMatchIndex(prev, matches.length),
-    );
+    setCurrentMatchIndex((prev) => (prev === -1 ? 0 : getNextMatchIndex(prev, matches.length)));
   };
 
   const highlightText = (text: string, entryIndex: number): JSX.Element => {
@@ -152,9 +150,7 @@ export function DebugConsole() {
         className="flex-1 overflow-y-auto border rounded p-4 bg-gray-50 dark:bg-gray-900 font-mono text-sm"
       >
         {logEntries.length === 0 ? (
-          <p className="text-gray-500">
-            No log entries yet. Start a download to see logs.
-          </p>
+          <p className="text-gray-500">No log entries yet. Start a download to see logs.</p>
         ) : (
           <div className="space-y-1">
             {logEntries.map((entry, index) => (
@@ -162,18 +158,12 @@ export function DebugConsole() {
                 key={`${entry.timestamp}-${index}`}
                 className={`flex gap-2 ${getLogLevelClass(entry.level)}`}
               >
-                <span className="text-gray-500 shrink-0">
-                  {formatTimestamp(entry.timestamp)}
-                </span>
+                <span className="text-gray-500 shrink-0">{formatTimestamp(entry.timestamp)}</span>
                 <span className="text-blue-600 shrink-0">[{entry.source}]</span>
                 {entry.mediaIdx !== undefined && (
-                  <span className="text-purple-600 shrink-0">
-                    [media-{entry.mediaIdx}]
-                  </span>
+                  <span className="text-purple-600 shrink-0">[media-{entry.mediaIdx}]</span>
                 )}
-                <span className="break-all">
-                  {highlightText(entry.message, index)}
-                </span>
+                <span className="break-all">{highlightText(entry.message, index)}</span>
               </div>
             ))}
           </div>

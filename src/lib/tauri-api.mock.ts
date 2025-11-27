@@ -232,10 +232,7 @@ class MockCommands implements TauriCommands {
  * Mock Events Implementation
  */
 class MockEvents implements TauriEvents {
-  async listen<T>(
-    event: string,
-    handler: EventCallback<T>,
-  ): Promise<() => void> {
+  async listen<T>(event: string, handler: EventCallback<T>): Promise<() => void> {
     if (!mockEventListeners.has(event)) {
       mockEventListeners.set(event, new Set());
     }

@@ -22,9 +22,7 @@ export function TauriApiProvider({
   children: ReactNode;
   api?: TauriApi;
 }) {
-  return (
-    <TauriApiContext.Provider value={api}>{children}</TauriApiContext.Provider>
-  );
+  return <TauriApiContext.Provider value={api}>{children}</TauriApiContext.Provider>;
 }
 
 /**

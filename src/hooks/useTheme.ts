@@ -30,9 +30,7 @@ export function useTheme(): void {
             // Fallback to light theme if matchMedia unavailable
             effectiveTheme = "light";
           } else {
-            const prefersDark = window.matchMedia(
-              "(prefers-color-scheme: dark)",
-            ).matches;
+            const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
             effectiveTheme = prefersDark ? "dark" : "light";
           }
         } else {

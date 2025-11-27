@@ -73,10 +73,7 @@ function useTauriEvents(eventHandlers: Record<string, unknown>) {
           unlistenFunctions.push(unlistenFn);
           console.log(`Registered listener for ${eventName}`);
         } catch (error) {
-          console.error(
-            `Failed to listen to Tauri event '${eventName}':`,
-            error,
-          );
+          console.error(`Failed to listen to Tauri event '${eventName}':`, error);
         }
       }
 
@@ -87,16 +84,15 @@ function useTauriEvents(eventHandlers: Record<string, unknown>) {
           try {
             const delivered = tryDeliverEvent(eventName, payload);
             if (!delivered) {
-              console.warn(
-                `Pending Tauri event '${eventName}' not delivered to any handler`,
-                { payload },
-              );
+              console.warn(`Pending Tauri event '${eventName}' not delivered to any handler`, {
+                payload,
+              });
             }
           } catch (error) {
-            console.error(
-              `Error delivering pending Tauri event '${eventName}'`,
-              { payload, error },
-            );
+            console.error(`Error delivering pending Tauri event '${eventName}'`, {
+              payload,
+              error,
+            });
           }
         }
       }

@@ -4,10 +4,22 @@ import { CheckIcon, ChevronRightIcon, CircleIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
-function ContextMenu({
-  ...props
-}: React.ComponentProps<typeof ContextMenuPrimitive.Root>) {
-  return <ContextMenuPrimitive.Root data-slot="context-menu" {...props} />
+type RadixContextMenuProps = React.ComponentProps<
+  typeof ContextMenuPrimitive.Root
+> & {
+  open?: boolean
+}
+
+function ContextMenu({ open, ...props }: RadixContextMenuProps) {
+  return (
+    <ContextMenuPrimitive.Root
+      data-slot="context-menu"
+      // Radix ContextMenu supports controlled open, but its type defs omit the prop
+      // @ts-expect-error missing in upstream types
+      open={open}
+      {...props}
+    />
+  )
 }
 
 function ContextMenuTrigger({

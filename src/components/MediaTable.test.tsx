@@ -1,10 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import {
-  renderWithProviders,
-  screen,
-  userEvent,
-  createMockMediaItem,
-} from "@/test/test-utils";
+import { renderWithProviders, screen, userEvent, createMockMediaItem } from "@/test/test-utils";
 import { MediaTable, type VideoInfo } from "./MediaTable";
 
 describe("MediaTable", () => {
@@ -16,9 +11,7 @@ describe("MediaTable", () => {
 
   describe("Initial Render", () => {
     it("renders empty table when no media items", () => {
-      renderWithProviders(
-        <MediaTable mediaList={[]} onRemoveItem={mockOnRemoveItem} />,
-      );
+      renderWithProviders(<MediaTable mediaList={[]} onRemoveItem={mockOnRemoveItem} />);
 
       // Table should exist
       const tables = screen.getAllByRole("table");
@@ -28,9 +21,7 @@ describe("MediaTable", () => {
     });
 
     it("renders table headers", () => {
-      renderWithProviders(
-        <MediaTable mediaList={[]} onRemoveItem={mockOnRemoveItem} />,
-      );
+      renderWithProviders(<MediaTable mediaList={[]} onRemoveItem={mockOnRemoveItem} />);
 
       expect(screen.getByText("Preview")).toBeInTheDocument();
       expect(screen.getByText("Title")).toBeInTheDocument();
@@ -40,9 +31,7 @@ describe("MediaTable", () => {
     });
 
     it("renders select all checkbox in header", () => {
-      renderWithProviders(
-        <MediaTable mediaList={[]} onRemoveItem={mockOnRemoveItem} />,
-      );
+      renderWithProviders(<MediaTable mediaList={[]} onRemoveItem={mockOnRemoveItem} />);
 
       expect(screen.getByTestId("table-select-all")).toBeInTheDocument();
     });
@@ -59,9 +48,7 @@ describe("MediaTable", () => {
         }),
       ];
 
-      renderWithProviders(
-        <MediaTable mediaList={mediaList} onRemoveItem={mockOnRemoveItem} />,
-      );
+      renderWithProviders(<MediaTable mediaList={mediaList} onRemoveItem={mockOnRemoveItem} />);
 
       expect(screen.getByText("Test Video 1")).toBeInTheDocument();
       expect(screen.getByText("Test Video 2")).toBeInTheDocument();
@@ -83,14 +70,10 @@ describe("MediaTable", () => {
         }),
       ];
 
-      renderWithProviders(
-        <MediaTable mediaList={mediaList} onRemoveItem={mockOnRemoveItem} />,
-      );
+      renderWithProviders(<MediaTable mediaList={mediaList} onRemoveItem={mockOnRemoveItem} />);
 
       expect(screen.getByTestId("row-0-status")).toHaveTextContent("Pending");
-      expect(screen.getByTestId("row-1-status")).toHaveTextContent(
-        "Downloading",
-      );
+      expect(screen.getByTestId("row-1-status")).toHaveTextContent("Downloading");
       expect(screen.getByTestId("row-2-status")).toHaveTextContent("Done");
     });
 
@@ -110,9 +93,7 @@ describe("MediaTable", () => {
         }),
       ];
 
-      renderWithProviders(
-        <MediaTable mediaList={mediaList} onRemoveItem={mockOnRemoveItem} />,
-      );
+      renderWithProviders(<MediaTable mediaList={mediaList} onRemoveItem={mockOnRemoveItem} />);
 
       expect(screen.getByTestId("row-0-progress")).toBeInTheDocument();
       expect(screen.getByTestId("row-1-progress")).toBeInTheDocument();
@@ -131,9 +112,7 @@ describe("MediaTable", () => {
         }),
       ];
 
-      renderWithProviders(
-        <MediaTable mediaList={mediaList} onRemoveItem={mockOnRemoveItem} />,
-      );
+      renderWithProviders(<MediaTable mediaList={mediaList} onRemoveItem={mockOnRemoveItem} />);
 
       const videoAudioCheckbox = screen.getByTestId("row-0-audio");
       const audioOnlyCheckbox = screen.getByTestId("row-1-audio");
@@ -152,9 +131,7 @@ describe("MediaTable", () => {
         }),
       ];
 
-      renderWithProviders(
-        <MediaTable mediaList={mediaList} onRemoveItem={mockOnRemoveItem} />,
-      );
+      renderWithProviders(<MediaTable mediaList={mediaList} onRemoveItem={mockOnRemoveItem} />);
 
       const thumbnail = screen.getByTestId("row-0-thumb");
       expect(thumbnail).toHaveAttribute("src", "https://example.com/thumb.jpg");
@@ -168,16 +145,13 @@ describe("MediaTable", () => {
         }),
       ];
 
-      renderWithProviders(
-        <MediaTable mediaList={mediaList} onRemoveItem={mockOnRemoveItem} />,
-      );
+      renderWithProviders(<MediaTable mediaList={mediaList} onRemoveItem={mockOnRemoveItem} />);
 
       const thumbnail = screen.getByTestId("row-0-thumb");
       const src = thumbnail.getAttribute("src") || "";
-      expect(
-        src.startsWith("data:image/svg+xml") ||
-          src.includes("thumbnail-placeholder"),
-      ).toBe(true);
+      expect(src.startsWith("data:image/svg+xml") || src.includes("thumbnail-placeholder")).toBe(
+        true,
+      );
     });
   });
 
@@ -188,9 +162,7 @@ describe("MediaTable", () => {
         createMockMediaItem("https://example.com/2", { title: "Item 2" }),
       ];
 
-      renderWithProviders(
-        <MediaTable mediaList={mediaList} onRemoveItem={mockOnRemoveItem} />,
-      );
+      renderWithProviders(<MediaTable mediaList={mediaList} onRemoveItem={mockOnRemoveItem} />);
 
       expect(screen.getByTestId("row-0-select")).toBeInTheDocument();
       expect(screen.getByTestId("row-1-select")).toBeInTheDocument();
@@ -203,9 +175,7 @@ describe("MediaTable", () => {
         createMockMediaItem("https://example.com/2", { title: "Item 2" }),
       ];
 
-      renderWithProviders(
-        <MediaTable mediaList={mediaList} onRemoveItem={mockOnRemoveItem} />,
-      );
+      renderWithProviders(<MediaTable mediaList={mediaList} onRemoveItem={mockOnRemoveItem} />);
 
       const row0Checkbox = screen.getByTestId("row-0-select");
       await user.click(row0Checkbox);
@@ -221,9 +191,7 @@ describe("MediaTable", () => {
         createMockMediaItem("https://example.com/2", { title: "Item 2" }),
       ];
 
-      renderWithProviders(
-        <MediaTable mediaList={mediaList} onRemoveItem={mockOnRemoveItem} />,
-      );
+      renderWithProviders(<MediaTable mediaList={mediaList} onRemoveItem={mockOnRemoveItem} />);
 
       const selectAllCheckbox = screen.getByTestId("table-select-all");
       await user.click(selectAllCheckbox);
@@ -239,9 +207,7 @@ describe("MediaTable", () => {
         createMockMediaItem("https://example.com/1", { title: "Item 1" }),
       ];
 
-      renderWithProviders(
-        <MediaTable mediaList={mediaList} onRemoveItem={mockOnRemoveItem} />,
-      );
+      renderWithProviders(<MediaTable mediaList={mediaList} onRemoveItem={mockOnRemoveItem} />);
 
       expect(screen.getByTestId("row-0-menu")).toBeInTheDocument();
     });
@@ -252,9 +218,7 @@ describe("MediaTable", () => {
         createMockMediaItem("https://example.com/1", { title: "Item 1" }),
       ];
 
-      renderWithProviders(
-        <MediaTable mediaList={mediaList} onRemoveItem={mockOnRemoveItem} />,
-      );
+      renderWithProviders(<MediaTable mediaList={mediaList} onRemoveItem={mockOnRemoveItem} />);
 
       await user.click(screen.getByTestId("row-0-menu"));
 
@@ -269,9 +233,7 @@ describe("MediaTable", () => {
         createMockMediaItem("https://example.com/1", { title: "Test Item" }),
       ];
 
-      renderWithProviders(
-        <MediaTable mediaList={mediaList} onRemoveItem={mockOnRemoveItem} />,
-      );
+      renderWithProviders(<MediaTable mediaList={mediaList} onRemoveItem={mockOnRemoveItem} />);
 
       await user.click(screen.getByTestId("row-0-menu"));
       await user.click(screen.getByTestId("row-0-delete"));

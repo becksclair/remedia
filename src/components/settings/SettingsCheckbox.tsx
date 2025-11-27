@@ -27,9 +27,7 @@ export function SettingsCheckbox({
       />
       <label htmlFor={id} className="text-sm">
         {label}
-        {description && (
-          <span className="text-muted-foreground ml-1">({description})</span>
-        )}
+        {description && <span className="text-muted-foreground ml-1">({description})</span>}
       </label>
     </div>
   );

@@ -71,10 +71,7 @@ describe("useMediaList", () => {
       });
 
       await waitFor(() => {
-        expect(getMediaInfoSpy).toHaveBeenCalledWith(
-          0,
-          "https://example.com/video1",
-        );
+        expect(getMediaInfoSpy).toHaveBeenCalledWith(0, "https://example.com/video1");
       });
     });
   });
@@ -290,9 +287,7 @@ describe("useMediaList", () => {
       });
 
       expect(result.current.mediaList).toHaveLength(1);
-      expect(result.current.mediaList[0]?.url).toBe(
-        "https://example.com/video2",
-      );
+      expect(result.current.mediaList[0]?.url).toBe("https://example.com/video2");
     });
 
     it("handles empty set", () => {

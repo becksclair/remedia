@@ -52,10 +52,7 @@ interface AllTheProvidersProps {
 /**
  * Wrapper component that provides all necessary providers for testing
  */
-function AllTheProviders({
-  children,
-  initialValues = [],
-}: AllTheProvidersProps) {
+function AllTheProviders({ children, initialValues = [] }: AllTheProvidersProps) {
   return (
     <JotaiProvider>
       <TauriApiProvider api={mockTauriApi}>
@@ -95,9 +92,7 @@ export function renderWithProviders(
 
   return render(ui, {
     wrapper: ({ children }) => (
-      <AllTheProviders initialValues={initialAtomValues}>
-        {children}
-      </AllTheProviders>
+      <AllTheProviders initialValues={initialAtomValues}>{children}</AllTheProviders>
     ),
     ...renderOptions,
   });
@@ -139,9 +134,7 @@ export function waitForAsync(ms = 0): Promise<void> {
 /**
  * Helper to create mock row selection state
  */
-export function createMockRowSelection(
-  selectedIndices: number[],
-): Record<string, boolean> {
+export function createMockRowSelection(selectedIndices: number[]): Record<string, boolean> {
   return selectedIndices.reduce(
     (acc, index) => {
       acc[index.toString()] = true;
@@ -155,16 +148,13 @@ export function createMockRowSelection(
  * Create a wrapper for renderHook with optional atom overrides
  * Merges DEFAULT_DOWNLOAD_SETTINGS with any overrides
  */
-export function createTestWrapper(
-  atomOverrides: Array<readonly [any, any]> = [],
-) {
+export function createTestWrapper(atomOverrides: Array<readonly [any, any]> = []) {
   // Merge defaults with overrides (overrides take precedence)
   const overrideMap = new Map(atomOverrides.map(([atom, val]) => [atom, val]));
-  const merged: Array<readonly [any, any]> = DEFAULT_DOWNLOAD_SETTINGS.map(
-    ([atom, defaultVal]) =>
-      overrideMap.has(atom)
-        ? ([atom, overrideMap.get(atom)] as const)
-        : ([atom, defaultVal] as const),
+  const merged: Array<readonly [any, any]> = DEFAULT_DOWNLOAD_SETTINGS.map(([atom, defaultVal]) =>
+    overrideMap.has(atom)
+      ? ([atom, overrideMap.get(atom)] as const)
+      : ([atom, defaultVal] as const),
   );
   // Add any overrides that aren't in defaults
   for (const [atom, val] of atomOverrides) {

@@ -24,10 +24,7 @@ function createLogEntry(
 
 describe("findLogMatches", () => {
   it("returns empty array for empty search term", () => {
-    const logs = [
-      createLogEntry("test message"),
-      createLogEntry("another message"),
-    ];
+    const logs = [createLogEntry("test message"), createLogEntry("another message")];
     expect(findLogMatches(logs, "")).toEqual([]);
   });
 
@@ -77,20 +74,13 @@ describe("findLogMatches", () => {
   });
 
   it("returns all indices when search term matches all entries", () => {
-    const logs = [
-      createLogEntry("test 1"),
-      createLogEntry("test 2"),
-      createLogEntry("test 3"),
-    ];
+    const logs = [createLogEntry("test 1"), createLogEntry("test 2"), createLogEntry("test 3")];
     const matches = findLogMatches(logs, "test");
     expect(matches).toEqual([0, 1, 2]);
   });
 
   it("handles special regex characters safely", () => {
-    const logs = [
-      createLogEntry("[error] test"),
-      createLogEntry("normal message"),
-    ];
+    const logs = [createLogEntry("[error] test"), createLogEntry("normal message")];
     const matches = findLogMatches(logs, "[error]");
     expect(matches).toEqual([0]);
   });

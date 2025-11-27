@@ -39,10 +39,7 @@ function isVisible(el: HTMLElement): boolean {
   const rect = el.getBoundingClientRect();
   const style = getComputedStyle(el);
   return (
-    rect.width > 0 &&
-    rect.height > 0 &&
-    style.visibility !== "hidden" &&
-    style.display !== "none"
+    rect.width > 0 && rect.height > 0 && style.visibility !== "hidden" && style.display !== "none"
   );
 }
 
@@ -77,9 +74,7 @@ export function installRemoteUI(): void {
         childList: true,
         subtree: true,
         attributes: enforceVisible,
-        attributeFilter: enforceVisible
-          ? ["style", "class", "hidden", "aria-hidden"]
-          : undefined,
+        attributeFilter: enforceVisible ? ["style", "class", "hidden", "aria-hidden"] : undefined,
       });
 
       const timer = window.setTimeout(() => finish(), timeout);
@@ -95,10 +90,8 @@ export function installRemoteUI(): void {
       timeout: opts?.timeout,
       visible: opts?.visible ?? true,
     });
-    if (!(el instanceof HTMLElement))
-      throw new Error(`Element not clickable: ${selector}`);
-    if (opts?.scroll ?? true)
-      el.scrollIntoView({ block: "center", inline: "center" });
+    if (!(el instanceof HTMLElement)) throw new Error(`Element not clickable: ${selector}`);
+    if (opts?.scroll ?? true) el.scrollIntoView({ block: "center", inline: "center" });
     el.focus();
     if (typeof el.click === "function") {
       el.click();
@@ -113,10 +106,7 @@ export function installRemoteUI(): void {
     );
   };
 
-  const setNativeValue = (
-    el: HTMLInputElement | HTMLTextAreaElement,
-    value: string,
-  ) => {
+  const setNativeValue = (el: HTMLInputElement | HTMLTextAreaElement, value: string) => {
     const proto = Object.getPrototypeOf(el);
     const desc = Object.getOwnPropertyDescriptor(proto, "value");
     const setter = desc?.set?.bind(el);
@@ -159,12 +149,8 @@ export function installRemoteUI(): void {
       }
 
       if (opts?.submitWithEnter) {
-        el.dispatchEvent(
-          new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
-        );
-        el.dispatchEvent(
-          new KeyboardEvent("keyup", { key: "Enter", bubbles: true }),
-        );
+        el.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+        el.dispatchEvent(new KeyboardEvent("keyup", { key: "Enter", bubbles: true }));
       }
       return;
     }

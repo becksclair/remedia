@@ -9,11 +9,7 @@ type E2EWindow = Window & { __E2E_lastEventReceived?: string };
  * @param timeout - Timeout in milliseconds (default: 5000)
  * @returns Promise that resolves when event is received
  */
-export const waitForTauriEvent = async (
-  page: Page,
-  eventName: string,
-  timeout = 5000,
-) => {
+export const waitForTauriEvent = async (page: Page, eventName: string, timeout = 5000) => {
   if (!eventName.trim()) {
     throw new Error("Event name cannot be empty");
   }

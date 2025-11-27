@@ -6,22 +6,14 @@ type Props = {
   dragHovering: boolean;
 };
 
-function DropZone({
-  className,
-  dropHandler,
-  dragHovering,
-}: React.ComponentProps<"div"> & Props) {
+function DropZone({ className, dropHandler, dragHovering }: React.ComponentProps<"div"> & Props) {
   const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
 
     const url =
-      event.dataTransfer.getData("text/uri-list") ||
-      event.dataTransfer.getData("text/plain");
+      event.dataTransfer.getData("text/uri-list") || event.dataTransfer.getData("text/plain");
     if (url) {
-      console.log(
-        "URL Dropped into drop zone, calling top level handler now",
-        url,
-      );
+      console.log("URL Dropped into drop zone, calling top level handler now", url);
       dropHandler(url);
     } else {
       console.log("No URL found in drag event.");

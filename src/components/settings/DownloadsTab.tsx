@@ -52,12 +52,8 @@ const MAX_FILE_SIZE_OPTIONS: SelectOption[] = [
 export function DownloadsTab() {
   const tauriApi = useTauriApi();
   const [downloadMode, setDownloadMode] = useAtom(downloadModeAtom);
-  const [maxConcurrentDownloads, setMaxConcurrentDownloads] = useAtom(
-    maxConcurrentDownloadsAtom,
-  );
-  const [downloadRateLimit, setDownloadRateLimit] = useAtom(
-    downloadRateLimitAtom,
-  );
+  const [maxConcurrentDownloads, setMaxConcurrentDownloads] = useAtom(maxConcurrentDownloadsAtom);
+  const [downloadRateLimit, setDownloadRateLimit] = useAtom(downloadRateLimitAtom);
   const [maxFileSize, setMaxFileSize] = useAtom(maxFileSizeAtom);
 
   const handleMaxConcurrentChange = async (value: string) => {

@@ -27,10 +27,7 @@ export function isValidUrl(input: string): boolean {
  * @param indicesToRemove - Set of indices to remove
  * @returns New array with items removed
  */
-export function removeItemsAtIndices<T>(
-  items: T[],
-  indicesToRemove: Set<number>,
-): T[] {
+export function removeItemsAtIndices<T>(items: T[], indicesToRemove: Set<number>): T[] {
   return items.filter((_, index) => !indicesToRemove.has(index));
 }
 
@@ -84,9 +81,7 @@ export function formatTimestamp(timestamp: number): string {
  * @param rowSelection - Object with row indices as keys
  * @returns Array of selected indices
  */
-export function getSelectedIndices(
-  rowSelection: Record<string, boolean>,
-): number[] {
+export function getSelectedIndices(rowSelection: Record<string, boolean>): number[] {
   return Object.keys(rowSelection)
     .filter((key) => rowSelection[key] === true)
     .map((idx) => Number.parseInt(idx, 10));

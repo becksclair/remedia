@@ -80,12 +80,8 @@ export function GeneralTab() {
       {isWayland ? (
         <Alert variant="destructive" className="text-left">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>
-            "Stay on top" is not supported on Wayland yet.
-          </AlertTitle>
-          <AlertDescription>
-            Try X11 or watch for Tauri updates.
-          </AlertDescription>
+          <AlertTitle>"Stay on top" is not supported on Wayland yet.</AlertTitle>
+          <AlertDescription>Try X11 or watch for Tauri updates.</AlertDescription>
         </Alert>
       ) : (
         <SettingsCheckbox
@@ -147,8 +143,7 @@ export function GeneralTab() {
             <div className="text-xs text-muted-foreground">
               <span className="font-medium">Preview:</span>{" "}
               <code className="bg-muted px-1 py-0.5 rounded">
-                My Video [
-                {uniqueIdType === "native" ? "dQw4w9WgXcQ" : "k8df92a1"}].mp4
+                My Video [{uniqueIdType === "native" ? "dQw4w9WgXcQ" : "k8df92a1"}].mp4
               </code>
             </div>
           </div>

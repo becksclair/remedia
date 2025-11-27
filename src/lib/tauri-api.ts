@@ -187,10 +187,7 @@ export interface TauriApi {
  */
 class RealTauriApi implements TauriApi {
   commands: TauriCommands = {
-    async getMediaInfo(
-      mediaIdx: number,
-      mediaSourceUrl: string,
-    ): Promise<void> {
+    async getMediaInfo(mediaIdx: number, mediaSourceUrl: string): Promise<void> {
       await tauriInvoke("get_media_info", { mediaIdx, mediaSourceUrl });
     },
 
@@ -217,8 +214,7 @@ class RealTauriApi implements TauriApi {
     },
 
     async getQueueStatus(): Promise<[number, number, number]> {
-      const result =
-        await tauriInvoke<[number, number, number]>("get_queue_status");
+      const result = await tauriInvoke<[number, number, number]>("get_queue_status");
       return result;
     },
 
@@ -237,10 +233,7 @@ class RealTauriApi implements TauriApi {
   };
 
   events: TauriEvents = {
-    async listen<T>(
-      event: string,
-      handler: EventCallback<T>,
-    ): Promise<() => void> {
+    async listen<T>(event: string, handler: EventCallback<T>): Promise<() => void> {
       return await listen(event, handler);
     },
   };

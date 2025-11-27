@@ -5,6 +5,8 @@
  * Features icons, keyboard shortcuts, visual grouping, and smart disabled states.
  */
 
+import { useState, type MouseEvent as ReactMouseEvent } from "react";
+import { flushSync } from "react-dom";
 import type { ReactNode } from "react";
 import {
   ContextMenu,
@@ -64,62 +66,94 @@ export function MediaListContextMenu({
   hasItems,
   hasFailed,
 }: MediaListContextMenuProps) {
+  const [open, setOpen] = useState(false);
+
+  const handleContextMenuCapture = (event: ReactMouseEvent): void => {
+    // If menu is already open, close first and re-dispatch a synthetic contextmenu
+    // so Radix positions against the latest pointer location.
+    const target = (event.target as HTMLElement) ?? document.body;
+    if (!open) return;
+
+    event.preventDefault();
+    const { clientX, clientY } = event;
+
+    flushSync(() => setOpen(false));
+
+    // Re-dispatch in next frame to let Radix capture fresh coordinates
+    requestAnimationFrame(() => {
+      const synthetic = new MouseEvent("contextmenu", {
+        bubbles: true,
+        cancelable: true,
+        clientX,
+        clientY,
+        button: 2,
+        buttons: 2,
+      });
+      target.dispatchEvent(synthetic);
+    });
+  };
+
   return (
     <div className="flex-1 min-h-0 flex flex-col">
-      <ContextMenu>
+      <ContextMenu open={open} onOpenChange={setOpen}>
         <ContextMenuTrigger
           data-testid="media-context-trigger"
           className="flex-1 min-h-0 flex flex-col"
+          onContextMenuCapture={handleContextMenuCapture}
         >
           {children}
         </ContextMenuTrigger>
         <ContextMenuContent className="w-56 bg-popover/95 backdrop-blur-sm border-border/50">
-          {/* Selection Actions */}
-          <ContextMenuLabel className="text-xs text-muted-foreground/70 font-semibold uppercase tracking-wider">
-            Selection
-          </ContextMenuLabel>
-          <ContextMenuItem
-            data-testid="ctx-download-selected"
-            onClick={onDownloadSelected}
-            disabled={!hasSelection}
-            className="gap-3"
-          >
-            <Download className="size-4 text-primary" />
-            Download Selected
-            <ContextMenuShortcut>⌘D</ContextMenuShortcut>
-          </ContextMenuItem>
-          <ContextMenuItem
-            data-testid="ctx-preview-selected"
-            onClick={onPreviewSelected}
-            disabled={!hasSelection}
-            className="gap-3"
-          >
-            <Play className="size-4 text-emerald-500" />
-            Preview Selected
-            <ContextMenuShortcut>⌘P</ContextMenuShortcut>
-          </ContextMenuItem>
-          <ContextMenuItem
-            data-testid="ctx-open-browser"
-            onClick={onOpenInBrowser}
-            disabled={!hasSelection}
-            className="gap-3"
-          >
-            <ExternalLink className="size-4 text-sky-500" />
-            Open in Browser
-            <ContextMenuShortcut>⌘O</ContextMenuShortcut>
-          </ContextMenuItem>
-          <ContextMenuItem
-            data-testid="ctx-copy-selected"
-            onClick={onCopySelectedUrls}
-            disabled={!hasSelection}
-            className="gap-3"
-          >
-            <Copy className="size-4 text-muted-foreground" />
-            Copy URLs
-            <ContextMenuShortcut>⌘C</ContextMenuShortcut>
-          </ContextMenuItem>
+          {hasSelection && (
+            <>
+              {/* Selection Actions */}
+              <ContextMenuLabel className="text-xs text-muted-foreground/70 font-semibold uppercase tracking-wider">
+                Selection
+              </ContextMenuLabel>
+              <ContextMenuItem
+                data-testid="ctx-download-selected"
+                onClick={onDownloadSelected}
+                disabled={!hasSelection}
+                className="gap-3"
+              >
+                <Download className="size-4 text-primary" />
+                Download Selected
+                <ContextMenuShortcut>?D</ContextMenuShortcut>
+              </ContextMenuItem>
+              <ContextMenuItem
+                data-testid="ctx-preview-selected"
+                onClick={onPreviewSelected}
+                disabled={!hasSelection}
+                className="gap-3"
+              >
+                <Play className="size-4 text-emerald-500" />
+                Preview Selected
+                <ContextMenuShortcut>?P</ContextMenuShortcut>
+              </ContextMenuItem>
+              <ContextMenuItem
+                data-testid="ctx-open-browser"
+                onClick={onOpenInBrowser}
+                disabled={!hasSelection}
+                className="gap-3"
+              >
+                <ExternalLink className="size-4 text-sky-500" />
+                Open in Browser
+                <ContextMenuShortcut>?O</ContextMenuShortcut>
+              </ContextMenuItem>
+              <ContextMenuItem
+                data-testid="ctx-copy-selected"
+                onClick={onCopySelectedUrls}
+                disabled={!hasSelection}
+                className="gap-3"
+              >
+                <Copy className="size-4 text-muted-foreground" />
+                Copy URLs
+                <ContextMenuShortcut>?C</ContextMenuShortcut>
+              </ContextMenuItem>
 
-          <ContextMenuSeparator />
+              <ContextMenuSeparator />
+            </>
+          )}
 
           {/* Bulk Actions */}
           <ContextMenuLabel className="text-xs text-muted-foreground/70 font-semibold uppercase tracking-wider">

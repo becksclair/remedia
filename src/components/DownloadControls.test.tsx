@@ -18,11 +18,7 @@ describe("DownloadControls", () => {
   describe("Initial Render", () => {
     it("renders all control buttons", () => {
       renderWithProviders(
-        <DownloadControls
-          globalProgress={0}
-          globalDownloading={false}
-          {...mockHandlers}
-        />,
+        <DownloadControls globalProgress={0} globalDownloading={false} {...mockHandlers} />,
       );
 
       expect(screen.getByTestId("download-all")).toBeInTheDocument();
@@ -33,11 +29,7 @@ describe("DownloadControls", () => {
 
     it("renders global progress bar", () => {
       renderWithProviders(
-        <DownloadControls
-          globalProgress={50}
-          globalDownloading={false}
-          {...mockHandlers}
-        />,
+        <DownloadControls globalProgress={50} globalDownloading={false} {...mockHandlers} />,
       );
 
       const progressBar = screen.getByTestId("global-progress");
@@ -46,36 +38,20 @@ describe("DownloadControls", () => {
 
     it("has correct aria labels for accessibility", () => {
       renderWithProviders(
-        <DownloadControls
-          globalProgress={0}
-          globalDownloading={false}
-          {...mockHandlers}
-        />,
+        <DownloadControls globalProgress={0} globalDownloading={false} {...mockHandlers} />,
       );
 
-      expect(
-        screen.getByRole("button", { name: "Start download" }),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByRole("button", { name: "Preview selected media" }),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByRole("button", { name: "Open settings" }),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByRole("button", { name: "Quit application" }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Start download" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Preview selected media" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Open settings" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Quit application" })).toBeInTheDocument();
     });
   });
 
   describe("Download Button State", () => {
     it("download button is enabled when not downloading", () => {
       renderWithProviders(
-        <DownloadControls
-          globalProgress={0}
-          globalDownloading={false}
-          {...mockHandlers}
-        />,
+        <DownloadControls globalProgress={0} globalDownloading={false} {...mockHandlers} />,
       );
 
       const downloadButton = screen.getByTestId("download-all");
@@ -84,11 +60,7 @@ describe("DownloadControls", () => {
 
     it("download button is disabled when downloading", () => {
       renderWithProviders(
-        <DownloadControls
-          globalProgress={50}
-          globalDownloading={true}
-          {...mockHandlers}
-        />,
+        <DownloadControls globalProgress={50} globalDownloading={true} {...mockHandlers} />,
       );
 
       const downloadButton = screen.getByTestId("download-all");
@@ -99,11 +71,7 @@ describe("DownloadControls", () => {
   describe("Cancel Button Visibility", () => {
     it("cancel button is hidden when not downloading", () => {
       renderWithProviders(
-        <DownloadControls
-          globalProgress={0}
-          globalDownloading={false}
-          {...mockHandlers}
-        />,
+        <DownloadControls globalProgress={0} globalDownloading={false} {...mockHandlers} />,
       );
 
       expect(screen.queryByTestId("cancel-all")).not.toBeInTheDocument();
@@ -111,11 +79,7 @@ describe("DownloadControls", () => {
 
     it("cancel button is visible when downloading", () => {
       renderWithProviders(
-        <DownloadControls
-          globalProgress={50}
-          globalDownloading={true}
-          {...mockHandlers}
-        />,
+        <DownloadControls globalProgress={50} globalDownloading={true} {...mockHandlers} />,
       );
 
       expect(screen.getByTestId("cancel-all")).toBeInTheDocument();
@@ -123,16 +87,10 @@ describe("DownloadControls", () => {
 
     it("cancel button has correct aria label", () => {
       renderWithProviders(
-        <DownloadControls
-          globalProgress={50}
-          globalDownloading={true}
-          {...mockHandlers}
-        />,
+        <DownloadControls globalProgress={50} globalDownloading={true} {...mockHandlers} />,
       );
 
-      expect(
-        screen.getByRole("button", { name: "Cancel all downloads" }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Cancel all downloads" })).toBeInTheDocument();
     });
   });
 
@@ -140,11 +98,7 @@ describe("DownloadControls", () => {
     it("calls onDownload when download button clicked", async () => {
       const user = userEvent.setup();
       renderWithProviders(
-        <DownloadControls
-          globalProgress={0}
-          globalDownloading={false}
-          {...mockHandlers}
-        />,
+        <DownloadControls globalProgress={0} globalDownloading={false} {...mockHandlers} />,
       );
 
       await user.click(screen.getByTestId("download-all"));
@@ -155,11 +109,7 @@ describe("DownloadControls", () => {
     it("calls onCancel when cancel button clicked", async () => {
       const user = userEvent.setup();
       renderWithProviders(
-        <DownloadControls
-          globalProgress={50}
-          globalDownloading={true}
-          {...mockHandlers}
-        />,
+        <DownloadControls globalProgress={50} globalDownloading={true} {...mockHandlers} />,
       );
 
       await user.click(screen.getByTestId("cancel-all"));
@@ -170,11 +120,7 @@ describe("DownloadControls", () => {
     it("calls onPreview when preview button clicked", async () => {
       const user = userEvent.setup();
       renderWithProviders(
-        <DownloadControls
-          globalProgress={0}
-          globalDownloading={false}
-          {...mockHandlers}
-        />,
+        <DownloadControls globalProgress={0} globalDownloading={false} {...mockHandlers} />,
       );
 
       await user.click(screen.getByTestId("preview-selected"));
@@ -185,11 +131,7 @@ describe("DownloadControls", () => {
     it("calls onSettings when settings button clicked", async () => {
       const user = userEvent.setup();
       renderWithProviders(
-        <DownloadControls
-          globalProgress={0}
-          globalDownloading={false}
-          {...mockHandlers}
-        />,
+        <DownloadControls globalProgress={0} globalDownloading={false} {...mockHandlers} />,
       );
 
       await user.click(screen.getByTestId("open-settings"));
@@ -200,11 +142,7 @@ describe("DownloadControls", () => {
     it("calls onQuit when quit button clicked", async () => {
       const user = userEvent.setup();
       renderWithProviders(
-        <DownloadControls
-          globalProgress={0}
-          globalDownloading={false}
-          {...mockHandlers}
-        />,
+        <DownloadControls globalProgress={0} globalDownloading={false} {...mockHandlers} />,
       );
 
       await user.click(screen.getByTestId("quit-app"));
@@ -216,55 +154,37 @@ describe("DownloadControls", () => {
   describe("Progress States", () => {
     it("renders with 0% progress", () => {
       renderWithProviders(
-        <DownloadControls
-          globalProgress={0}
-          globalDownloading={false}
-          {...mockHandlers}
-        />,
+        <DownloadControls globalProgress={0} globalDownloading={false} {...mockHandlers} />,
       );
 
       const progressBar = screen.getByTestId("global-progress");
       expect(progressBar).toBeInTheDocument();
       // Progress indicator should be at 0%
-      const indicator = progressBar.querySelector(
-        '[data-slot="progress-indicator"]',
-      );
+      const indicator = progressBar.querySelector('[data-slot="progress-indicator"]');
       expect(indicator).toHaveStyle({ transform: "translateX(-100%)" });
     });
 
     it("renders with 50% progress", () => {
       renderWithProviders(
-        <DownloadControls
-          globalProgress={50}
-          globalDownloading={true}
-          {...mockHandlers}
-        />,
+        <DownloadControls globalProgress={50} globalDownloading={true} {...mockHandlers} />,
       );
 
       const progressBar = screen.getByTestId("global-progress");
       expect(progressBar).toBeInTheDocument();
       // Progress indicator should be at 50%
-      const indicator = progressBar.querySelector(
-        '[data-slot="progress-indicator"]',
-      );
+      const indicator = progressBar.querySelector('[data-slot="progress-indicator"]');
       expect(indicator).toHaveStyle({ transform: "translateX(-50%)" });
     });
 
     it("renders with 100% progress", () => {
       renderWithProviders(
-        <DownloadControls
-          globalProgress={100}
-          globalDownloading={false}
-          {...mockHandlers}
-        />,
+        <DownloadControls globalProgress={100} globalDownloading={false} {...mockHandlers} />,
       );
 
       const progressBar = screen.getByTestId("global-progress");
       expect(progressBar).toBeInTheDocument();
       // Progress indicator should be at 100%
-      const indicator = progressBar.querySelector(
-        '[data-slot="progress-indicator"]',
-      );
+      const indicator = progressBar.querySelector('[data-slot="progress-indicator"]');
       expect(indicator).toHaveStyle({ transform: "translateX(-0%)" });
     });
   });

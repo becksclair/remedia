@@ -60,11 +60,7 @@ export function SettingsDialog({
         </Tabs>
 
         <DialogFooter>
-          <Button
-            type="submit"
-            data-testid="settings-done"
-            onClick={() => onOpenChange(false)}
-          >
+          <Button type="submit" data-testid="settings-done" onClick={() => onOpenChange(false)}>
             Done
           </Button>
         </DialogFooter>

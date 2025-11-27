@@ -79,16 +79,11 @@ describe("Remedia - Media Downloader App", () => {
       const progressHeader = await $("*=Progress");
       const statusHeader = await $("*=Status");
 
-      if (await previewHeader.isExisting())
-        await expect(previewHeader).toBeDisplayed();
-      if (await titleHeader.isExisting())
-        await expect(titleHeader).toBeDisplayed();
-      if (await audioHeader.isExisting())
-        await expect(audioHeader).toBeDisplayed();
-      if (await progressHeader.isExisting())
-        await expect(progressHeader).toBeDisplayed();
-      if (await statusHeader.isExisting())
-        await expect(statusHeader).toBeDisplayed();
+      if (await previewHeader.isExisting()) await expect(previewHeader).toBeDisplayed();
+      if (await titleHeader.isExisting()) await expect(titleHeader).toBeDisplayed();
+      if (await audioHeader.isExisting()) await expect(audioHeader).toBeDisplayed();
+      if (await progressHeader.isExisting()) await expect(progressHeader).toBeDisplayed();
+      if (await statusHeader.isExisting()) await expect(statusHeader).toBeDisplayed();
     }
   });
 
@@ -146,9 +141,7 @@ describe("Remedia - Media Downloader App", () => {
 
   it("should verify drag and drop area exists", async () => {
     // Look for elements that might be the drop zone
-    const dropElements = await $$(
-      '.drop-zone, [data-testid="drop-zone"], .drag-area',
-    );
+    const dropElements = await $$('.drop-zone, [data-testid="drop-zone"], .drag-area');
 
     if (dropElements.length > 0) {
       await expect(dropElements[0]).toBeDisplayed();

@@ -16,10 +16,7 @@ export interface LogEntry {
  * @param searchTerm - Case-insensitive search term
  * @returns Array of indices that match
  */
-export function findLogMatches(
-  logEntries: LogEntry[],
-  searchTerm: string,
-): number[] {
+export function findLogMatches(logEntries: LogEntry[], searchTerm: string): number[] {
   if (!searchTerm) {
     return [];
   }
@@ -42,10 +39,7 @@ export function findLogMatches(
  * @param totalMatches - Total number of matches
  * @returns Next match index (wraps to 0 after last)
  */
-export function getNextMatchIndex(
-  currentIndex: number,
-  totalMatches: number,
-): number {
+export function getNextMatchIndex(currentIndex: number, totalMatches: number): number {
   if (totalMatches === 0) {
     return 0;
   }
