@@ -20,11 +20,11 @@ describe("MediaTable", () => {
         <MediaTable mediaList={[]} onRemoveItem={mockOnRemoveItem} />,
       );
 
-      // Table should exist (header table + body table for virtualization)
+      // Table should exist
       const tables = screen.getAllByRole("table");
       expect(tables.length).toBeGreaterThanOrEqual(1);
-      // Only header row should exist (no data rows)
-      expect(screen.queryAllByRole("row")).toHaveLength(1);
+      // No data rows should exist (header is rendered as divs, not tr elements)
+      expect(screen.queryAllByRole("row")).toHaveLength(0);
     });
 
     it("renders table headers", () => {
@@ -35,7 +35,7 @@ describe("MediaTable", () => {
       expect(screen.getByText("Preview")).toBeInTheDocument();
       expect(screen.getByText("Title")).toBeInTheDocument();
       expect(screen.getByText("Audio")).toBeInTheDocument();
-      expect(screen.getByText("Progress")).toBeInTheDocument();
+      // Progress column header is labeled "Status" (shows status text + progress bar)
       expect(screen.getByText("Status")).toBeInTheDocument();
     });
 

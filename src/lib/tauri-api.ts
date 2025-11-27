@@ -16,6 +16,7 @@ import {
   sendNotification,
 } from "@tauri-apps/plugin-notification";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import type { DownloadSettings } from "@/types";
 
@@ -158,6 +159,16 @@ export interface TauriDialog {
 }
 
 /**
+ * Tauri Shell API
+ */
+export interface TauriShell {
+  /**
+   * Open a URL in the default browser
+   */
+  open(url: string): Promise<void>;
+}
+
+/**
  * Complete Tauri API interface
  */
 export interface TauriApi {
@@ -168,6 +179,7 @@ export interface TauriApi {
   clipboard: TauriClipboard;
   notification: TauriNotification;
   dialog: TauriDialog;
+  shell: TauriShell;
 }
 
 /**
@@ -285,6 +297,12 @@ class RealTauriApi implements TauriApi {
       title?: string;
     }): Promise<string | string[] | null> {
       return await openDialog(options);
+    },
+  };
+
+  shell: TauriShell = {
+    async open(url: string): Promise<void> {
+      await openUrl(url);
     },
   };
 }

@@ -16,6 +16,7 @@ import type {
   TauriClipboard,
   TauriNotification,
   TauriDialog,
+  TauriShell,
 } from "./tauri-api";
 import type { DownloadSettings } from "@/types";
 
@@ -333,6 +334,18 @@ class MockDialog implements TauriDialog {
 }
 
 /**
+ * Mock Shell Implementation
+ */
+class MockShell implements TauriShell {
+  async open(url: string): Promise<void> {
+    mockState.commandCalls.push({
+      command: "open_url",
+      args: { url },
+    });
+  }
+}
+
+/**
  * Complete Mock Tauri API
  */
 export class MockTauriApi implements TauriApi {
@@ -343,6 +356,7 @@ export class MockTauriApi implements TauriApi {
   clipboard: TauriClipboard = new MockClipboard();
   notification: TauriNotification = new MockNotification();
   dialog: TauriDialog = new MockDialog();
+  shell: TauriShell = new MockShell();
 }
 
 /**

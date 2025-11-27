@@ -282,10 +282,29 @@ function App(): JSX.Element {
     removeAll();
   };
 
+  const handleCopySelectedUrls = async (): Promise<void> => {
+    const selectedIndices = getSelectedIndices(rowSelection);
+    if (selectedIndices.length === 0) return;
+
+    const urls = selectedIndices
+      .map((idx) => mediaList[idx]?.url)
+      .filter(Boolean)
+      .join("\n");
+
+    await copyToClipboard(urls, selectedIndices.length);
+  };
+
   const handleCopyAllUrls = async (): Promise<void> => {
     if (mediaList.length === 0) return;
 
     const urls = mediaList.map((item) => item.url).join("\n");
+    await copyToClipboard(urls, mediaList.length);
+  };
+
+  const copyToClipboard = async (
+    urls: string,
+    count: number,
+  ): Promise<void> => {
     const canUseBrowserClipboard =
       typeof navigator !== "undefined" &&
       typeof navigator.clipboard?.writeText === "function";
@@ -311,7 +330,7 @@ function App(): JSX.Element {
 
     if (notificationPermission) {
       tauriApi.notification.sendNotification({
-        body: `Copied ${mediaList.length} URL(s) to clipboard`,
+        body: `Copied ${count} URL(s) to clipboard`,
         title: "ReMedia",
       });
     }
@@ -337,6 +356,52 @@ function App(): JSX.Element {
       }
     });
     await startDownload();
+  };
+
+  const handleDownloadSelected = async (): Promise<void> => {
+    const selectedIndices = getSelectedIndices(rowSelection);
+    if (selectedIndices.length === 0) return;
+    logAction("download-selected", selectedIndices.length);
+
+    selectedIndices.forEach((idx) => {
+      const item = mediaList[idx];
+      if (item && item.status !== "Done") {
+        updateMediaItemByIndex(idx, { status: "Downloading", progress: 0 });
+      }
+    });
+    await startDownload();
+  };
+
+  const handleRetryFailed = async (): Promise<void> => {
+    const failedIndices = mediaList
+      .map((item, idx) =>
+        item.status === "Error" || item.status === "Cancelled" ? idx : -1,
+      )
+      .filter((idx) => idx !== -1);
+
+    if (failedIndices.length === 0) return;
+    logAction("retry-failed", failedIndices.length);
+
+    failedIndices.forEach((idx) => {
+      updateMediaItemByIndex(idx, { status: "Pending", progress: 0 });
+    });
+    await startDownload();
+  };
+
+  const handleOpenInBrowser = async (): Promise<void> => {
+    const selectedIndices = getSelectedIndices(rowSelection);
+    if (selectedIndices.length === 0) return;
+
+    for (const idx of selectedIndices) {
+      const item = mediaList[idx];
+      if (item?.url) {
+        try {
+          await tauriApi.shell.open(item.url);
+        } catch (err) {
+          console.error("Failed to open URL:", err);
+        }
+      }
+    }
   };
 
   const handleShowDebugConsole = async (): Promise<void> => {
@@ -517,11 +582,21 @@ function App(): JSX.Element {
         {/* Media List with Context Menu */}
         <MediaListContextMenu
           onDownloadAll={handleStartAllDownloads}
+          onDownloadSelected={handleDownloadSelected}
           onCancelAll={handleCancelAll}
+          onPreviewSelected={preview}
           onRemoveSelected={handleRemoveSelected}
           onRemoveAll={handleRemoveAll}
+          onRetryFailed={handleRetryFailed}
+          onCopySelectedUrls={handleCopySelectedUrls}
           onCopyAllUrls={handleCopyAllUrls}
+          onOpenInBrowser={handleOpenInBrowser}
           onShowDebugConsole={handleShowDebugConsole}
+          hasSelection={Object.keys(rowSelection).length > 0}
+          hasItems={mediaList.length > 0}
+          hasFailed={mediaList.some(
+            (item) => item.status === "Error" || item.status === "Cancelled",
+          )}
         >
           <MediaTable
             className="flex-1 min-h-0"

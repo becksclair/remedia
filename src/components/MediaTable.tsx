@@ -39,7 +39,9 @@ interface MediaTableProps {
 /**
  * Creates table column definitions for the media list
  */
-function createMediaColumns(onRemoveItem: (title: string) => void): ColumnDef<VideoInfo>[] {
+function createMediaColumns(
+  onRemoveItem: (title: string) => void,
+): ColumnDef<VideoInfo>[] {
   return [
     {
       cell: ({ row }) => (
@@ -70,7 +72,9 @@ function createMediaColumns(onRemoveItem: (title: string) => void): ColumnDef<Vi
       accessorKey: "thumbnail",
       cell: ({ row }) => {
         const thumbnail = row.getValue("thumbnail");
-        const thumbnailSrc = thumbnail ? (thumbnail as string) : thumbnailPlaceholder;
+        const thumbnailSrc = thumbnail
+          ? (thumbnail as string)
+          : thumbnailPlaceholder;
 
         return (
           <img
@@ -145,7 +149,11 @@ function createMediaColumns(onRemoveItem: (title: string) => void): ColumnDef<Vi
         return (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-8 w-8 p-0" data-testid={`row-${row.id}-menu`}>
+              <Button
+                variant="ghost"
+                className="h-8 w-8 p-0"
+                data-testid={`row-${row.id}-menu`}
+              >
                 <span className="sr-only">Open menu</span>
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
@@ -154,7 +162,9 @@ function createMediaColumns(onRemoveItem: (title: string) => void): ColumnDef<Vi
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
               <DropdownMenuItem
                 data-testid={`row-${row.id}-copy-url`}
-                onClick={() => navigator.clipboard.writeText(row.getValue("url"))}
+                onClick={() =>
+                  navigator.clipboard.writeText(row.getValue("url"))
+                }
               >
                 Copy URL
               </DropdownMenuItem>
@@ -177,7 +187,11 @@ function createMediaColumns(onRemoveItem: (title: string) => void): ColumnDef<Vi
 /**
  * Media Table Component
  */
-export function MediaTable({ mediaList, onRemoveItem, className }: MediaTableProps) {
+export function MediaTable({
+  mediaList,
+  onRemoveItem,
+  className,
+}: MediaTableProps) {
   const columns = createMediaColumns(onRemoveItem);
 
   return <DataTable className={className} columns={columns} data={mediaList} />;
