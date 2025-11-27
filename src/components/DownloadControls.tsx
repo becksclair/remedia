@@ -32,11 +32,20 @@ export function DownloadControls({
   return (
     <section className="flex-none flex flex-col gap-y-4">
       <div className="my-3">
+        <div
+          role="status"
+          aria-live="polite"
+          aria-label={`Download progress: ${globalProgress}%`}
+          className="sr-only"
+        >
+          Download progress: {globalProgress}%
+        </div>
         <Progress
           data-testid="global-progress"
           value={globalProgress}
           max={100}
           className="w-full"
+          aria-label={`Global download progress: ${globalProgress}%`}
         />
       </div>
 

@@ -2,14 +2,18 @@
  * MediaTable Component
  *
  * Displays the media list with thumbnails, titles, progress, and actions.
- * Uses TanStack Table for sorting and row selection.
+ * Uses TanStack Table with virtual scrolling for performance.
  */
 
 import type { ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontal } from "lucide-react";
+import { useMemo, useCallback, useRef } from "react";
+import { flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { Checkbox } from "./ui/checkbox";
 import { Progress } from "./ui/progress";
 import { Button } from "./ui/button";
+import { Table, TableBody, TableCell, TableRow } from "./ui/table";
 import thumbnailPlaceholder from "@/assets/thumbnail-placeholder.svg";
 import {
   DropdownMenu,
@@ -18,7 +22,9 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { DataTable } from "./data-table";
+import { cn } from "@/lib/utils";
+import { useAtom } from "jotai";
+import { tableRowSelectionAtom } from "@/state/app-atoms";
 
 export interface VideoInfo {
   url: string;
@@ -35,6 +41,9 @@ interface MediaTableProps {
   onRemoveItem: (title: string) => void;
   className?: string;
 }
+
+/** Row height in pixels - matches thumbnail height (80px) + padding (16px) */
+const ROW_HEIGHT = 96;
 
 /**
  * Creates table column definitions for the media list
@@ -155,12 +164,14 @@ function createMediaColumns(onRemoveItem: (title: string) => void): ColumnDef<Vi
               <DropdownMenuItem
                 data-testid={`row-${row.id}-copy-url`}
                 onClick={() => navigator.clipboard.writeText(row.getValue("url"))}
+                aria-label="Copy media URL to clipboard"
               >
                 Copy URL
               </DropdownMenuItem>
               <DropdownMenuItem
                 data-testid={`row-${row.id}-delete`}
                 onClick={() => onRemoveItem(row.getValue("title"))}
+                aria-label="Remove media item from list"
               >
                 Delete
               </DropdownMenuItem>
@@ -178,7 +189,129 @@ function createMediaColumns(onRemoveItem: (title: string) => void): ColumnDef<Vi
  * Media Table Component
  */
 export function MediaTable({ mediaList, onRemoveItem, className }: MediaTableProps) {
-  const columns = createMediaColumns(onRemoveItem);
+  const memoizedOnRemoveItem = useCallback(onRemoveItem, [onRemoveItem]);
+  const columns = useMemo(() => createMediaColumns(memoizedOnRemoveItem), [memoizedOnRemoveItem]);
+  const [rowSelection, setRowSelection] = useAtom(tableRowSelectionAtom);
 
-  return <DataTable className={className} columns={columns} data={mediaList} />;
+  const table = useReactTable({
+    columns,
+    data: mediaList,
+    getCoreRowModel: getCoreRowModel(),
+    onRowSelectionChange: setRowSelection,
+    state: {
+      rowSelection,
+    },
+  });
+
+  const { rows } = table.getRowModel();
+
+  // Ref for the scrollable container
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+
+  // Virtual row renderer - only renders visible rows + overscan
+  const rowVirtualizer = useVirtualizer({
+    count: rows.length,
+    estimateSize: () => ROW_HEIGHT,
+    getScrollElement: () => tableContainerRef.current,
+    overscan: 5, // Render 5 extra rows above/below viewport for smooth scrolling
+  });
+
+  return (
+    <div
+      className={cn(
+        "rounded-md border border-sidebar-ring shadow-md grad-background flex flex-col",
+        className,
+      )}
+    >
+      <div className="shrink-0 bg-primary rounded-t-md">
+        {table.getHeaderGroups().map((headerGroup) => (
+          <div key={headerGroup.id} className="h-10 flex items-center">
+            {headerGroup.headers.map((header) => {
+              const isFlexColumn = header.id === "title";
+              return (
+                <div
+                  key={header.id}
+                  className={`text-white font-medium px-2 ${isFlexColumn ? "flex-1 min-w-0" : "shrink-0"}`}
+                  style={isFlexColumn ? undefined : { width: header.getSize() }}
+                >
+                  {header.isPlaceholder
+                    ? null
+                    : flexRender(header.column.columnDef.header, header.getContext())}
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+
+      {/* Virtualized scrollable body */}
+      <div
+        ref={tableContainerRef}
+        className="overflow-y-auto flex-1 min-h-0"
+        data-testid="virtual-scroll-container"
+      >
+        <Table>
+          <TableBody
+            style={{
+              height: `${rowVirtualizer.getTotalSize()}px`,
+              position: "relative",
+            }}
+          >
+            {rows.length > 0
+              ? (() => {
+                  const virtualItems = rowVirtualizer.getVirtualItems();
+                  // Fallback: render all rows when virtualizer returns empty (e.g., in JSDOM tests)
+                  const itemsToRender =
+                    virtualItems.length > 0
+                      ? virtualItems
+                      : rows.map((_, index) => ({
+                          index,
+                          start: index * ROW_HEIGHT,
+                          size: ROW_HEIGHT,
+                          key: index,
+                        }));
+
+                  return itemsToRender.map((virtualRow) => {
+                    const row = rows[virtualRow.index];
+                    if (!row) return null;
+                    return (
+                      <TableRow
+                        className="bg-background absolute w-full flex items-center"
+                        key={row.id}
+                        data-testid={`row-${row.id}`}
+                        data-state={row.getIsSelected() && "selected"}
+                        data-index={virtualRow.index}
+                        onContextMenu={() => {
+                          // Right-click should target the row under the cursor so selection-aware actions enable
+                          if (!row.getIsSelected()) {
+                            setRowSelection({ [row.id]: true });
+                          }
+                        }}
+                        style={{
+                          height: `${virtualRow.size}px`,
+                          transform: `translateY(${virtualRow.start}px)`,
+                        }}
+                      >
+                        {row.getVisibleCells().map((cell) => {
+                          const isFlexColumn = cell.column.id === "title";
+                          return (
+                            <TableCell
+                              key={cell.id}
+                              className={`flex items-center px-2 ${isFlexColumn ? "flex-1 min-w-0" : "shrink-0"}`}
+                              style={isFlexColumn ? undefined : { width: cell.column.getSize() }}
+                            >
+                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                            </TableCell>
+                          );
+                        })}
+                      </TableRow>
+                    );
+                  });
+                })()
+              : null}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
 }

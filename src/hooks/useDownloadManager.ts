@@ -4,8 +4,9 @@
  * Manages download operations and global download state.
  */
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useAtomValue, useSetAtom } from "jotai";
+import { useTauriApi } from "@/lib/TauriApiContext";
 import {
   downloadLocationAtom,
   downloadModeAtom,
@@ -19,9 +20,9 @@ import {
   appendUniqueIdAtom,
   uniqueIdTypeAtom,
 } from "@/state/settings-atoms";
-import { calculateGlobalProgress, hasActiveDownloads } from "@/utils/media-helpers";
+import { hasActiveDownloads, calculateGlobalProgress } from "@/utils/media-helpers";
+import { ErrorHandlers } from "@/shared/error-handler";
 import type { DownloadSettings } from "@/types";
-import { useTauriApi } from "@/lib/TauriApiContext";
 import type { VideoInfo } from "@/components/MediaTable";
 
 export function useDownloadManager(mediaList: VideoInfo[]) {
@@ -110,7 +111,30 @@ export function useDownloadManager(mediaList: VideoInfo[]) {
       await kickOff(0);
     } catch (err) {
       console.error("Error starting download:", err);
-      alert("Error starting download");
+      ErrorHandlers.download(err, undefined, async () => {
+        // Retry the entire download process
+        const kickOff = async (attempt: number): Promise<void> => {
+          const pending = mediaList
+            .map((media, idx) => ({ media, idx }))
+            .filter(({ media }) => media.status !== "Done");
+
+          if (pending.length === 0) {
+            if (attempt < retryLimit) {
+              await new Promise((r) => setTimeout(r, retryDelayMs));
+              return kickOff(attempt + 1);
+            }
+            console.warn("retry: no pending items after retries, giving up");
+            return;
+          }
+
+          await Promise.all(
+            pending.map(({ media, idx }) =>
+              tauriApi.commands.downloadMedia(idx, media.url, resolvedOutput, settings),
+            ),
+          );
+        };
+        await kickOff(0);
+      });
       setGlobalDownloading(false);
       inFlightRef.current = false;
     }
@@ -141,6 +165,7 @@ export function useDownloadManager(mediaList: VideoInfo[]) {
       console.log("Cancel all downloads requested");
     } catch (error) {
       console.error("Failed to cancel downloads:", error);
+      ErrorHandlers.system(error, "cancel downloads");
     }
   }, [tauriApi.commands]);
 

@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo } from "react";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 import _ReactPlayer from "react-player";
 import { AlertCircle, Loader2, Music } from "lucide-react";
-import ErrorBoundary from "./components/error-boundary";
+import { ErrorBoundary } from "./shared/error-boundary";
 import { Button } from "./components/ui/button";
 
 // Type workaround for react-player type issues

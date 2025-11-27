@@ -30,7 +30,14 @@ function DropZone({ className, dropHandler, dragHovering }: React.ComponentProps
         className,
       )}
       onDrop={handleDrop}
+      onDragOver={(e) => e.preventDefault()}
+      role="button"
+      aria-label="Drop zone for media links"
+      aria-describedby="drop-zone-instruction"
     >
+      <span id="drop-zone-instruction" className="sr-only">
+        Drag and drop media links here to add them to the download queue
+      </span>
       {dragHovering ? "Drop your link here" : "Drag and drop media links here"}
     </div>
   );

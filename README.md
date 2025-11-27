@@ -197,9 +197,45 @@ src-tauri/src/
 - **Test-Driven Development**: 58+ unit tests ensure code reliability
 - **Pure Functions**: Business logic extracted to testable utilities
 - **Type Safety**: Strict TypeScript with noUncheckedIndexedAccess
-- **Error Handling**: Comprehensive validation and error propagation
+- **Error Handling**: Comprehensive validation and error propagation with categorized toast notifications and retry actions
 - **Separation of Concerns**: Clear boundaries between UI, state, and logic
 - **Documentation**: JSDoc comments on all public utility functions
+
+## Error Handling System
+
+ReMedia uses a centralized error handling system with categorized notifications:
+
+### Error Categories
+- **Network**: Connection issues, fetch failures
+- **Download**: yt-dlp failures, invalid URLs, media unavailable
+- **Validation**: Invalid input, required fields missing
+- **System**: File permissions, system errors
+- **Unknown**: Unexpected errors
+
+### Usage Examples
+```typescript
+import { ErrorHandlers } from '@/shared/error-handler';
+
+// Download errors with retry
+ErrorHandlers.download(error, url, async () => {
+  await retryDownload();
+});
+
+// Network errors
+ErrorHandlers.network(error, async () => {
+  await retryNetworkOperation();
+});
+
+// Validation errors
+ErrorHandlers.validation(error, fieldName);
+```
+
+### Features
+- Automatic error categorization based on message content
+- User-friendly error messages
+- Retry actions for recoverable errors
+- Toast notifications with appropriate severity levels
+- Enhanced error boundary with recovery options
 
 ## Platform Support
 

@@ -115,6 +115,7 @@ export function MediaListContextMenu({
                 onClick={onDownloadSelected}
                 disabled={!hasSelection}
                 className="gap-3"
+                aria-label="Download selected media items"
               >
                 <Download className="size-4 text-primary" />
                 Download Selected
@@ -125,6 +126,7 @@ export function MediaListContextMenu({
                 onClick={onPreviewSelected}
                 disabled={!hasSelection}
                 className="gap-3"
+                aria-label="Preview selected media items"
               >
                 <Play className="size-4 text-emerald-500" />
                 Preview Selected
@@ -135,6 +137,7 @@ export function MediaListContextMenu({
                 onClick={onOpenInBrowser}
                 disabled={!hasSelection}
                 className="gap-3"
+                aria-label="Open selected media in browser"
               >
                 <ExternalLink className="size-4 text-sky-500" />
                 Open in Browser
@@ -145,6 +148,7 @@ export function MediaListContextMenu({
                 onClick={onCopySelectedUrls}
                 disabled={!hasSelection}
                 className="gap-3"
+                aria-label="Copy selected media URLs to clipboard"
               >
                 <Copy className="size-4 text-muted-foreground" />
                 Copy URLs
@@ -164,6 +168,7 @@ export function MediaListContextMenu({
             onClick={onDownloadAll}
             disabled={!hasItems}
             className="gap-3"
+            aria-label="Download all media items"
           >
             <Download className="size-4 text-primary" />
             Download All
@@ -174,6 +179,7 @@ export function MediaListContextMenu({
             onClick={onCancelAll}
             disabled={!hasItems}
             className="gap-3"
+            aria-label="Cancel all active downloads"
           >
             <XCircle className="size-4 text-amber-500" />
             Cancel All Downloads
@@ -184,6 +190,7 @@ export function MediaListContextMenu({
             onClick={onRetryFailed}
             disabled={!hasFailed}
             className="gap-3"
+            aria-label="Retry failed downloads"
           >
             <RotateCcw className="size-4 text-orange-500" />
             Retry Failed
@@ -194,6 +201,7 @@ export function MediaListContextMenu({
             onClick={onCopyAllUrls}
             disabled={!hasItems}
             className="gap-3"
+            aria-label="Copy all media URLs to clipboard"
           >
             <Copy className="size-4 text-muted-foreground" />
             Copy All URLs
@@ -209,6 +217,7 @@ export function MediaListContextMenu({
             disabled={!hasSelection}
             variant="destructive"
             className="gap-3"
+            aria-label="Remove selected media items from list"
           >
             <Trash2 className="size-4" />
             Remove Selected
@@ -220,6 +229,7 @@ export function MediaListContextMenu({
             disabled={!hasItems}
             variant="destructive"
             className="gap-3"
+            aria-label="Clear all media items from list"
           >
             <Trash2 className="size-4" />
             Clear All
@@ -233,6 +243,7 @@ export function MediaListContextMenu({
             data-testid="ctx-show-debug"
             onClick={onShowDebugConsole}
             className="gap-3"
+            aria-label="Open debug console window"
           >
             <Terminal className="size-4 text-violet-500" />
             Debug Console

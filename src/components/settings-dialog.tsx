@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useRef, useEffect } from "react";
 
 import { GeneralTab, DownloadsTab, QualityTab } from "./settings";
 
@@ -20,27 +21,37 @@ export function SettingsDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const initialFocusRef = useRef<HTMLHeadingElement>(null);
+
+  useEffect(() => {
+    if (open && initialFocusRef.current) {
+      initialFocusRef.current.focus();
+    }
+  }, [open]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle data-testid="settings-title">Settings</DialogTitle>
+          <DialogTitle data-testid="settings-title" ref={initialFocusRef} tabIndex={-1}>
+            Settings
+          </DialogTitle>
           <DialogDescription>
             Configure your download preferences and quality settings.
           </DialogDescription>
         </DialogHeader>
 
         <Tabs defaultValue="general" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="general" className="gap-2">
+          <TabsList className="grid w-full grid-cols-3" role="tablist">
+            <TabsTrigger value="general" className="gap-2" role="tab" aria-selected="true">
               <Settings className="h-4 w-4" />
               General
             </TabsTrigger>
-            <TabsTrigger value="downloads" className="gap-2">
+            <TabsTrigger value="downloads" className="gap-2" role="tab" aria-selected="false">
               <Download className="h-4 w-4" />
               Downloads
             </TabsTrigger>
-            <TabsTrigger value="quality" className="gap-2">
+            <TabsTrigger value="quality" className="gap-2" role="tab" aria-selected="false">
               <Sliders className="h-4 w-4" />
               Quality
             </TabsTrigger>
