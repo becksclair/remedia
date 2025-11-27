@@ -1,5 +1,8 @@
 /**
- * Tests for useDownloadManager hook
+ * Unit tests for useDownloadManager Hook
+ *
+ * Tests individual hook behavior and state management.
+ * See ../test/integration/download-flow-integration.test.tsx for end-to-end tests.
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -293,6 +296,126 @@ describe("useDownloadManager", () => {
           expect.objectContaining({
             appendUniqueId: true,
             uniqueIdType: "hash",
+          }),
+        );
+      });
+    });
+  });
+
+  describe("download rate limit setting", () => {
+    it("passes downloadRateLimit when set to specific value", async () => {
+      const wrapper = createTestWrapper([[downloadRateLimitAtom, "50M"]]);
+      const mediaList: VideoInfo[] = [
+        createMockMediaItem("https://example.com/video1", {
+          status: "Pending",
+        }),
+      ];
+      const downloadMediaSpy = vi.spyOn(mockTauriApi.commands, "downloadMedia");
+
+      const { result } = renderHook(() => useDownloadManager(mediaList), {
+        wrapper,
+      });
+
+      await act(async () => {
+        await result.current.startDownload();
+      });
+
+      await waitFor(() => {
+        expect(downloadMediaSpy).toHaveBeenCalledWith(
+          0,
+          "https://example.com/video1",
+          "/tmp/downloads",
+          expect.objectContaining({
+            downloadRateLimit: "50M",
+          }),
+        );
+      });
+    });
+
+    it("passes downloadRateLimit=unlimited when not set", async () => {
+      const wrapper = createTestWrapper([[downloadRateLimitAtom, "unlimited"]]);
+      const mediaList: VideoInfo[] = [
+        createMockMediaItem("https://example.com/video1", {
+          status: "Pending",
+        }),
+      ];
+      const downloadMediaSpy = vi.spyOn(mockTauriApi.commands, "downloadMedia");
+
+      const { result } = renderHook(() => useDownloadManager(mediaList), {
+        wrapper,
+      });
+
+      await act(async () => {
+        await result.current.startDownload();
+      });
+
+      await waitFor(() => {
+        expect(downloadMediaSpy).toHaveBeenCalledWith(
+          0,
+          "https://example.com/video1",
+          "/tmp/downloads",
+          expect.objectContaining({
+            downloadRateLimit: "unlimited",
+          }),
+        );
+      });
+    });
+  });
+
+  describe("max file size setting", () => {
+    it("passes maxFileSize when set to specific value", async () => {
+      const wrapper = createTestWrapper([[maxFileSizeAtom, "100M"]]);
+      const mediaList: VideoInfo[] = [
+        createMockMediaItem("https://example.com/video1", {
+          status: "Pending",
+        }),
+      ];
+      const downloadMediaSpy = vi.spyOn(mockTauriApi.commands, "downloadMedia");
+
+      const { result } = renderHook(() => useDownloadManager(mediaList), {
+        wrapper,
+      });
+
+      await act(async () => {
+        await result.current.startDownload();
+      });
+
+      await waitFor(() => {
+        expect(downloadMediaSpy).toHaveBeenCalledWith(
+          0,
+          "https://example.com/video1",
+          "/tmp/downloads",
+          expect.objectContaining({
+            maxFileSize: "100M",
+          }),
+        );
+      });
+    });
+
+    it("passes maxFileSize=unlimited when not set", async () => {
+      const wrapper = createTestWrapper([[maxFileSizeAtom, "unlimited"]]);
+      const mediaList: VideoInfo[] = [
+        createMockMediaItem("https://example.com/video1", {
+          status: "Pending",
+        }),
+      ];
+      const downloadMediaSpy = vi.spyOn(mockTauriApi.commands, "downloadMedia");
+
+      const { result } = renderHook(() => useDownloadManager(mediaList), {
+        wrapper,
+      });
+
+      await act(async () => {
+        await result.current.startDownload();
+      });
+
+      await waitFor(() => {
+        expect(downloadMediaSpy).toHaveBeenCalledWith(
+          0,
+          "https://example.com/video1",
+          "/tmp/downloads",
+          expect.objectContaining({
+            maxFileSize: "unlimited",
           }),
         );
       });

@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useCallback } from "react";
 
 import { GeneralTab, DownloadsTab, QualityTab } from "./settings";
 
@@ -21,19 +21,84 @@ export function SettingsDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const initialFocusRef = useRef<HTMLHeadingElement>(null);
+  const dialogTitleRef = useRef<HTMLHeadingElement>(null);
+  const dialogContentRef = useRef<HTMLDivElement>(null);
+  const lastFocusedElementRef = useRef<HTMLElement | null>(null);
+
+  const focusInitialElement = useCallback(() => {
+    const contentEl = dialogContentRef.current;
+    if (!contentEl) return;
+
+    const explicitTarget = contentEl.querySelector<HTMLElement>("[data-dialog-initial-focus]");
+    if (explicitTarget && typeof explicitTarget.focus === "function") {
+      explicitTarget.focus();
+      return;
+    }
+
+    const fallbackTarget = contentEl.querySelector<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+    );
+    if (fallbackTarget && typeof fallbackTarget.focus === "function") {
+      fallbackTarget.focus();
+      return;
+    }
+
+    dialogTitleRef.current?.focus();
+  }, []);
+
+  const restoreFocus = useCallback(() => {
+    const previous = lastFocusedElementRef.current;
+    if (previous && typeof previous.focus === "function") {
+      previous.focus();
+    }
+    lastFocusedElementRef.current = null;
+  }, []);
 
   useEffect(() => {
-    if (open && initialFocusRef.current) {
-      initialFocusRef.current.focus();
+    if (!open) {
+      const raf = typeof window !== "undefined" ? window.requestAnimationFrame : undefined;
+      if (typeof raf === "function") {
+        raf(() => {
+          restoreFocus();
+        });
+      } else {
+        restoreFocus();
+      }
     }
-  }, [open]);
+  }, [open, restoreFocus]);
+
+  useEffect(() => {
+    if (open) {
+      lastFocusedElementRef.current = document.activeElement as HTMLElement | null;
+      const raf = typeof window !== "undefined" ? window.requestAnimationFrame : undefined;
+      if (typeof raf === "function") {
+        raf(() => {
+          focusInitialElement();
+        });
+      } else {
+        focusInitialElement();
+      }
+    }
+  }, [open, focusInitialElement]);
+
+  const handleOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      if (!nextOpen) {
+        restoreFocus();
+      }
+      onOpenChange(nextOpen);
+    },
+    [onOpenChange, restoreFocus],
+  );
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent
+        ref={dialogContentRef}
+        className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto"
+      >
         <DialogHeader>
-          <DialogTitle data-testid="settings-title" ref={initialFocusRef} tabIndex={-1}>
+          <DialogTitle data-testid="settings-title" ref={dialogTitleRef} tabIndex={-1}>
             Settings
           </DialogTitle>
           <DialogDescription>
@@ -71,7 +136,7 @@ export function SettingsDialog({
         </Tabs>
 
         <DialogFooter>
-          <Button type="submit" data-testid="settings-done" onClick={() => onOpenChange(false)}>
+          <Button type="submit" data-testid="settings-done" onClick={() => handleOpenChange(false)}>
             Done
           </Button>
         </DialogFooter>

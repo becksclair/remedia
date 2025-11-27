@@ -290,6 +290,22 @@ fn build_format_args(settings: &DownloadSettings) -> Vec<String> {
     args
 }
 
+fn build_rate_and_size_args(settings: &DownloadSettings) -> Vec<String> {
+    let mut args = Vec::new();
+
+    if settings.download_rate_limit != "unlimited" {
+        args.push("--limit-rate".to_string());
+        args.push(settings.download_rate_limit.clone());
+    }
+
+    if settings.max_file_size != "unlimited" {
+        args.push("--max-filesize".to_string());
+        args.push(settings.max_file_size.clone());
+    }
+
+    args
+}
+
 fn emit_download_error(window: &Window, media_idx: i32, reason: &str) {
     eprintln!("Download error for media_idx {}: {}", media_idx, reason);
     if let Err(e) = window.emit(EVT_DOWNLOAD_ERROR, media_idx) {
@@ -588,14 +604,9 @@ fn execute_download(
             .arg("--embed-chapters")
             .arg("--windows-filenames"); // Safe filenames for Windows
 
-        // Apply download rate limit
-        if settings.download_rate_limit != "unlimited" {
-            cmd.arg("--limit-rate").arg(&settings.download_rate_limit);
-        }
-
-        // Apply max file size
-        if settings.max_file_size != "unlimited" {
-            cmd.arg("--max-filesize").arg(&settings.max_file_size);
+        // Apply optional rate and size limits
+        for arg in build_rate_and_size_args(&settings) {
+            cmd.arg(arg);
         }
 
         // Apply settings-based format selection using extracted function
@@ -1239,5 +1250,107 @@ mod tests {
         let id = generate_unique_id("https://example.com/video?a=1&b=2#section");
         assert_eq!(id.len(), 8);
         assert!(id.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit()));
+    }
+
+    #[test]
+    fn test_build_yt_dlp_command_with_rate_limit() {
+        let settings = DownloadSettings {
+            download_mode: "video".to_string(),
+            video_quality: "best".to_string(),
+            max_resolution: "1080p".to_string(),
+            video_format: "mp4".to_string(),
+            audio_format: "mp3".to_string(),
+            audio_quality: "0".to_string(),
+            download_rate_limit: "50M".to_string(),
+            max_file_size: "unlimited".to_string(),
+            append_unique_id: false,
+            unique_id_type: "native".to_string(),
+        };
+
+        let args = build_rate_and_size_args(&settings);
+
+        // Should include rate limit arg
+        assert!(args.iter().any(|arg| arg == "--limit-rate"));
+        let rate_limit_idx = args.iter().position(|arg| arg == "--limit-rate").unwrap();
+        assert_eq!(args[rate_limit_idx + 1], "50M");
+
+        // Should not include max filesize when unlimited
+        assert!(!args.iter().any(|arg| arg == "--max-filesize"));
+    }
+
+    #[test]
+    fn test_build_yt_dlp_command_with_max_filesize() {
+        let settings = DownloadSettings {
+            download_mode: "video".to_string(),
+            video_quality: "best".to_string(),
+            max_resolution: "1080p".to_string(),
+            video_format: "mp4".to_string(),
+            audio_format: "mp3".to_string(),
+            audio_quality: "0".to_string(),
+            download_rate_limit: "unlimited".to_string(),
+            max_file_size: "100M".to_string(),
+            append_unique_id: false,
+            unique_id_type: "native".to_string(),
+        };
+
+        let args = build_rate_and_size_args(&settings);
+
+        // Should include max filesize arg
+        assert!(args.iter().any(|arg| arg == "--max-filesize"));
+        let max_filesize_idx = args.iter().position(|arg| arg == "--max-filesize").unwrap();
+        assert_eq!(args[max_filesize_idx + 1], "100M");
+
+        // Should not include rate limit when unlimited
+        assert!(!args.iter().any(|arg| arg == "--limit-rate"));
+    }
+
+    #[test]
+    fn test_build_yt_dlp_command_with_both_limits() {
+        let settings = DownloadSettings {
+            download_mode: "video".to_string(),
+            video_quality: "best".to_string(),
+            max_resolution: "1080p".to_string(),
+            video_format: "mp4".to_string(),
+            audio_format: "mp3".to_string(),
+            audio_quality: "0".to_string(),
+            download_rate_limit: "25K".to_string(),
+            max_file_size: "500M".to_string(),
+            append_unique_id: false,
+            unique_id_type: "native".to_string(),
+        };
+
+        let args = build_rate_and_size_args(&settings);
+
+        // Should include both rate limit and max filesize
+        assert!(args.iter().any(|arg| arg == "--limit-rate"));
+        assert!(args.iter().any(|arg| arg == "--max-filesize"));
+
+        let rate_limit_idx = args.iter().position(|arg| arg == "--limit-rate").unwrap();
+        assert_eq!(args[rate_limit_idx + 1], "25K");
+
+        let max_filesize_idx = args.iter().position(|arg| arg == "--max-filesize").unwrap();
+        assert_eq!(args[max_filesize_idx + 1], "500M");
+    }
+
+    #[test]
+    fn test_build_yt_dlp_command_unlimited_limits() {
+        let settings = DownloadSettings {
+            download_mode: "video".to_string(),
+            video_quality: "best".to_string(),
+            max_resolution: "1080p".to_string(),
+            video_format: "mp4".to_string(),
+            audio_format: "mp3".to_string(),
+            audio_quality: "0".to_string(),
+            download_rate_limit: "unlimited".to_string(),
+            max_file_size: "unlimited".to_string(),
+            append_unique_id: false,
+            unique_id_type: "native".to_string(),
+        };
+
+        let args = build_rate_and_size_args(&settings);
+
+        // Should not include either limit when both are unlimited
+        assert!(!args.iter().any(|arg| arg == "--limit-rate"));
+        assert!(!args.iter().any(|arg| arg == "--max-filesize"));
     }
 }

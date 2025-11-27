@@ -147,6 +147,10 @@ export function DebugConsole() {
 
       <div
         ref={logContainerRef}
+        role="log"
+        aria-live="polite"
+        aria-relevant="additions"
+        aria-label="Download log output"
         className="flex-1 overflow-y-auto border rounded p-4 bg-gray-50 dark:bg-gray-900 font-mono text-sm"
       >
         {logEntries.length === 0 ? (

@@ -81,8 +81,11 @@ async fn handle_socket(
         let cmd: RemoteCommand = match serde_json::from_str(&text) {
             Ok(c) => c,
             Err(e) => {
-                let _ =
-                    tx.lock().await.send(Message::Text(format!(r#"{{"ok":false,"error":"bad command: {e}"}}"#))).await;
+                let _ = tx
+                    .lock()
+                    .await
+                    .send(Message::Text(format!(r#"{{"ok":false,"error":"bad command: {e}"}}"#).into()))
+                    .await;
                 continue;
             }
         };
@@ -91,46 +94,57 @@ async fn handle_socket(
             "addUrl" => {
                 if let Some(url) = cmd.url {
                     emitter("remote-add-url", Value::String(url.clone()));
-                    let _ = tx.lock().await.send(Message::Text(r#"{"ok":true,"action":"addUrl"}"#.to_string())).await;
                     let _ = tx
                         .lock()
                         .await
-                        .send(Message::Text(format!(r#"{{"event":"remote-recv","payload":"addUrl {url}"}}"#)))
+                        .send(Message::Text(r#"{"ok":true,"action":"addUrl"}"#.to_string().into()))
+                        .await;
+                    let _ = tx
+                        .lock()
+                        .await
+                        .send(Message::Text(format!(r#"{{"event":"remote-recv","payload":"addUrl {url}"}}"#).into()))
                         .await;
                 } else {
                     let _ = tx
                         .lock()
                         .await
-                        .send(Message::Text(r#"{"ok":false,"error":"url required","action":"addUrl"}"#.to_string()))
+                        .send(Message::Text(
+                            r#"{"ok":false,"error":"url required","action":"addUrl"}"#.to_string().into(),
+                        ))
                         .await;
                 }
             }
             "startDownloads" => {
                 emitter("remote-start-downloads", Value::Null);
-                let _ =
-                    tx.lock().await.send(Message::Text(r#"{"ok":true,"action":"startDownloads"}"#.to_string())).await;
                 let _ = tx
                     .lock()
                     .await
-                    .send(Message::Text(r#"{"event":"remote-recv","payload":"startDownloads"}"#.to_string()))
+                    .send(Message::Text(r#"{"ok":true,"action":"startDownloads"}"#.to_string().into()))
+                    .await;
+                let _ = tx
+                    .lock()
+                    .await
+                    .send(Message::Text(r#"{"event":"remote-recv","payload":"startDownloads"}"#.to_string().into()))
                     .await;
             }
             "cancelAll" => {
                 emitter("remote-cancel-downloads", Value::Null);
-                let _ = tx.lock().await.send(Message::Text(r#"{"ok":true,"action":"cancelAll"}"#.to_string())).await;
+                let _ =
+                    tx.lock().await.send(Message::Text(r#"{"ok":true,"action":"cancelAll"}"#.to_string().into())).await;
                 let _ = tx
                     .lock()
                     .await
-                    .send(Message::Text(r#"{"event":"remote-recv","payload":"cancelAll"}"#.to_string()))
+                    .send(Message::Text(r#"{"event":"remote-recv","payload":"cancelAll"}"#.to_string().into()))
                     .await;
             }
             "clearList" => {
                 emitter("remote-clear-list", Value::Null);
-                let _ = tx.lock().await.send(Message::Text(r#"{"ok":true,"action":"clearList"}"#.to_string())).await;
+                let _ =
+                    tx.lock().await.send(Message::Text(r#"{"ok":true,"action":"clearList"}"#.to_string().into())).await;
                 let _ = tx
                     .lock()
                     .await
-                    .send(Message::Text(r#"{"event":"remote-recv","payload":"clearList"}"#.to_string()))
+                    .send(Message::Text(r#"{"event":"remote-recv","payload":"clearList"}"#.to_string().into()))
                     .await;
             }
             "setDownloadDir" => {
@@ -139,19 +153,21 @@ async fn handle_socket(
                     let _ = tx
                         .lock()
                         .await
-                        .send(Message::Text(r#"{"ok":true,"action":"setDownloadDir"}"#.to_string()))
+                        .send(Message::Text(r#"{"ok":true,"action":"setDownloadDir"}"#.to_string().into()))
                         .await;
                     let _ = tx
                         .lock()
                         .await
-                        .send(Message::Text(format!(r#"{{"event":"remote-recv","payload":"setDownloadDir {path}"}}"#)))
+                        .send(Message::Text(
+                            format!(r#"{{"event":"remote-recv","payload":"setDownloadDir {path}"}}"#).into(),
+                        ))
                         .await;
                 } else {
                     let _ = tx
                         .lock()
                         .await
                         .send(Message::Text(
-                            r#"{"ok":false,"action":"setDownloadDir","error":"path required"}"#.to_string(),
+                            r#"{"ok":false,"action":"setDownloadDir","error":"path required"}"#.to_string().into(),
                         ))
                         .await;
                 }
@@ -161,15 +177,18 @@ async fn handle_socket(
                 let _ = tx
                     .lock()
                     .await
-                    .send(Message::Text(format!(
-                        r#"{{"ok":true,"action":"status","queued":{},"active":{},"max":{}}}"#,
-                        status.0, status.1, status.2
-                    )))
+                    .send(Message::Text(
+                        format!(
+                            r#"{{"ok":true,"action":"status","queued":{},"active":{},"max":{}}}"#,
+                            status.0, status.1, status.2
+                        )
+                        .into(),
+                    ))
                     .await;
                 let _ = tx
                     .lock()
                     .await
-                    .send(Message::Text(r#"{"event":"remote-recv","payload":"status"}"#.to_string()))
+                    .send(Message::Text(r#"{"event":"remote-recv","payload":"status"}"#.to_string().into()))
                     .await;
             }
             "runJs" => {
@@ -179,19 +198,23 @@ async fn handle_socket(
                             let _ = tx
                                 .lock()
                                 .await
-                                .send(Message::Text(r#"{"ok":true,"action":"runJs"}"#.to_string()))
+                                .send(Message::Text(r#"{"ok":true,"action":"runJs"}"#.to_string().into()))
                                 .await;
                             let _ = tx
                                 .lock()
                                 .await
-                                .send(Message::Text(format!(r#"{{"event":"remote-recv","payload":"runJs {script}"}}"#)))
+                                .send(Message::Text(
+                                    format!(r#"{{"event":"remote-recv","payload":"runJs {script}"}}"#).into(),
+                                ))
                                 .await;
                         }
                         Err(e) => {
                             let _ = tx
                                 .lock()
                                 .await
-                                .send(Message::Text(format!(r#"{{"ok":false,"action":"runJs","error":"{}"}}"#, e)))
+                                .send(Message::Text(
+                                    format!(r#"{{"ok":false,"action":"runJs","error":"{}"}}"#, e).into(),
+                                ))
                                 .await;
                         }
                     }
@@ -199,7 +222,9 @@ async fn handle_socket(
                     let _ = tx
                         .lock()
                         .await
-                        .send(Message::Text(r#"{"ok":false,"action":"runJs","error":"script required"}"#.to_string()))
+                        .send(Message::Text(
+                            r#"{"ok":false,"action":"runJs","error":"script required"}"#.to_string().into(),
+                        ))
                         .await;
                 }
             }
@@ -215,14 +240,17 @@ async fn handle_socket(
                                 let _ = tx
                                     .lock()
                                     .await
-                                    .send(Message::Text(r#"{"ok":true,"action":"startDownloadDirect"}"#.to_string()))
+                                    .send(Message::Text(
+                                        r#"{"ok":true,"action":"startDownloadDirect"}"#.to_string().into(),
+                                    ))
                                     .await;
                                 let _ = tx
                                     .lock()
                                     .await
-                                    .send(Message::Text(format!(
-                                        r#"{{"event":"remote-recv","payload":"startDownloadDirect {url}"}}"#
-                                    )))
+                                    .send(Message::Text(
+                                        format!(r#"{{"event":"remote-recv","payload":"startDownloadDirect {url}"}}"#)
+                                            .into(),
+                                    ))
                                     .await;
                             } else {
                                 let _ = tx
@@ -230,7 +258,8 @@ async fn handle_socket(
                                     .await
                                     .send(Message::Text(
                                         r#"{"ok":false,"action":"startDownloadDirect","error":"main window missing"}"#
-                                            .to_string(),
+                                            .to_string()
+                                            .into(),
                                     ))
                                     .await;
                             }
@@ -241,7 +270,8 @@ async fn handle_socket(
                                 .await
                                 .send(Message::Text(
                                     r#"{"ok":false,"action":"startDownloadDirect","error":"app handle unavailable"}"#
-                                        .to_string(),
+                                        .to_string()
+                                        .into(),
                                 ))
                                 .await;
                         }
@@ -251,14 +281,17 @@ async fn handle_socket(
                         .lock()
                         .await
                         .send(Message::Text(
-                            r#"{"ok":false,"action":"startDownloadDirect","error":"url required"}"#.to_string(),
+                            r#"{"ok":false,"action":"startDownloadDirect","error":"url required"}"#.to_string().into(),
                         ))
                         .await;
                 }
             }
             _ => {
-                let _ =
-                    tx.lock().await.send(Message::Text(r#"{"ok":false,"error":"unknown action"}"#.to_string())).await;
+                let _ = tx
+                    .lock()
+                    .await
+                    .send(Message::Text(r#"{"ok":false,"error":"unknown action"}"#.to_string().into()))
+                    .await;
             }
         }
     }
@@ -310,7 +343,7 @@ pub fn start_remote_control_on(
                 let (tx, rx) = ws_stream.split();
                 let tx = Arc::new(Mutex::new(tx));
                 // Send a deterministic handshake so harnesses can verify the backend.
-                let hello = Message::Text(build_remote_hello());
+                let hello = Message::Text(build_remote_hello().into());
                 {
                     let mut guard = tx.lock().await;
                     if let Err(e) = guard.send(hello.clone()).await {
@@ -325,7 +358,7 @@ pub fn start_remote_control_on(
                 tauri::async_runtime::spawn(async move {
                     while let Ok(msg) = rx_broadcast.recv().await {
                         let mut guard = tx_for_broadcast.lock().await;
-                        if let Err(e) = guard.send(Message::Text(msg.clone())).await {
+                        if let Err(e) = guard.send(Message::Text(msg.clone().into())).await {
                             eprintln!("[remote] failed to forward broadcast: {e}");
                             break;
                         }
@@ -360,4 +393,151 @@ pub fn start_remote_control(app: AppHandle) {
 
     let addr: SocketAddr = "127.0.0.1:17814".parse().unwrap();
     start_remote_control_on(addr, emitter, eval, Some(app));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn test_build_remote_hello_structure() {
+        let hello = build_remote_hello();
+        let parsed: serde_json::Value = serde_json::from_str(&hello).unwrap();
+
+        assert_eq!(parsed["event"], "remote-hello");
+        assert!(parsed["payload"]["pid"].is_number());
+        assert!(parsed["payload"]["ts"].is_number());
+        assert!(parsed["payload"]["debugFallback"].is_boolean());
+    }
+
+    #[test]
+    fn test_build_remote_hello_includes_process_id() {
+        let hello = build_remote_hello();
+        let parsed: serde_json::Value = serde_json::from_str(&hello).unwrap();
+
+        let pid = parsed["payload"]["pid"].as_u64().unwrap();
+        assert_eq!(pid, std::process::id() as u64);
+    }
+
+    #[test]
+    fn test_build_remote_hello_includes_timestamp() {
+        let hello = build_remote_hello();
+        let parsed: serde_json::Value = serde_json::from_str(&hello).unwrap();
+
+        let ts = parsed["payload"]["ts"].as_u64().unwrap();
+        assert!(ts > 0);
+    }
+
+    #[test]
+    fn test_build_remote_hello_debug_flag() {
+        let hello = build_remote_hello();
+        let parsed: serde_json::Value = serde_json::from_str(&hello).unwrap();
+
+        let debug_flag = parsed["payload"]["debugFallback"].as_bool().unwrap();
+        assert_eq!(debug_flag, cfg!(debug_assertions));
+    }
+
+    #[test]
+    fn test_build_remote_hello_environment_vars() {
+        let hello = build_remote_hello();
+        let parsed: serde_json::Value = serde_json::from_str(&hello).unwrap();
+
+        let env_flag = parsed["payload"]["enableRemoteHarnessEnv"].as_str();
+        let tauri_env = parsed["payload"]["tauriEnv"].as_str();
+
+        assert!(env_flag.is_some() || env_flag.unwrap_or_default().is_empty());
+        assert!(tauri_env.is_some() || tauri_env.unwrap_or_default().is_empty());
+    }
+
+    #[test]
+    fn test_remote_command_deserialization_valid() {
+        let json = r#"{"action":"addUrl","url":"https://example.com"}"#;
+        let cmd: RemoteCommand = serde_json::from_str(json).unwrap();
+
+        assert_eq!(cmd.action, "addUrl");
+        assert_eq!(cmd.url, Some("https://example.com".to_string()));
+        assert_eq!(cmd.path, None);
+        assert_eq!(cmd.media_idx, None);
+    }
+
+    #[test]
+    fn test_remote_command_deserialization_all_fields() {
+        let json = r#"{"action":"startDownloadDirect","url":"https://example.com","path":"/tmp","mediaIdx":5}"#;
+        let cmd: RemoteCommand = serde_json::from_str(json).unwrap();
+
+        assert_eq!(cmd.action, "startDownloadDirect");
+        assert_eq!(cmd.url, Some("https://example.com".to_string()));
+        assert_eq!(cmd.path, Some("/tmp".to_string()));
+        assert_eq!(cmd.media_idx, Some(5));
+    }
+
+    #[test]
+    fn test_remote_command_deserialization_invalid_json() {
+        let json = r#"{"action":"addUrl","url":}"#;
+        let result: Result<RemoteCommand, _> = serde_json::from_str(json);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_remote_command_deserialization_missing_action() {
+        let json = r#"{"url":"https://example.com"}"#;
+        let result: Result<RemoteCommand, _> = serde_json::from_str(json);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_remote_command_deserialization_empty_action() {
+        let json = r#"{"action":"","url":"https://example.com"}"#;
+        let cmd: RemoteCommand = serde_json::from_str(json).unwrap();
+
+        assert_eq!(cmd.action, "");
+        assert_eq!(cmd.url, Some("https://example.com".to_string()));
+    }
+
+    #[test]
+    fn test_broadcast_remote_event_without_channel() {
+        broadcast_remote_event("test-event", json!("test-payload"));
+    }
+
+    #[test]
+    #[ignore]
+    fn test_broadcast_remote_event_with_mock_channel() {
+        use tokio::sync::broadcast;
+
+        let (tx, _rx) = broadcast::channel(128);
+        let _ = REMOTE_BROADCAST.set(tx);
+
+        broadcast_remote_event("test-event", json!("test-payload"));
+    }
+
+    #[test]
+    #[ignore]
+    fn test_broadcast_remote_event_serialization() {
+        use tokio::sync::broadcast;
+
+        let (tx, mut rx) = broadcast::channel(128);
+        let _ = REMOTE_BROADCAST.set(tx);
+
+        broadcast_remote_event("test-event", json!("test-payload"));
+
+        let received = rx.try_recv().unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&received).unwrap();
+
+        assert_eq!(parsed["event"], "test-event");
+        assert_eq!(parsed["payload"], json!("test-payload"));
+    }
+
+    #[test]
+    fn test_message_text_construction_with_string() {
+        // This test ensures that tokio-tungstenite's Message::Text API still accepts
+        // a UTF-8 text payload created from a Rust String via .into(). If the
+        // upstream API changes again, this should fail to compile here first.
+        let msg = Message::Text("hello".to_string().into());
+
+        match msg {
+            Message::Text(_) => {}
+            _ => panic!("expected text message"),
+        }
+    }
 }

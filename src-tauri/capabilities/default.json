@@ -24,6 +24,7 @@
 		"clipboard-manager:allow-read-text",
 		"dialog:default",
 		"fs:default",
-		"notification:default"
+		"notification:default",
+		"updater:default"
 	]
 }

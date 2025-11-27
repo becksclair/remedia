@@ -17,22 +17,28 @@ function CustomTitleBar() {
           type="button"
           className="mr-2 border-white border rounded-md p-1"
           onClick={handleMinimize}
+          aria-label="Minimize window"
+          title="Minimize"
         >
-          _
+          <span aria-hidden="true">_</span>
         </button>
         <button
           type="button"
           className="mr-2 border-white border rounded-md p-1"
           onClick={handleToggleMaximize}
+          aria-label="Toggle maximize window"
+          title="Maximize"
         >
-          []
+          <span aria-hidden="true">[]</span>
         </button>
         <button
           type="button"
           className="mr-2 border-white border rounded-md p-1"
           onClick={handleClose}
+          aria-label="Close window"
+          title="Close"
         >
-          X
+          <span aria-hidden="true">X</span>
         </button>
       </div>
     </div>
