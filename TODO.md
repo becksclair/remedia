@@ -95,10 +95,10 @@
 
 ## ❌ **REMAINING WORK**
 
-### Phase 6 – Performance (Incomplete)
+### Phase 6 – Performance (COMPLETED)
 
 - [x] Virtual scrolling for large lists (100+ items) - using @tanstack/react-virtual
-- [ ] Memoization optimizations in MediaTable
+- [x] Memoization optimizations in MediaTable (columns, callbacks already memoized)
 
 ### Phase 7 – Testing & Quality
 
@@ -193,7 +193,7 @@
 
 **Rust Tests**
 - [x] Verify all existing tests pass: `cargo test --manifest-path src-tauri/Cargo.toml`
-- [ ] Add tests for `thumbnail.rs` edge cases
+- [x] Add tests for `thumbnail.rs` edge cases (19 tests added)
 - [ ] Add tests for `remote_control.rs`
 
 ### Virtual Scrolling (COMPLETED)
@@ -235,7 +235,7 @@
 ### Testing Verification
 
 - [x] `bun run test:run` - all 162 Vitest tests pass
-- [x] `cargo test --manifest-path src-tauri/Cargo.toml` - all 36 Rust tests pass
+- [x] `cargo test --manifest-path src-tauri/Cargo.toml` - all 45 Rust tests pass (1 ignored)
 - [x] `bun run test:e2e` - all 66 Playwright tests pass (15 skipped)
 
 ### Performance Verification
@@ -270,4 +270,4 @@ bun run dev            # Frontend only (port 1420)
 
 ---
 
-*Last updated: Nov 27, 2025 - MediaTable & DownloadControls tests added (163 Vitest, 26 Rust, 66 E2E tests)*
+*Last updated: Nov 27, 2025 - thumbnail.rs tests added (162 Vitest, 45 Rust, 66 E2E tests)*
