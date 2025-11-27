@@ -293,7 +293,7 @@ test.describe("ReMedia app", () => {
       page.locator('[data-slot="context-menu-item"]').filter({ hasText: "Remove Selected" }),
     ).toBeVisible({ timeout: 5000 });
     await expect(
-      page.locator('[data-slot="context-menu-item"]').filter({ hasText: "Remove All" }),
+      page.locator('[data-slot="context-menu-item"]').filter({ hasText: "Clear All" }),
     ).toBeVisible({ timeout: 5000 });
     await expect(
       page.locator('[data-slot="context-menu-item"]').filter({ hasText: "Copy All URLs" }),
@@ -359,7 +359,7 @@ test.describe("ReMedia app", () => {
 
     await page
       .locator('[data-slot="context-menu-item"]')
-      .filter({ hasText: "Remove All" })
+      .filter({ hasText: "Clear All" })
       .click({ timeout: 10000 });
 
     // All items should be gone, drop zone should be visible again
