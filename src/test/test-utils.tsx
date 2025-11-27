@@ -22,10 +22,7 @@ interface AllTheProvidersProps {
 /**
  * Wrapper component that provides all necessary providers for testing
  */
-function AllTheProviders({
-  children,
-  initialValues = [],
-}: AllTheProvidersProps) {
+function AllTheProviders({ children, initialValues = [] }: AllTheProvidersProps) {
   return (
     <JotaiProvider>
       <TauriApiProvider api={mockTauriApi}>
@@ -65,9 +62,7 @@ export function renderWithProviders(
 
   return render(ui, {
     wrapper: ({ children }) => (
-      <AllTheProviders initialValues={initialAtomValues}>
-        {children}
-      </AllTheProviders>
+      <AllTheProviders initialValues={initialAtomValues}>{children}</AllTheProviders>
     ),
     ...renderOptions,
   });
@@ -81,6 +76,7 @@ export function createMockMediaItem(
   overrides?: Partial<{
     title: string;
     thumbnail: string;
+    previewUrl: string;
     audioOnly: boolean;
     progress: number;
     status: "Pending" | "Downloading" | "Done" | "Error" | "Cancelled";
@@ -90,6 +86,7 @@ export function createMockMediaItem(
     url,
     title: url,
     thumbnail: "",
+    previewUrl: undefined,
     audioOnly: false,
     progress: 0,
     status: "Pending" as const,
@@ -107,9 +104,7 @@ export function waitForAsync(ms = 0): Promise<void> {
 /**
  * Helper to create mock row selection state
  */
-export function createMockRowSelection(
-  selectedIndices: number[],
-): Record<string, boolean> {
+export function createMockRowSelection(selectedIndices: number[]): Record<string, boolean> {
   return selectedIndices.reduce(
     (acc, index) => {
       acc[index.toString()] = true;

@@ -6,6 +6,7 @@ export interface VideoInfo {
   url: string;
   title: string;
   thumbnail?: string;
+  previewUrl?: string;
   audioOnly: boolean;
   progress: number;
   status: "Pending" | "Downloading" | "Done" | "Error" | "Cancelled";
@@ -104,6 +105,7 @@ export function createMediaItem(url: string): VideoInfo {
     title: url,
     url: url,
     thumbnail: "",
+    previewUrl: undefined,
   };
 }
 

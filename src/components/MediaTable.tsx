@@ -24,6 +24,7 @@ export interface VideoInfo {
   url: string;
   title: string;
   thumbnail?: string;
+  previewUrl?: string;
   audioOnly: boolean;
   progress: number;
   status: "Pending" | "Downloading" | "Done" | "Error" | "Cancelled";

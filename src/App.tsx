@@ -30,11 +30,7 @@ import { downloadLocationAtom } from "@/state/settings-atoms";
 import { tableRowSelectionAtom, addLogEntryAtom } from "@/state/app-atoms";
 
 // Utils
-import {
-  isValidUrl,
-  clampProgress,
-  getSelectedIndices,
-} from "@/utils/media-helpers";
+import { isValidUrl, clampProgress, getSelectedIndices } from "@/utils/media-helpers";
 import {
   DRAG_HOVER_DEBOUNCE_MS,
   DEBUG_CONSOLE_WIDTH,
@@ -110,12 +106,8 @@ function App(): JSX.Element {
     removeItemsAtIndices,
   } = useMediaList();
 
-  const {
-    globalProgress,
-    globalDownloading,
-    startDownload,
-    cancelAllDownloads,
-  } = useDownloadManager(mediaList);
+  const { globalProgress, globalDownloading, startDownload, cancelAllDownloads } =
+    useDownloadManager(mediaList);
 
   /**
    * Request notification permissions
@@ -164,8 +156,7 @@ function App(): JSX.Element {
   useEffect(() => {
     if (
       typeof window !== "undefined" &&
-      (process.env.NODE_ENV === "test" ||
-        process.env.NODE_ENV === "development")
+      (process.env.NODE_ENV === "test" || process.env.NODE_ENV === "development")
     ) {
       window.__E2E_addUrl = (url: string) => {
         if (isValidUrl(url)) addMediaUrl(url);
@@ -213,7 +204,9 @@ function App(): JSX.Element {
   };
 
   /**
-   * Preview selected media
+   * Preview selected media in a new window.
+   * Uses original page URL (not direct stream) to avoid CORS issues.
+   * Player has fallback chain: react-player → iframe → error
    */
   async function preview(): Promise<void> {
     const selectedRowIndices = getSelectedIndices(rowSelection);
@@ -223,37 +216,22 @@ function App(): JSX.Element {
       return;
     }
 
-    console.log("Selected rows for preview:", selectedRowIndices);
-
     try {
       for (const rowIndex of selectedRowIndices) {
         const selectedItem = mediaList[rowIndex];
-        if (selectedItem?.url) {
-          console.log(`Opening preview for item ${rowIndex}:`, selectedItem);
-          // unique label per preview so Tauri opens distinct windows
-          const previewLabel = `preview-win-${rowIndex}-${Date.now()}`;
+        if (!selectedItem?.url) continue;
 
-          const win: WebviewWindow = tauriApi.window.createWindow(
-            previewLabel,
-            {
-              url: `/player?url=${encodeURIComponent(selectedItem.url)}`,
-              width: PREVIEW_WINDOW_WIDTH,
-              height: PREVIEW_WINDOW_HEIGHT,
-              title: selectedItem.title
-                ? `Preview: ${selectedItem.title}`
-                : "ReMedia Preview",
-            },
-          );
+        const previewLabel = `preview-win-${rowIndex}-${Date.now()}`;
+        const win: WebviewWindow = tauriApi.window.createWindow(previewLabel, {
+          url: `/player?url=${encodeURIComponent(selectedItem.url)}`,
+          width: PREVIEW_WINDOW_WIDTH,
+          height: PREVIEW_WINDOW_HEIGHT,
+          title: selectedItem.title ? `Preview: ${selectedItem.title}` : "ReMedia Preview",
+        });
 
-          void win.once("tauri://created", () => {
-            // webview successfully created
-          });
-          void win.once("tauri://error", (error: unknown) => {
-            console.error("Error creating webview:", error);
-          });
-        } else {
-          console.warn(`No URL found for selected item at index ${rowIndex}`);
-        }
+        void win.once("tauri://error", (error: unknown) => {
+          console.error("Error creating preview window:", error);
+        });
       }
 
       if (notificationPermission) {
@@ -286,8 +264,7 @@ function App(): JSX.Element {
 
     const urls = mediaList.map((item) => item.url).join("\n");
     const canUseBrowserClipboard =
-      typeof navigator !== "undefined" &&
-      typeof navigator.clipboard?.writeText === "function";
+      typeof navigator !== "undefined" && typeof navigator.clipboard?.writeText === "function";
 
     if (canUseBrowserClipboard) {
       try {
@@ -340,15 +317,12 @@ function App(): JSX.Element {
 
   const handleShowDebugConsole = async (): Promise<void> => {
     try {
-      const debugWindow: WebviewWindow = tauriApi.window.createWindow(
-        "debug-console",
-        {
-          url: "/debug",
-          width: DEBUG_CONSOLE_WIDTH,
-          height: DEBUG_CONSOLE_HEIGHT,
-          title: "ReMedia Debug Console",
-        },
-      );
+      const debugWindow: WebviewWindow = tauriApi.window.createWindow("debug-console", {
+        url: "/debug",
+        width: DEBUG_CONSOLE_WIDTH,
+        height: DEBUG_CONSOLE_HEIGHT,
+        title: "ReMedia Debug Console",
+      });
 
       void debugWindow.once("tauri://created", () => {
         console.log("Debug console window created");
@@ -366,9 +340,14 @@ function App(): JSX.Element {
    * Tauri event handlers
    */
   const handleMediaInfo = ({
-    payload: [_mediaIdx, mediaSourceUrl, title, thumbnail],
+    payload: [_mediaIdx, mediaSourceUrl, title, thumbnail, previewUrl],
   }: Event<MediaInfoEvent>): void => {
-    updateMediaItem({ thumbnail, title, url: mediaSourceUrl });
+    updateMediaItem({
+      thumbnail,
+      title,
+      url: mediaSourceUrl,
+      previewUrl: previewUrl || undefined,
+    });
   };
 
   const handleProgress = (event: Event<MediaProgressEvent>): void => {
@@ -438,11 +417,7 @@ function App(): JSX.Element {
     let level: "error" | "warn" | "info" = "info";
 
     // Check canonical log prefixes first (most reliable)
-    if (
-      message.startsWith("ERROR") ||
-      message.startsWith("Error") ||
-      message.startsWith("error")
-    ) {
+    if (message.startsWith("ERROR") || message.startsWith("Error") || message.startsWith("error")) {
       level = "error";
     } else if (
       message.startsWith("WARNING") ||
@@ -494,11 +469,7 @@ function App(): JSX.Element {
   }, [remoteStartRequested, mediaList, handleStartAllDownloads]);
 
   return (
-    <main
-      className="container"
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-    >
+    <main className="container" onDragOver={handleDragOver} onDragLeave={handleDragLeave}>
       <div className="app-container compact flex flex-col justify-between gap-y-4 h-screen">
         {/* Drop Zone */}
         <DropZone

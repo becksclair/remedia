@@ -3,8 +3,8 @@
 // Tauri event payloads
 // [mediaIdx, progress]
 export type MediaProgressEvent = [number, number];
-// [mediaIdx, mediaSourceUrl, title, thumbnail]
-export type MediaInfoEvent = [number, string, string, string];
+// [mediaIdx, mediaSourceUrl, title, thumbnail, previewUrl]
+export type MediaInfoEvent = [number, string, string, string, string];
 // [mediaIdx, stderrLine]
 export type YtDlpStderrEvent = [number, string];
 

@@ -333,16 +333,80 @@ async fn run_yt_dlp(cmd: &mut Command) -> Result<(String, String), std::io::Erro
     Ok((output, errors))
 }
 
-/// Extract title and thumbnail from yt-dlp JSON output
-fn extract_media_info_from_json(json_str: &str, media_source_url: &str) -> Option<(String, String)> {
+/// Media info extracted from yt-dlp JSON
+struct ExtractedMediaInfo {
+    title: String,
+    thumbnail: String,
+    preview_url: String,
+}
+
+/// Extract the best direct URL for preview from formats array
+fn extract_preview_url(v: &Value) -> Option<String> {
+    // Try top-level url first (some extractors put it here)
+    if let Some(url) = v.get("url").and_then(|u| u.as_str()).filter(|s| !s.is_empty()) {
+        return Some(url.to_string());
+    }
+
+    // Try formats array - prefer highest quality video format
+    if let Some(formats) = v.get("formats").and_then(|f| f.as_array()) {
+        // Sort by preference: prefer mp4, then by quality/filesize
+        let mut best_url: Option<String> = None;
+        let mut best_score: i64 = -1;
+
+        for format in formats {
+            let url = match format.get("url").and_then(|u| u.as_str()) {
+                Some(u) if !u.is_empty() => u,
+                _ => continue,
+            };
+
+            // Calculate a simple preference score
+            let mut score: i64 = 0;
+
+            // Prefer mp4 format
+            let ext = format.get("ext").and_then(|e| e.as_str()).unwrap_or("");
+            if ext == "mp4" {
+                score += 1000;
+            }
+
+            // Add quality score if available
+            if let Some(height) = format.get("height").and_then(|h| h.as_i64()) {
+                score += height;
+            }
+
+            // Fallback to filesize as quality indicator
+            if let Some(filesize) = format.get("filesize").and_then(|f| f.as_i64()) {
+                score += filesize / 1_000_000; // Add MB as score
+            }
+
+            if score > best_score {
+                best_score = score;
+                best_url = Some(url.to_string());
+            }
+        }
+
+        if best_url.is_some() {
+            return best_url;
+        }
+    }
+
+    None
+}
+
+/// Extract title, thumbnail, and preview URL from yt-dlp JSON output
+fn extract_media_info_from_json(json_str: &str, media_source_url: &str) -> Option<ExtractedMediaInfo> {
     let v: Value = serde_json::from_str(json_str).ok()?;
 
     let title =
         v.get("title").and_then(|t| t.as_str()).filter(|s| !s.is_empty()).unwrap_or(media_source_url).to_string();
 
     let thumbnail = resolve_thumbnail(&v).unwrap_or_default();
+    let preview_url = extract_preview_url(&v).unwrap_or_default();
 
-    Some((title, thumbnail))
+    Some(ExtractedMediaInfo {
+        title,
+        thumbnail,
+        preview_url,
+    })
 }
 
 /// Check if a stderr line should be emitted to the frontend
@@ -390,18 +454,27 @@ pub async fn get_media_info(
             continue;
         }
 
-        if let Some((title, thumbnail)) = extract_media_info_from_json(trimmed, &media_source_url) {
-            if thumbnail.is_empty() {
+        if let Some(info) = extract_media_info_from_json(trimmed, &media_source_url) {
+            if info.thumbnail.is_empty() {
                 println!("Invalid thumbnail URL extracted from: '{}'", trimmed);
             }
 
             found_any = true;
             window
-                .emit(EVT_UPDATE_MEDIA_INFO, (media_idx, media_source_url.clone(), title.clone(), thumbnail.clone()))
+                .emit(
+                    EVT_UPDATE_MEDIA_INFO,
+                    (
+                        media_idx,
+                        media_source_url.clone(),
+                        info.title.clone(),
+                        info.thumbnail.clone(),
+                        info.preview_url.clone(),
+                    ),
+                )
                 .map_err(|e| e.to_string())?;
             broadcast_remote_event(
                 EVT_UPDATE_MEDIA_INFO,
-                serde_json::json!([media_idx, media_source_url.clone(), title, thumbnail]),
+                serde_json::json!([media_idx, media_source_url.clone(), info.title, info.thumbnail, info.preview_url]),
             );
         } else {
             println!("Failed to parse yt-dlp output line as generic JSON: {trimmed}");
@@ -921,14 +994,17 @@ mod tests {
                 continue;
             }
 
-            if let Some((title, thumbnail)) = extract_media_info_from_json(trimmed, url) {
-                println!("Found media: Title='{}', Thumbnail='{}'", title, thumbnail);
-                if thumbnail.is_empty() {
+            if let Some(info) = extract_media_info_from_json(trimmed, url) {
+                println!(
+                    "Found media: Title='{}', Thumbnail='{}', PreviewUrl='{}'",
+                    info.title, info.thumbnail, info.preview_url
+                );
+                if info.thumbnail.is_empty() {
                     println!("Full JSON for debugging: {}", trimmed);
                 }
-                assert!(!title.is_empty(), "Title should not be empty");
-                assert!(!thumbnail.is_empty(), "Thumbnail should not be empty");
-                assert!(thumbnail.starts_with("http"), "Thumbnail should be a URL");
+                assert!(!info.title.is_empty(), "Title should not be empty");
+                assert!(!info.thumbnail.is_empty(), "Thumbnail should not be empty");
+                assert!(info.thumbnail.starts_with("http"), "Thumbnail should be a URL");
                 found = true;
             }
         }
@@ -947,11 +1023,13 @@ mod tests {
         }"#;
 
         let source_url = "https://www.redgifs.com/watch/unrulygleamingalaskanmalamute";
-        let (_title, thumbnail) = extract_media_info_from_json(json, source_url).expect("should parse redgifs json");
+        let info = extract_media_info_from_json(json, source_url).expect("should parse redgifs json");
 
-        assert!(!thumbnail.is_empty(), "Thumbnail should be constructed");
-        assert!(thumbnail.contains("UnrulyGleamingAlaskanmalamute"));
-        assert!(thumbnail.starts_with("https://thumbs"));
+        assert!(!info.thumbnail.is_empty(), "Thumbnail should be constructed");
+        assert!(info.thumbnail.contains("UnrulyGleamingAlaskanmalamute"));
+        assert!(info.thumbnail.starts_with("https://thumbs"));
+        assert!(!info.preview_url.is_empty(), "Preview URL should be extracted");
+        assert!(info.preview_url.contains("media.redgifs.com"));
     }
 
     #[test]
