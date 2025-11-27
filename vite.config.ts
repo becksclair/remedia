@@ -31,6 +31,37 @@ export default defineConfig(async () => ({
     },
   },
   // 2. tauri expects a fixed port, fail if that port is not available
+  build: {
+    // HLS.js (~520 kB) and DASH.js (~986 kB) are monolithic media player libs
+    // that can't be split further. They're lazy-loaded by react-player.
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks(id: string) {
+          if (id.includes("node_modules")) {
+            // Media players - largest chunks, split separately
+            if (id.includes("hls.js")) return "hls";
+            if (id.includes("dashjs")) return "dash";
+            // React core
+            if (id.includes("react-dom")) return "react-dom";
+            if (id.includes("/react/")) return "react";
+            // React Player
+            if (id.includes("react-player")) return "react-player";
+            // Radix UI components
+            if (id.includes("@radix-ui")) return "radix-ui";
+            // TanStack
+            if (id.includes("@tanstack")) return "tanstack";
+            // Icons
+            if (id.includes("lucide-react")) return "lucide";
+            // State management
+            if (id.includes("jotai")) return "jotai";
+            // Tauri APIs
+            if (id.includes("@tauri-apps")) return "tauri";
+          }
+        },
+      },
+    },
+  },
   server: {
     hmr: host
       ? {
