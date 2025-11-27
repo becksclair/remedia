@@ -78,6 +78,8 @@ Test style:
 
 ReMedia is a Tauri-based desktop media downloader that uses yt-dlp to extract and download media from URLs. It features a React/TypeScript frontend with shadcn/ui components and a Rust backend.
 
+**Project Phase**: Post-MVP / Production-ready. This project is past the prototype stage. Apply full engineering rigor: proper validation, error handling, security considerations, and comprehensive testing.
+
 ## Development Commands
 
 ### Building and Development

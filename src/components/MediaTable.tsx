@@ -64,6 +64,7 @@ function createMediaColumns(onRemoveItem: (title: string) => void): ColumnDef<Vi
         />
       ),
       id: "select",
+      size: 40,
     },
     {
       accessorKey: "thumbnail",
@@ -74,7 +75,7 @@ function createMediaColumns(onRemoveItem: (title: string) => void): ColumnDef<Vi
         return (
           <img
             data-testid={`row-${row.id}-thumb`}
-            className="h-[72px] w-auto"
+            className="w-[128px] h-[80px] object-cover object-center rounded shrink-0"
             alt="Media thumbnail"
             src={thumbnailSrc}
             loading="lazy"
@@ -88,6 +89,7 @@ function createMediaColumns(onRemoveItem: (title: string) => void): ColumnDef<Vi
         );
       },
       header: () => <div className="text-left">Preview</div>,
+      size: 144,
     },
     {
       accessorKey: "title",
@@ -95,13 +97,12 @@ function createMediaColumns(onRemoveItem: (title: string) => void): ColumnDef<Vi
       cell: ({ row }) => (
         <div
           data-testid={`row-${row.id}-title`}
-          className="text-left truncate"
+          className="text-left line-clamp-3 wrap-break-word whitespace-normal"
           title={row.getValue("title")}
         >
           {row.getValue("title")}
         </div>
       ),
-      size: 300,
     },
     {
       accessorKey: "audioOnly",
@@ -115,22 +116,29 @@ function createMediaColumns(onRemoveItem: (title: string) => void): ColumnDef<Vi
         );
       },
       header: () => <div className="text-center">Audio</div>,
+      size: 60,
     },
     {
       accessorKey: "progress",
       cell: ({ row }) => {
-        return <Progress data-testid={`row-${row.id}-progress`} value={row.getValue("progress")} />;
+        return (
+          <div className="flex items-center justify-center w-full h-full relative">
+            <span
+              data-testid={`row-${row.id}-status`}
+              className="text-[10px] font-semibold capitalize text-muted-foreground absolute -top-[14px] left-1/2 -translate-x-1/2"
+            >
+              {row.original.status}
+            </span>
+            <Progress
+              data-testid={`row-${row.id}-progress`}
+              value={row.getValue("progress")}
+              className="w-full"
+            />
+          </div>
+        );
       },
-      header: () => <div className="text-center">Progress</div>,
-    },
-    {
-      accessorKey: "status",
-      header: () => <div className="text-right">Status</div>,
-      cell: ({ row }) => (
-        <div data-testid={`row-${row.id}-status`} className="text-right capitalize">
-          {row.getValue("status")}
-        </div>
-      ),
+      header: () => <div className="text-center">Status</div>,
+      size: 140,
     },
     {
       cell: ({ row }) => {
@@ -161,6 +169,7 @@ function createMediaColumns(onRemoveItem: (title: string) => void): ColumnDef<Vi
         );
       },
       id: "actions",
+      size: 48,
     },
   ];
 }

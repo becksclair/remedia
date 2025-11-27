@@ -97,7 +97,7 @@
 
 ### Phase 6 – Performance (Incomplete)
 
-- [ ] Virtual scrolling for large lists (100+ items)
+- [x] Virtual scrolling for large lists (100+ items) - using @tanstack/react-virtual
 - [ ] Memoization optimizations in MediaTable
 
 ### Phase 7 – Testing & Quality
@@ -109,7 +109,7 @@
 - [x] Integration tests for download flow (6 tests)
 - [x] Tests for MediaTable (15 tests)
 - [x] Tests for DownloadControls (15 tests)
-- [x] Rust tests: all 26 tests pass + 1 ignored (network)
+- [x] Rust tests: all 36 tests pass + 1 ignored (network)
 
 ### Phase 8 – Accessibility
 
@@ -133,7 +133,7 @@
 3. ~~**[HIGH]** Add Player error handling~~ ✅
 4. ~~**[HIGH]** Unique ID filename toggle feature~~ ✅
 5. ~~**[MEDIUM]** Add remaining React component tests (MediaTable, DownloadControls)~~ ✅
-6. **[MEDIUM]** Implement virtual scrolling
+6. ~~**[MEDIUM]** Implement virtual scrolling~~ ✅
 7. ~~**[LOW]** Verify Rust tests pass~~ ✅
 
 ---
@@ -183,8 +183,8 @@
 
 **React Component Tests**
 - [x] `SettingsDialog.test.tsx`: Form persistence, rendering (14 tests)
-- [ ] `MediaTable.test.tsx`: Row selection, remove actions
-- [ ] `DownloadControls.test.tsx`: Button states, progress display
+- [x] `MediaTable.test.tsx`: Row selection, remove actions (15 tests)
+- [x] `DownloadControls.test.tsx`: Button states, progress display (15 tests)
 - [x] `useMediaList.test.tsx`: Add/update/remove operations (18 tests)
 - [x] `useDownloadManager.test.tsx`: Download flow, cancellation (9 tests)
 
@@ -192,19 +192,19 @@
 - [x] `download-flow.test.tsx`: Full URL → download cycle (6 tests)
 
 **Rust Tests**
-- [ ] Verify all existing tests pass: `cargo test --manifest-path src-tauri/Cargo.toml`
+- [x] Verify all existing tests pass: `cargo test --manifest-path src-tauri/Cargo.toml`
 - [ ] Add tests for `thumbnail.rs` edge cases
 - [ ] Add tests for `remote_control.rs`
 
-### Virtual Scrolling
+### Virtual Scrolling (COMPLETED)
 
 **Dependencies**
-- [ ] Install `@tanstack/react-virtual`
+- [x] Install `@tanstack/react-virtual`
 
-**`src/components/MediaTable.tsx`**
-- [ ] Implement `useVirtualizer` for row virtualization
-- [ ] Maintain scroll position on updates
-- [ ] Test with 500+ items
+**`src/components/data-table.tsx`**
+- [x] Implement `useVirtualizer` for row virtualization
+- [x] Split header/body tables for proper sticky header behavior
+- [x] Fallback rendering for test environments (JSDOM)
 
 ### Accessibility
 
@@ -234,8 +234,8 @@
 
 ### Testing Verification
 
-- [x] `bun run test:run` - all 163 Vitest tests pass
-- [x] `cargo test --manifest-path src-tauri/Cargo.toml` - all 26 Rust tests pass
+- [x] `bun run test:run` - all 162 Vitest tests pass
+- [x] `cargo test --manifest-path src-tauri/Cargo.toml` - all 36 Rust tests pass
 - [x] `bun run test:e2e` - all 66 Playwright tests pass (15 skipped)
 
 ### Performance Verification
@@ -246,7 +246,6 @@
 ### Accessibility Verification
 
 - [ ] Navigate entire app with keyboard only
-- [ ] Test with Windows Narrator or NVDA
 
 ---
 

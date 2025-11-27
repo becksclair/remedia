@@ -20,9 +20,11 @@ describe("MediaTable", () => {
         <MediaTable mediaList={[]} onRemoveItem={mockOnRemoveItem} />,
       );
 
-      // Table should exist but have no data rows
-      expect(screen.getByRole("table")).toBeInTheDocument();
-      expect(screen.queryAllByRole("row")).toHaveLength(1); // Header row only
+      // Table should exist (header table + body table for virtualization)
+      const tables = screen.getAllByRole("table");
+      expect(tables.length).toBeGreaterThanOrEqual(1);
+      // Only header row should exist (no data rows)
+      expect(screen.queryAllByRole("row")).toHaveLength(1);
     });
 
     it("renders table headers", () => {

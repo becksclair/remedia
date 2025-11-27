@@ -30,7 +30,11 @@ import { downloadLocationAtom } from "@/state/settings-atoms";
 import { tableRowSelectionAtom, addLogEntryAtom } from "@/state/app-atoms";
 
 // Utils
-import { isValidUrl, clampProgress, getSelectedIndices } from "@/utils/media-helpers";
+import {
+  isValidUrl,
+  clampProgress,
+  getSelectedIndices,
+} from "@/utils/media-helpers";
 import {
   DEBUG_CONSOLE_WIDTH,
   DEBUG_CONSOLE_HEIGHT,
@@ -99,8 +103,12 @@ function App(): JSX.Element {
     removeItemsAtIndices,
   } = useMediaList();
 
-  const { globalProgress, globalDownloading, startDownload, cancelAllDownloads } =
-    useDownloadManager(mediaList);
+  const {
+    globalProgress,
+    globalDownloading,
+    startDownload,
+    cancelAllDownloads,
+  } = useDownloadManager(mediaList);
 
   /**
    * Request notification permissions
@@ -149,7 +157,8 @@ function App(): JSX.Element {
   useEffect(() => {
     if (
       typeof window !== "undefined" &&
-      (process.env.NODE_ENV === "test" || process.env.NODE_ENV === "development")
+      (process.env.NODE_ENV === "test" ||
+        process.env.NODE_ENV === "development")
     ) {
       window.__E2E_addUrl = (url: string) => {
         if (isValidUrl(url)) addMediaUrl(url);
@@ -238,7 +247,9 @@ function App(): JSX.Element {
           url: `/player?url=${encodeURIComponent(selectedItem.url)}`,
           width: PREVIEW_WINDOW_WIDTH,
           height: PREVIEW_WINDOW_HEIGHT,
-          title: selectedItem.title ? `Preview: ${selectedItem.title}` : "ReMedia Preview",
+          title: selectedItem.title
+            ? `Preview: ${selectedItem.title}`
+            : "ReMedia Preview",
         });
 
         void win.once("tauri://error", (error: unknown) => {
@@ -276,7 +287,8 @@ function App(): JSX.Element {
 
     const urls = mediaList.map((item) => item.url).join("\n");
     const canUseBrowserClipboard =
-      typeof navigator !== "undefined" && typeof navigator.clipboard?.writeText === "function";
+      typeof navigator !== "undefined" &&
+      typeof navigator.clipboard?.writeText === "function";
 
     if (canUseBrowserClipboard) {
       try {
@@ -329,12 +341,15 @@ function App(): JSX.Element {
 
   const handleShowDebugConsole = async (): Promise<void> => {
     try {
-      const debugWindow: WebviewWindow = tauriApi.window.createWindow("debug-console", {
-        url: "/debug",
-        width: DEBUG_CONSOLE_WIDTH,
-        height: DEBUG_CONSOLE_HEIGHT,
-        title: "ReMedia Debug Console",
-      });
+      const debugWindow: WebviewWindow = tauriApi.window.createWindow(
+        "debug-console",
+        {
+          url: "/debug",
+          width: DEBUG_CONSOLE_WIDTH,
+          height: DEBUG_CONSOLE_HEIGHT,
+          title: "ReMedia Debug Console",
+        },
+      );
 
       void debugWindow.once("tauri://created", () => {
         console.log("Debug console window created");
@@ -429,7 +444,11 @@ function App(): JSX.Element {
     let level: "error" | "warn" | "info" = "info";
 
     // Check canonical log prefixes first (most reliable)
-    if (message.startsWith("ERROR") || message.startsWith("Error") || message.startsWith("error")) {
+    if (
+      message.startsWith("ERROR") ||
+      message.startsWith("Error") ||
+      message.startsWith("error")
+    ) {
       level = "error";
     } else if (
       message.startsWith("WARNING") ||
@@ -488,9 +507,9 @@ function App(): JSX.Element {
       onDragLeave={handleDragLeave}
     >
       <div className="app-container compact flex flex-col justify-between gap-y-4 h-screen">
-        {/* Drop Zone */}
+        {/* Drop Zone - only expands when dragging */}
         <DropZone
-          className="flex-auto grow overflow-y-auto"
+          className={dragHovering ? "flex-1" : "shrink-0 py-2"}
           dropHandler={dropHandler}
           dragHovering={dragHovering}
         />
@@ -505,7 +524,7 @@ function App(): JSX.Element {
           onShowDebugConsole={handleShowDebugConsole}
         >
           <MediaTable
-            className="flex-auto grow overflow-y-auto"
+            className="flex-1 min-h-0"
             mediaList={mediaList}
             onRemoveItem={removeItem}
           />

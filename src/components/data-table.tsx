@@ -1,20 +1,18 @@
+import { useRef } from "react";
 import {
   type ColumnDef,
   flexRender,
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { useVirtualizer } from "@tanstack/react-virtual";
+import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { useAtom } from "jotai";
 import { tableRowSelectionAtom } from "@/state/app-atoms";
+
+/** Row height in pixels - matches thumbnail height (80px) + padding (16px) */
+const ROW_HEIGHT = 96;
 
 interface DataTableProps<TData, TValue> {
   className?: string;
@@ -41,59 +39,119 @@ export function DataTable<TData, TValue>({
     },
   });
 
+  const { rows } = table.getRowModel();
+
+  // Ref for the scrollable container
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+
+  // Virtual row renderer - only renders visible rows + overscan
+  const rowVirtualizer = useVirtualizer({
+    count: rows.length,
+    estimateSize: () => ROW_HEIGHT,
+    getScrollElement: () => tableContainerRef.current,
+    overscan: 5, // Render 5 extra rows above/below viewport for smooth scrolling
+  });
+
   return (
     <div
       className={cn(
-        "rounded-md border border-sidebar-ring shadow-md grad-background",
+        "rounded-md border border-sidebar-ring shadow-md grad-background flex flex-col",
         className,
       )}
     >
-      <Table>
-        <TableHeader className="bg-primary ">
-          {table.getHeaderGroups().map((headerGroup) => (
-            <TableRow key={headerGroup.id} className="h-10 hover:bg-primary">
-              {headerGroup.headers.map((header) => {
-                return (
-                  <TableHead key={header.id} className="text-white ">
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext(),
-                        )}
-                  </TableHead>
-                );
-              })}
-            </TableRow>
-          ))}
-        </TableHeader>
-        <TableBody className="overflow-y-auto min-h-72 max-h-72 ">
-          {table.getRowModel().rows?.length ? (
-            table.getRowModel().rows.map((row) => (
-              <TableRow
-                className="bg-background"
-                key={row.id}
-                data-testid={`row-${row.id}`}
-                data-state={row.getIsSelected() && "selected"}
-              >
-                {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id}>
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </TableCell>
-                ))}
-              </TableRow>
-            ))
-          ) : (
-            <>
-              {/* <TableRow> */}
-              {/* <TableCell colSpan={columns.length} className="h-24 text-center"> */}
-              {/* No data available */}
-              {/* </TableCell> */}
-              {/* </TableRow> */}
-            </>
-          )}
-        </TableBody>
-      </Table>
+      <div className="shrink-0 bg-primary rounded-t-md">
+        {table.getHeaderGroups().map((headerGroup) => (
+          <div key={headerGroup.id} className="h-10 flex items-center">
+            {headerGroup.headers.map((header) => {
+              const isFlexColumn = header.id === "title";
+              return (
+                <div
+                  key={header.id}
+                  className={`text-white font-medium px-2 ${isFlexColumn ? "flex-1 min-w-0" : "shrink-0"}`}
+                  style={isFlexColumn ? undefined : { width: header.getSize() }}
+                >
+                  {header.isPlaceholder
+                    ? null
+                    : flexRender(
+                        header.column.columnDef.header,
+                        header.getContext(),
+                      )}
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+
+      {/* Virtualized scrollable body */}
+      <div
+        ref={tableContainerRef}
+        className="overflow-y-auto flex-1 min-h-0"
+        data-testid="virtual-scroll-container"
+      >
+        <Table>
+          <TableBody
+            style={{
+              height: `${rowVirtualizer.getTotalSize()}px`,
+              position: "relative",
+            }}
+          >
+            {rows.length > 0
+              ? (() => {
+                  const virtualItems = rowVirtualizer.getVirtualItems();
+                  // Fallback: render all rows when virtualizer returns empty (e.g., in JSDOM tests)
+                  const itemsToRender =
+                    virtualItems.length > 0
+                      ? virtualItems
+                      : rows.map((_, index) => ({
+                          index,
+                          start: index * ROW_HEIGHT,
+                          size: ROW_HEIGHT,
+                          key: index,
+                        }));
+
+                  return itemsToRender.map((virtualRow) => {
+                    const row = rows[virtualRow.index];
+                    if (!row) return null;
+                    return (
+                      <TableRow
+                        className="bg-background absolute w-full flex items-center"
+                        key={row.id}
+                        data-testid={`row-${row.id}`}
+                        data-state={row.getIsSelected() && "selected"}
+                        data-index={virtualRow.index}
+                        style={{
+                          height: `${virtualRow.size}px`,
+                          transform: `translateY(${virtualRow.start}px)`,
+                        }}
+                      >
+                        {row.getVisibleCells().map((cell) => {
+                          const isFlexColumn = cell.column.id === "title";
+                          return (
+                            <TableCell
+                              key={cell.id}
+                              className={`flex items-center px-2 ${isFlexColumn ? "flex-1 min-w-0" : "shrink-0"}`}
+                              style={
+                                isFlexColumn
+                                  ? undefined
+                                  : { width: cell.column.getSize() }
+                              }
+                            >
+                              {flexRender(
+                                cell.column.columnDef.cell,
+                                cell.getContext(),
+                              )}
+                            </TableCell>
+                          );
+                        })}
+                      </TableRow>
+                    );
+                  });
+                })()
+              : null}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }

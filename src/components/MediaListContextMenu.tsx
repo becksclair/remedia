@@ -35,36 +35,44 @@ export function MediaListContextMenu({
   onShowDebugConsole,
 }: MediaListContextMenuProps) {
   return (
-    <ContextMenu>
-      <ContextMenuTrigger data-testid="media-context-trigger">
-        {children}
-      </ContextMenuTrigger>
-      <ContextMenuContent>
-        <ContextMenuItem data-testid="ctx-download-all" onClick={onDownloadAll}>
-          Download All
-        </ContextMenuItem>
-        <ContextMenuItem data-testid="ctx-cancel-all" onClick={onCancelAll}>
-          Cancel All
-        </ContextMenuItem>
-        <ContextMenuItem
-          data-testid="ctx-remove-selected"
-          onClick={onRemoveSelected}
+    <div className="flex-1 min-h-0 flex flex-col">
+      <ContextMenu>
+        <ContextMenuTrigger
+          data-testid="media-context-trigger"
+          className="flex-1 min-h-0 flex flex-col"
         >
-          Remove Selected
-        </ContextMenuItem>
-        <ContextMenuItem data-testid="ctx-remove-all" onClick={onRemoveAll}>
-          Remove All
-        </ContextMenuItem>
-        <ContextMenuItem data-testid="ctx-copy-all" onClick={onCopyAllUrls}>
-          Copy All URLs
-        </ContextMenuItem>
-        <ContextMenuItem
-          data-testid="ctx-show-debug"
-          onClick={onShowDebugConsole}
-        >
-          Show Debug Console
-        </ContextMenuItem>
-      </ContextMenuContent>
-    </ContextMenu>
+          {children}
+        </ContextMenuTrigger>
+        <ContextMenuContent>
+          <ContextMenuItem
+            data-testid="ctx-download-all"
+            onClick={onDownloadAll}
+          >
+            Download All
+          </ContextMenuItem>
+          <ContextMenuItem data-testid="ctx-cancel-all" onClick={onCancelAll}>
+            Cancel All
+          </ContextMenuItem>
+          <ContextMenuItem
+            data-testid="ctx-remove-selected"
+            onClick={onRemoveSelected}
+          >
+            Remove Selected
+          </ContextMenuItem>
+          <ContextMenuItem data-testid="ctx-remove-all" onClick={onRemoveAll}>
+            Remove All
+          </ContextMenuItem>
+          <ContextMenuItem data-testid="ctx-copy-all" onClick={onCopyAllUrls}>
+            Copy All URLs
+          </ContextMenuItem>
+          <ContextMenuItem
+            data-testid="ctx-show-debug"
+            onClick={onShowDebugConsole}
+          >
+            Show Debug Console
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
+    </div>
   );
 }
