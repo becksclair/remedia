@@ -949,6 +949,22 @@ pub fn get_queue_status() -> (usize, usize, usize) {
 mod tests {
     use super::*;
 
+    /// Create default DownloadSettings for tests - reduces boilerplate
+    fn default_settings() -> DownloadSettings {
+        DownloadSettings {
+            download_mode: "video".to_string(),
+            video_quality: "best".to_string(),
+            max_resolution: "no-limit".to_string(),
+            video_format: "best".to_string(),
+            audio_format: "best".to_string(),
+            audio_quality: "0".to_string(),
+            download_rate_limit: "unlimited".to_string(),
+            max_file_size: "unlimited".to_string(),
+            append_unique_id: true,
+            unique_id_type: "native".to_string(),
+        }
+    }
+
     #[test]
     fn test_parse_progress_percent_valid() {
         assert_eq!(parse_progress_percent("remedia-45.2%-2:30"), Some(45.2));
@@ -1046,18 +1062,9 @@ mod tests {
 
     #[test]
     fn test_build_format_args_audio_mode() {
-        let settings = DownloadSettings {
-            download_mode: "audio".to_string(),
-            video_quality: "best".to_string(),
-            max_resolution: "no-limit".to_string(),
-            video_format: "best".to_string(),
-            audio_format: "mp3".to_string(),
-            audio_quality: "0".to_string(),
-            download_rate_limit: "unlimited".to_string(),
-            max_file_size: "unlimited".to_string(),
-            append_unique_id: true,
-            unique_id_type: "native".to_string(),
-        };
+        let mut settings = default_settings();
+        settings.download_mode = "audio".to_string();
+        settings.audio_format = "mp3".to_string();
 
         let args = build_format_args(&settings);
 
@@ -1072,18 +1079,8 @@ mod tests {
 
     #[test]
     fn test_build_format_args_audio_best() {
-        let settings = DownloadSettings {
-            download_mode: "audio".to_string(),
-            video_quality: "best".to_string(),
-            max_resolution: "no-limit".to_string(),
-            video_format: "best".to_string(),
-            audio_format: "best".to_string(),
-            audio_quality: "0".to_string(),
-            download_rate_limit: "unlimited".to_string(),
-            max_file_size: "unlimited".to_string(),
-            append_unique_id: true,
-            unique_id_type: "native".to_string(),
-        };
+        let mut settings = default_settings();
+        settings.download_mode = "audio".to_string();
 
         let args = build_format_args(&settings);
 
@@ -1093,19 +1090,7 @@ mod tests {
 
     #[test]
     fn test_build_format_args_video_mode_no_limit() {
-        let settings = DownloadSettings {
-            download_mode: "video".to_string(),
-            video_quality: "best".to_string(),
-            max_resolution: "no-limit".to_string(),
-            video_format: "best".to_string(),
-            audio_format: "best".to_string(),
-            audio_quality: "0".to_string(),
-            download_rate_limit: "unlimited".to_string(),
-            max_file_size: "unlimited".to_string(),
-            append_unique_id: true,
-            unique_id_type: "native".to_string(),
-        };
-
+        let settings = default_settings();
         let args = build_format_args(&settings);
 
         assert!(args.contains(&"-f".to_string()));
@@ -1115,18 +1100,8 @@ mod tests {
 
     #[test]
     fn test_build_format_args_video_mode_1080p() {
-        let settings = DownloadSettings {
-            download_mode: "video".to_string(),
-            video_quality: "best".to_string(),
-            max_resolution: "1080p".to_string(),
-            video_format: "best".to_string(),
-            audio_format: "best".to_string(),
-            audio_quality: "0".to_string(),
-            download_rate_limit: "unlimited".to_string(),
-            max_file_size: "unlimited".to_string(),
-            append_unique_id: true,
-            unique_id_type: "native".to_string(),
-        };
+        let mut settings = default_settings();
+        settings.max_resolution = "1080p".to_string();
 
         let args = build_format_args(&settings);
 
@@ -1136,18 +1111,8 @@ mod tests {
 
     #[test]
     fn test_build_format_args_video_remux() {
-        let settings = DownloadSettings {
-            download_mode: "video".to_string(),
-            video_quality: "best".to_string(),
-            max_resolution: "no-limit".to_string(),
-            video_format: "mp4".to_string(),
-            audio_format: "best".to_string(),
-            audio_quality: "0".to_string(),
-            download_rate_limit: "unlimited".to_string(),
-            max_file_size: "unlimited".to_string(),
-            append_unique_id: true,
-            unique_id_type: "native".to_string(),
-        };
+        let mut settings = default_settings();
+        settings.video_format = "mp4".to_string();
 
         let args = build_format_args(&settings);
 
@@ -1157,18 +1122,7 @@ mod tests {
 
     #[test]
     fn test_validate_settings_rate_limit_and_size() {
-        let mut settings = DownloadSettings {
-            download_mode: "video".to_string(),
-            video_quality: "best".to_string(),
-            max_resolution: "no-limit".to_string(),
-            video_format: "best".to_string(),
-            audio_format: "best".to_string(),
-            audio_quality: "0".to_string(),
-            download_rate_limit: "unlimited".to_string(),
-            max_file_size: "unlimited".to_string(),
-            append_unique_id: true,
-            unique_id_type: "native".to_string(),
-        };
+        let mut settings = default_settings();
 
         assert!(validate_settings(&settings).is_ok());
 

@@ -2,7 +2,7 @@
 
 ## 📊 **IMPLEMENTATION PROGRESS**
 
-**Overall**: ~75% complete (20/27 major features)
+**Overall**: ~80% complete (22/27 major features)
 
 **Completed**: Phases 0-5, Critical bug fixes, Testing expansion
 **In Progress**: Integration testing
@@ -107,8 +107,9 @@
 - [x] Tests for useDownloadManager hook (9 tests)
 - [x] Tests for SettingsDialog (14 tests)
 - [x] Integration tests for download flow (6 tests)
-- [ ] Tests for: MediaTable, DownloadControls (remaining components)
-- [ ] Rust tests: verify all 30+ tests pass
+- [x] Tests for MediaTable (15 tests)
+- [x] Tests for DownloadControls (15 tests)
+- [x] Rust tests: all 26 tests pass + 1 ignored (network)
 
 ### Phase 8 – Accessibility
 
@@ -131,9 +132,9 @@
 2. ~~**[CRITICAL]** Wire rate limit & file size to useDownloadManager~~ ✅
 3. ~~**[HIGH]** Add Player error handling~~ ✅
 4. ~~**[HIGH]** Unique ID filename toggle feature~~ ✅
-5. **[MEDIUM]** Add remaining React component tests (MediaTable, DownloadControls)
+5. ~~**[MEDIUM]** Add remaining React component tests (MediaTable, DownloadControls)~~ ✅
 6. **[MEDIUM]** Implement virtual scrolling
-7. **[LOW]** Verify Rust tests pass
+7. ~~**[LOW]** Verify Rust tests pass~~ ✅
 
 ---
 
@@ -233,9 +234,9 @@
 
 ### Testing Verification
 
-- [x] `bun run test:run` - all 129 Vitest tests pass
-- [ ] `cargo test --manifest-path src-tauri/Cargo.toml` - all Rust tests pass
-- [ ] `bun run test:e2e` - all Playwright tests pass
+- [x] `bun run test:run` - all 163 Vitest tests pass
+- [x] `cargo test --manifest-path src-tauri/Cargo.toml` - all 26 Rust tests pass
+- [x] `bun run test:e2e` - all 66 Playwright tests pass (15 skipped)
 
 ### Performance Verification
 
@@ -270,4 +271,4 @@ bun run dev            # Frontend only (port 1420)
 
 ---
 
-*Last updated: Nov 26, 2025 - Testing expansion and Player improvements completed*
+*Last updated: Nov 27, 2025 - MediaTable & DownloadControls tests added (163 Vitest, 26 Rust, 66 E2E tests)*

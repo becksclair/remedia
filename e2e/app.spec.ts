@@ -163,103 +163,86 @@ test.describe("ReMedia app", () => {
     await expect(page.getByTestId("global-progress")).toBeVisible();
   });
 
-  // Phase 3 Tests: Advanced Settings
-  test("download mode setting persists", async ({ page }) => {
-    await page.goto("/");
-    await page.getByRole("button", { name: "Settings" }).click();
+  // Phase 3 Tests: Advanced Settings - Consolidated persistence tests
+  const settingsPersistenceTests = [
+    {
+      name: "download mode",
+      tab: "Downloads",
+      selector: "#download-mode",
+      optionName: "Audio only",
+      expectedText: "Audio only",
+    },
+    {
+      name: "max resolution",
+      tab: "Quality",
+      selector: "#max-resolution",
+      optionName: "1080p (Full HD)",
+      expectedText: "1080p (Full HD)",
+    },
+    {
+      name: "audio quality",
+      tab: "Quality",
+      selector: "#audio-quality",
+      optionName: /High \(256 kbps\)/,
+      expectedText: "High (256 kbps)",
+    },
+    {
+      name: "video format",
+      tab: "Quality",
+      selector: "#video-format",
+      optionName: "MP4",
+      expectedText: "MP4",
+    },
+    {
+      name: "audio format",
+      tab: "Quality",
+      selector: "#audio-format",
+      optionName: "MP3",
+      expectedText: "MP3",
+    },
+  ] as const;
 
-    // Change to audio mode
-    await page.locator("#download-mode").click();
-    await page.getByRole("option", { name: "Audio only" }).click();
-    await page.getByRole("button", { name: "Done" }).click();
+  for (const {
+    name,
+    tab,
+    selector,
+    optionName,
+    expectedText,
+  } of settingsPersistenceTests) {
+    test(`${name} setting persists`, async ({ page }) => {
+      await page.goto("/");
+      await page.getByRole("button", { name: "Settings" }).click();
+      await page.getByRole("tab", { name: tab }).click();
 
-    // Reload and check persistence
-    await page.reload();
-    await page.getByRole("button", { name: "Settings" }).click();
-    await expect(page.locator("#download-mode")).toContainText("Audio only");
-  });
+      await page.locator(selector).click();
+      await page.getByRole("option", { name: optionName }).click();
+      await page.getByRole("button", { name: "Done" }).click();
+
+      await page.reload();
+      await page.getByRole("button", { name: "Settings" }).click();
+      await page.getByRole("tab", { name: tab }).click();
+      await expect(page.locator(selector)).toContainText(expectedText);
+    });
+  }
 
   test("video settings visible only in video mode", async ({ page }) => {
     await page.goto("/");
     await page.getByRole("button", { name: "Settings" }).click();
+    await page.getByRole("tab", { name: "Quality" }).click();
 
     // In video mode, video settings should be visible
     await expect(page.getByText("Video Settings")).toBeVisible();
     await expect(page.locator("#max-resolution")).toBeVisible();
 
     // Switch to audio mode
+    await page.getByRole("tab", { name: "Downloads" }).click();
     await page.locator("#download-mode").click();
     await page.getByRole("option", { name: "Audio only" }).click();
+    await page.getByRole("tab", { name: "Quality" }).click();
 
-    // Video settings should be hidden
+    // Video settings should be hidden, audio visible
     await expect(page.getByText("Video Settings")).not.toBeVisible();
-
-    // Audio settings should always be visible
     await expect(page.getByText("Audio Settings")).toBeVisible();
-  });
-
-  test("max resolution setting persists", async ({ page }) => {
-    await page.goto("/");
-    await page.getByRole("button", { name: "Settings" }).click();
-
-    // Set max resolution to 1080p
-    await page.locator("#max-resolution").click();
-    await page.getByRole("option", { name: "1080p (Full HD)" }).click();
-    await page.getByRole("button", { name: "Done" }).click();
-
-    // Reload and verify
-    await page.reload();
-    await page.getByRole("button", { name: "Settings" }).click();
-    await expect(page.locator("#max-resolution")).toContainText(
-      "1080p (Full HD)",
-    );
-  });
-
-  test("audio quality setting persists", async ({ page }) => {
-    await page.goto("/");
-    await page.getByRole("button", { name: "Settings" }).click();
-
-    // Change audio quality
-    await page.locator("#audio-quality").click();
-    await page.getByRole("option", { name: /High \(256 kbps\)/ }).click();
-    await page.getByRole("button", { name: "Done" }).click();
-
-    // Reload and verify
-    await page.reload();
-    await page.getByRole("button", { name: "Settings" }).click();
-    await expect(page.locator("#audio-quality")).toContainText(
-      "High (256 kbps)",
-    );
-  });
-
-  test("video format setting persists", async ({ page }) => {
-    await page.goto("/");
-    await page.getByRole("button", { name: "Settings" }).click();
-
-    // Change video format
-    await page.locator("#video-format").click();
-    await page.getByRole("option", { name: "MP4" }).click();
-    await page.getByRole("button", { name: "Done" }).click();
-
-    // Reload and verify
-    await page.reload();
-    await page.getByRole("button", { name: "Settings" }).click();
-    await expect(page.locator("#video-format")).toContainText("MP4");
-  });
-
-  test("audio format setting persists", async ({ page }) => {
-    await page.goto("/");
-    await page.getByRole("button", { name: "Settings" }).click();
-
-    // Change audio format
-    await page.locator("#audio-format").click();
-    await page.getByRole("option", { name: "MP3" }).click();
-    await page.getByRole("button", { name: "Done" }).click();
-
-    // Reload and verify
-    await page.reload();
-    await page.getByRole("button", { name: "Settings" }).click();
-    await expect(page.locator("#audio-format")).toContainText("MP3");
   });
 
   test("completion events update status correctly", async ({
@@ -474,7 +457,9 @@ test.describe("ReMedia app", () => {
     // Note: This test may need backend mocking for full validation
     await expect(
       page.getByRole("cell", { name: /Downloading|Done/ }).first(),
-    ).toBeVisible({ timeout: 3000 });
+    ).toBeVisible({
+      timeout: 3000,
+    });
   });
 
   // Phase 4: Cancellation Tests
@@ -528,7 +513,9 @@ test.describe("ReMedia app", () => {
     // Both items should show "Cancelled" status
     await expect(
       page.getByRole("cell", { name: "Cancelled" }).first(),
-    ).toBeVisible({ timeout: 2000 });
+    ).toBeVisible({
+      timeout: 2000,
+    });
   });
 
   test("cancel all menu item stops all downloads", async ({

@@ -101,12 +101,20 @@ describe("hasActiveDownloads", () => {
   });
 
   it("returns true when at least one item is downloading", () => {
-    const mediaList = [createItem("Pending"), createItem("Downloading"), createItem("Done")];
+    const mediaList = [
+      createItem("Pending"),
+      createItem("Downloading"),
+      createItem("Done"),
+    ];
     expect(hasActiveDownloads(mediaList)).toBe(true);
   });
 
   it("returns false when no items are downloading", () => {
-    const mediaList = [createItem("Pending"), createItem("Done"), createItem("Error")];
+    const mediaList = [
+      createItem("Pending"),
+      createItem("Done"),
+      createItem("Error"),
+    ];
     expect(hasActiveDownloads(mediaList)).toBe(false);
   });
 
@@ -217,7 +225,10 @@ describe("urlExists", () => {
   });
 
   it("returns true when URL exists", () => {
-    const mediaList = [createItem("https://a.com"), createItem("https://b.com")];
+    const mediaList = [
+      createItem("https://a.com"),
+      createItem("https://b.com"),
+    ];
     expect(urlExists(mediaList, "https://a.com")).toBe(true);
   });
 

@@ -10,6 +10,36 @@ import { TauriApiProvider } from "@/lib/TauriApiContext";
 import { mockTauriApi, mockState } from "@/lib/tauri-api.mock";
 import { Provider as JotaiProvider } from "jotai";
 import { useHydrateAtoms } from "jotai/utils";
+import {
+  downloadLocationAtom,
+  downloadModeAtom,
+  videoQualityAtom,
+  maxResolutionAtom,
+  videoFormatAtom,
+  audioFormatAtom,
+  audioQualityAtom,
+  downloadRateLimitAtom,
+  maxFileSizeAtom,
+  appendUniqueIdAtom,
+  uniqueIdTypeAtom,
+} from "@/state/settings-atoms";
+
+/**
+ * Default download settings for tests - avoids repeating in every test
+ */
+export const DEFAULT_DOWNLOAD_SETTINGS = [
+  [downloadLocationAtom, "/tmp/downloads"],
+  [downloadModeAtom, "video"],
+  [videoQualityAtom, "best"],
+  [maxResolutionAtom, "no-limit"],
+  [videoFormatAtom, "best"],
+  [audioFormatAtom, "best"],
+  [audioQualityAtom, "0"],
+  [downloadRateLimitAtom, "unlimited"],
+  [maxFileSizeAtom, "unlimited"],
+  [appendUniqueIdAtom, true],
+  [uniqueIdTypeAtom, "native"],
+] as const;
 
 /**
  * Props for the AllTheProviders wrapper
@@ -22,7 +52,10 @@ interface AllTheProvidersProps {
 /**
  * Wrapper component that provides all necessary providers for testing
  */
-function AllTheProviders({ children, initialValues = [] }: AllTheProvidersProps) {
+function AllTheProviders({
+  children,
+  initialValues = [],
+}: AllTheProvidersProps) {
   return (
     <JotaiProvider>
       <TauriApiProvider api={mockTauriApi}>
@@ -35,7 +68,7 @@ function AllTheProviders({ children, initialValues = [] }: AllTheProvidersProps)
 /**
  * Helper component to hydrate atoms in tests
  */
-function HydrateAtoms({
+export function HydrateAtoms({
   initialValues,
   children,
 }: {
@@ -62,7 +95,9 @@ export function renderWithProviders(
 
   return render(ui, {
     wrapper: ({ children }) => (
-      <AllTheProviders initialValues={initialAtomValues}>{children}</AllTheProviders>
+      <AllTheProviders initialValues={initialAtomValues}>
+        {children}
+      </AllTheProviders>
     ),
     ...renderOptions,
   });
@@ -104,7 +139,9 @@ export function waitForAsync(ms = 0): Promise<void> {
 /**
  * Helper to create mock row selection state
  */
-export function createMockRowSelection(selectedIndices: number[]): Record<string, boolean> {
+export function createMockRowSelection(
+  selectedIndices: number[],
+): Record<string, boolean> {
   return selectedIndices.reduce(
     (acc, index) => {
       acc[index.toString()] = true;
@@ -114,6 +151,54 @@ export function createMockRowSelection(selectedIndices: number[]): Record<string
   );
 }
 
+/**
+ * Create a wrapper for renderHook with optional atom overrides
+ * Merges DEFAULT_DOWNLOAD_SETTINGS with any overrides
+ */
+export function createTestWrapper(
+  atomOverrides: Array<readonly [any, any]> = [],
+) {
+  // Merge defaults with overrides (overrides take precedence)
+  const overrideMap = new Map(atomOverrides.map(([atom, val]) => [atom, val]));
+  const merged: Array<readonly [any, any]> = DEFAULT_DOWNLOAD_SETTINGS.map(
+    ([atom, defaultVal]) =>
+      overrideMap.has(atom)
+        ? ([atom, overrideMap.get(atom)] as const)
+        : ([atom, defaultVal] as const),
+  );
+  // Add any overrides that aren't in defaults
+  for (const [atom, val] of atomOverrides) {
+    if (!DEFAULT_DOWNLOAD_SETTINGS.some(([a]) => a === atom)) {
+      merged.push([atom, val] as const);
+    }
+  }
+
+  return function Wrapper({ children }: { children: ReactNode }) {
+    return (
+      <JotaiProvider>
+        <TauriApiProvider api={mockTauriApi}>
+          <HydrateAtoms initialValues={merged}>{children}</HydrateAtoms>
+        </TauriApiProvider>
+      </JotaiProvider>
+    );
+  };
+}
+
 // Re-export everything from @testing-library/react
 export * from "@testing-library/react";
 export { default as userEvent } from "@testing-library/user-event";
+
+// Re-export commonly used atoms for convenience
+export {
+  downloadLocationAtom,
+  downloadModeAtom,
+  videoQualityAtom,
+  maxResolutionAtom,
+  videoFormatAtom,
+  audioFormatAtom,
+  audioQualityAtom,
+  downloadRateLimitAtom,
+  maxFileSizeAtom,
+  appendUniqueIdAtom,
+  uniqueIdTypeAtom,
+} from "@/state/settings-atoms";
