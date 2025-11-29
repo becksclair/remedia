@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path;
 use std::process::Stdio;
 use std::sync::Mutex;
@@ -33,6 +33,9 @@ const MAX_URL_LENGTH: usize = 4096;
 
 /// Maximum output path length (OS limits)
 const MAX_OUTPUT_PATH_LENGTH: usize = 1024;
+
+/// Safety cap for playlist expansion to avoid unbounded queue growth
+const MAX_PLAYLIST_ITEMS: usize = 500;
 
 static DOWNLOAD_CANCEL_FLAGS: Lazy<Mutex<HashMap<i32, Arc<AtomicBool>>>> = Lazy::new(|| Mutex::new(HashMap::new()));
 
@@ -356,6 +359,78 @@ struct ExtractedMediaInfo {
     preview_url: String,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct PlaylistItem {
+    url: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    title: Option<String>,
+}
+
+/// Normalize a yt-dlp flat-playlist entry into a usable URL + optional title
+fn normalize_playlist_entry(entry: &Value) -> Option<PlaylistItem> {
+    // Prefer webpage_url as it keeps the watch page (better metadata)
+    let mut url =
+        entry.get("webpage_url").and_then(|u| u.as_str()).filter(|u| u.starts_with("http")).map(|u| u.to_string());
+
+    // Fallback to direct URL if present
+    if url.is_none() {
+        url = entry.get("url").and_then(|u| u.as_str()).filter(|u| u.starts_with("http")).map(|u| u.to_string());
+    }
+
+    // For YouTube / RedGifs entries, construct watch URL from ID when missing
+    if url.is_none() {
+        url = entry.get("id").and_then(|v| v.as_str()).and_then(|id| {
+            entry.get("extractor").and_then(|e| e.as_str()).and_then(|extractor| match extractor {
+                "Youtube" | "YouTube" | "YoutubeTab" | "YoutubeSearchURL" | "YoutubePlaylist" => {
+                    Some(format!("https://www.youtube.com/watch?v={id}"))
+                }
+                "RedGifs" | "RedGifsUser" => Some(format!("https://www.redgifs.com/watch/{id}")),
+                _ => None,
+            })
+        });
+    }
+
+    let url = url?;
+
+    let title = entry.get("title").and_then(|t| t.as_str()).filter(|s| !s.is_empty()).map(|s| s.to_string());
+
+    Some(PlaylistItem {
+        url,
+        title,
+    })
+}
+
+/// Parse yt-dlp `-J --flat-playlist` JSON into playlist entries
+fn parse_playlist_entries(json_str: &str) -> Result<Vec<PlaylistItem>, String> {
+    let v: Value = serde_json::from_str(json_str).map_err(|e| format!("Failed to parse yt-dlp JSON: {}", e))?;
+
+    let entries = match v.get("entries").and_then(|e| e.as_array()) {
+        Some(e) => e,
+        None => return Ok(Vec::new()), // Not a playlist (single video or unsupported format)
+    };
+
+    let mut seen = HashSet::new();
+    let mut items = Vec::new();
+
+    for entry in entries {
+        let Some(item) = normalize_playlist_entry(entry) else {
+            continue;
+        };
+
+        if !seen.insert(item.url.clone()) {
+            continue;
+        }
+
+        items.push(item);
+        if items.len() >= MAX_PLAYLIST_ITEMS {
+            break;
+        }
+    }
+
+    Ok(items)
+}
+
 /// Extract the best direct URL for preview from formats array
 fn extract_preview_url(v: &Value) -> Option<String> {
     // Try top-level url first (some extractors put it here)
@@ -501,6 +576,32 @@ pub async fn get_media_info(
     }
 
     Ok(())
+}
+
+#[tauri::command]
+pub async fn expand_playlist(_app: AppHandle, media_source_url: String) -> Result<Vec<PlaylistItem>, String> {
+    validate_url(&media_source_url)?;
+
+    let mut cmd = Command::new("yt-dlp");
+    cmd.arg(&media_source_url)
+        .arg("--flat-playlist")
+        .arg("-J")
+        .arg("--extractor-args")
+        .arg("generic:impersonate")
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+
+    #[cfg(windows)]
+    cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+
+    let (output, errors) = run_yt_dlp(&mut cmd).await.map_err(|e| e.to_string())?;
+
+    if !errors.is_empty() {
+        eprintln!("[expand_playlist] yt-dlp stderr: {}", errors);
+    }
+
+    let items = parse_playlist_entries(&output)?;
+    Ok(items)
 }
 
 /// Process the queue and start next available download
@@ -974,6 +1075,39 @@ mod tests {
             append_unique_id: true,
             unique_id_type: "native".to_string(),
         }
+    }
+
+    #[test]
+    fn test_parse_playlist_entries_constructs_urls() {
+        let json = r#"{
+            "_type":"playlist",
+            "entries":[
+                {"id":"abc123","extractor":"Youtube","title":"First"},
+                {"id":"unrulygleamingalaskanmalamute","extractor":"RedGifs","title":"Second"}
+            ]
+        }"#;
+
+        let items = parse_playlist_entries(json).expect("should parse playlist JSON");
+        assert_eq!(items.len(), 2);
+        assert_eq!(items[0].url, "https://www.youtube.com/watch?v=abc123");
+        assert_eq!(items[0].title.as_deref(), Some("First"));
+        assert_eq!(items[1].url, "https://www.redgifs.com/watch/unrulygleamingalaskanmalamute");
+        assert_eq!(items[1].title.as_deref(), Some("Second"));
+    }
+
+    #[test]
+    fn test_parse_playlist_entries_dedupes_and_limits() {
+        let json = r#"{
+            "_type":"playlist",
+            "entries":[
+                {"id":"dup","webpage_url":"https://example.com/video"},
+                {"id":"dup","webpage_url":"https://example.com/video"}
+            ]
+        }"#;
+
+        let items = parse_playlist_entries(json).expect("should parse playlist JSON");
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0].url, "https://example.com/video");
     }
 
     #[test]

@@ -14,9 +14,50 @@ export const TAURI_EVENT = {
   downloadProgress: "download-progress",
   downloadComplete: "download-complete",
   downloadError: "download-error",
+  downloadCancelled: "download-cancelled",
+  downloadQueued: "download-queued",
+  downloadStarted: "download-started",
   ytDlpStderr: "yt-dlp-stderr",
+  remoteAddUrl: "remote-add-url",
+  remoteStartDownloads: "remote-start-downloads",
+  remoteCancelDownloads: "remote-cancel-downloads",
+  remoteClearList: "remote-clear-list",
+  remoteSetDownloadDir: "remote-set-download-dir",
 } as const;
+
 export type TauriEventName = (typeof TAURI_EVENT)[keyof typeof TAURI_EVENT];
+
+export type DownloadEventName =
+  | (typeof TAURI_EVENT)["downloadProgress"]
+  | (typeof TAURI_EVENT)["downloadComplete"]
+  | (typeof TAURI_EVENT)["downloadError"]
+  | (typeof TAURI_EVENT)["downloadCancelled"]
+  | (typeof TAURI_EVENT)["downloadQueued"]
+  | (typeof TAURI_EVENT)["downloadStarted"];
+
+export type RemoteEventName =
+  | (typeof TAURI_EVENT)["remoteAddUrl"]
+  | (typeof TAURI_EVENT)["remoteStartDownloads"]
+  | (typeof TAURI_EVENT)["remoteCancelDownloads"]
+  | (typeof TAURI_EVENT)["remoteClearList"]
+  | (typeof TAURI_EVENT)["remoteSetDownloadDir"];
+
+// Mapping from event name to its payload type for strongly-typed listeners
+export interface TauriEventPayloadMap {
+  [TAURI_EVENT.updateMediaInfo]: MediaInfoEvent;
+  [TAURI_EVENT.downloadProgress]: MediaProgressEvent;
+  [TAURI_EVENT.downloadComplete]: number;
+  [TAURI_EVENT.downloadError]: number;
+  [TAURI_EVENT.downloadCancelled]: number;
+  [TAURI_EVENT.downloadQueued]: number;
+  [TAURI_EVENT.downloadStarted]: number;
+  [TAURI_EVENT.ytDlpStderr]: YtDlpStderrEvent;
+  [TAURI_EVENT.remoteAddUrl]: string;
+  [TAURI_EVENT.remoteStartDownloads]: undefined;
+  [TAURI_EVENT.remoteCancelDownloads]: undefined;
+  [TAURI_EVENT.remoteClearList]: undefined;
+  [TAURI_EVENT.remoteSetDownloadDir]: string;
+}
 
 // Tauri command payloads (for invoke)
 export interface DownloadSettings {
@@ -41,6 +82,15 @@ export interface DownloadMediaCommand {
 
 export interface GetMediaInfoCommand {
   mediaIdx: number;
+  mediaSourceUrl: string;
+}
+
+export interface PlaylistEntry {
+  url: string;
+  title?: string;
+}
+
+export interface ExpandPlaylistCommand {
   mediaSourceUrl: string;
 }
 

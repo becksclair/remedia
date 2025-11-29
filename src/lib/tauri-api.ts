@@ -18,7 +18,7 @@ import {
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
-import type { DownloadSettings } from "@/types";
+import type { DownloadSettings, PlaylistEntry } from "@/types";
 
 /**
  * Tauri Command API
@@ -28,6 +28,11 @@ export interface TauriCommands {
    * Request media information (metadata) for a URL
    */
   getMediaInfo(mediaIdx: number, mediaSourceUrl: string): Promise<void>;
+
+  /**
+   * Expand playlist/profile URLs into concrete media URLs
+   */
+  expandPlaylist(mediaSourceUrl: string): Promise<PlaylistEntry[]>;
 
   /**
    * Download media from a URL
@@ -189,6 +194,10 @@ class RealTauriApi implements TauriApi {
   commands: TauriCommands = {
     async getMediaInfo(mediaIdx: number, mediaSourceUrl: string): Promise<void> {
       await tauriInvoke("get_media_info", { mediaIdx, mediaSourceUrl });
+    },
+
+    async expandPlaylist(mediaSourceUrl: string): Promise<PlaylistEntry[]> {
+      return await tauriInvoke<PlaylistEntry[]>("expand_playlist", { mediaSourceUrl });
     },
 
     async downloadMedia(

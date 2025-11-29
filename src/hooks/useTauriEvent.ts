@@ -1,6 +1,7 @@
-import { type EventCallback } from "@tauri-apps/api/event";
+import type { Event, EventCallback } from "@tauri-apps/api/event";
 import { useEffect, useRef } from "react";
 import { useTauriApi } from "@/lib/TauriApiContext";
+import type { TauriEventName, TauriEventPayloadMap } from "@/types";
 
 // Registry of all active hook instances, keyed by instance ID
 const handlerRegistry = new Map<number, Record<string, unknown>>();
@@ -36,6 +37,10 @@ declare global {
   }
 }
 
+type TauriEventHandlers<E extends TauriEventName = TauriEventName> = {
+  [K in E]?: (event: Event<TauriEventPayloadMap[K]>) => void;
+};
+
 // Always expose an event injection helper. It is a no-op unless tests call it
 // and relevant handlers have been registered via useTauriEvents.
 if (typeof window !== "undefined") {
@@ -50,7 +55,7 @@ if (typeof window !== "undefined") {
  *
  * @param eventHandlers - An object mapping event names to their handler functions
  */
-function useTauriEvents(eventHandlers: Record<string, unknown>) {
+function useTauriEvents<E extends TauriEventName>(eventHandlers: TauriEventHandlers<E>) {
   const tauriApi = useTauriApi();
   const instanceIdRef = useRef<number | null>(null);
 
@@ -58,7 +63,7 @@ function useTauriEvents(eventHandlers: Record<string, unknown>) {
     // Generate a unique instance ID and register handlers
     const instanceId = nextInstanceId++;
     instanceIdRef.current = instanceId;
-    handlerRegistry.set(instanceId, eventHandlers);
+    handlerRegistry.set(instanceId, eventHandlers as Record<string, unknown>);
 
     const unlistenFunctions: Array<() => void> = [];
 

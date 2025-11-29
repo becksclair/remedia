@@ -18,7 +18,8 @@ import type {
   TauriDialog,
   TauriShell,
 } from "./tauri-api";
-import type { DownloadSettings } from "@/types";
+import type { DownloadSettings, PlaylistEntry } from "@/types";
+import { TAURI_EVENT } from "@/types";
 
 /**
  * Mock event listeners registry
@@ -89,6 +90,7 @@ export const mockState = {
   // Download queue state
   queuedDownloads: [] as number[],
   maxConcurrentDownloads: 3,
+  playlistEntries: [] as PlaylistEntry[],
 
   /**
    * Reset mock state between tests
@@ -108,6 +110,7 @@ export const mockState = {
     this.dialogResult = null;
     this.queuedDownloads = [];
     this.maxConcurrentDownloads = 3;
+    this.playlistEntries = [];
     mockEventListeners.clear();
   },
 
@@ -160,11 +163,11 @@ class MockCommands implements TauriCommands {
       const timerId = setTimeout(() => {
         mockState.pendingTimers.delete(timerId);
         if (mockState.activeDownloads.has(mediaIdx)) {
-          mockState.emitEvent("download-progress", [mediaIdx, progress]);
+          mockState.emitEvent(TAURI_EVENT.downloadProgress, [mediaIdx, progress]);
 
           if (progress === 100) {
             mockState.activeDownloads.delete(mediaIdx);
-            mockState.emitEvent("download-complete", mediaIdx);
+            mockState.emitEvent(TAURI_EVENT.downloadComplete, mediaIdx);
           }
         }
       }, index * 100);
@@ -180,7 +183,7 @@ class MockCommands implements TauriCommands {
 
     // Cancel all active downloads
     mockState.activeDownloads.forEach((mediaIdx) => {
-      mockState.emitEvent("download-cancelled", mediaIdx);
+      mockState.emitEvent(TAURI_EVENT.downloadCancelled, mediaIdx);
     });
     mockState.activeDownloads.clear();
   }
@@ -225,6 +228,20 @@ class MockCommands implements TauriCommands {
       command: "set_always_on_top",
       args: { alwaysOnTop },
     });
+  }
+
+  async expandPlaylist(mediaSourceUrl: string): Promise<PlaylistEntry[]> {
+    mockState.commandCalls.push({
+      command: "expand_playlist",
+      args: { mediaSourceUrl },
+    });
+
+    if (mockState.playlistEntries.length > 0) {
+      return mockState.playlistEntries;
+    }
+
+    // Default mock response: return empty to signal non-playlist
+    return [];
   }
 }
 

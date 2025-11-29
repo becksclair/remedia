@@ -67,6 +67,7 @@ pub fn run() {
 
     builder = builder.invoke_handler(tauri::generate_handler![
         downloader::get_media_info,
+        downloader::expand_playlist,
         downloader::download_media,
         downloader::cancel_download,
         downloader::cancel_all_downloads,

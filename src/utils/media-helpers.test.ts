@@ -59,6 +59,7 @@ describe("removeItemsAtIndices", () => {
 
 describe("calculateGlobalProgress", () => {
   const createItem = (progress: number): VideoInfo => ({
+    id: "test",
     url: "test",
     title: "test",
     audioOnly: false,
@@ -93,6 +94,7 @@ describe("calculateGlobalProgress", () => {
 
 describe("hasActiveDownloads", () => {
   const createItem = (status: VideoInfo["status"]): VideoInfo => ({
+    id: "test",
     url: "test",
     title: "test",
     audioOnly: false,
@@ -191,6 +193,7 @@ describe("createMediaItem", () => {
     const item = createMediaItem(url);
 
     expect(item).toEqual({
+      id: url,
       url,
       title: url,
       audioOnly: false,
@@ -209,6 +212,7 @@ describe("createMediaItem", () => {
 
 describe("urlExists", () => {
   const createItem = (url: string): VideoInfo => ({
+    id: url,
     url,
     title: url,
     audioOnly: false,

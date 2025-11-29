@@ -3,6 +3,7 @@
  */
 
 export interface VideoInfo {
+  id: string;
   url: string;
   title: string;
   thumbnail?: string;
@@ -94,6 +95,7 @@ export function getSelectedIndices(rowSelection: Record<string, boolean>): numbe
  */
 export function createMediaItem(url: string): VideoInfo {
   return {
+    id: url,
     audioOnly: false,
     progress: 0,
     status: "Pending",
