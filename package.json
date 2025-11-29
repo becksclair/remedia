@@ -23,6 +23,7 @@
 		"test:e2e:report": "bunx playwright show-report",
 		"test:e2e:install": "bunx playwright install --with-deps",
 		"test:remote": "bun scripts/remote-e2e.ts",
+		"test:real-download": "bun scripts/real-download-e2e.ts",
 		"test:remote:cargo": "cmd /C \"set CARGO_TARGET_DIR=target-remote&& cargo test --manifest-path src-tauri/Cargo.toml --features remote-e2e --tests\"",
 		"wdio": "wdio run ./wdio.conf.ts"
 	},

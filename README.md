@@ -90,7 +90,7 @@ bun tauri build
 
 ## Usage
 
-1. **Add URLs**: 
+1. **Add URLs**:
    - Drag and drop media URLs into the main window
    - Copy URLs to clipboard (auto-detection enabled)
    - URLs are automatically validated and metadata extracted
@@ -140,6 +140,9 @@ bun run test:e2e:web       # Run web-only Playwright tests
 bun run test:e2e:headed    # Run Playwright tests with headed browser
 bun run test:e2e:install   # Install Playwright browsers
 
+# Real download smoke test (hits live URLs; optional/manual)
+bun run test:real-download    # Runs e2e/real-download.spec.ts with real URLs via WebSocket harness
+
 # Remote control websocket (opt-in)
 # Local WS for automation: ws://127.0.0.1:17814
 # Commands: {"action":"addUrl","url":"https://..."}, {"action":"startDownloads"}, {"action":"cancelAll"}, {"action":"status"}
@@ -176,7 +179,7 @@ bun run sh-up                 # Update existing shadcn/ui components
 
 ### Code Organization
 
-```
+```text
 src/
 ├── components/         # React components (UI, dialogs, tables)
 ├── hooks/             # Custom React hooks (Tauri events, window focus)
@@ -206,6 +209,7 @@ src-tauri/src/
 ReMedia uses a centralized error handling system with categorized notifications:
 
 ### Error Categories
+
 - **Network**: Connection issues, fetch failures
 - **Download**: yt-dlp failures, invalid URLs, media unavailable
 - **Validation**: Invalid input, required fields missing
@@ -213,6 +217,7 @@ ReMedia uses a centralized error handling system with categorized notifications:
 - **Unknown**: Unexpected errors
 
 ### Usage Examples
+
 ```typescript
 import { ErrorHandlers } from '@/shared/error-handler';
 
@@ -231,6 +236,7 @@ ErrorHandlers.validation(error, fieldName);
 ```
 
 ### Features
+
 - Automatic error categorization based on message content
 - User-friendly error messages
 - Retry actions for recoverable errors
