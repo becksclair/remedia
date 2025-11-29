@@ -1,21 +1,32 @@
 /**
- * @vitest-environment jsdom
+ * Tests for DownloadControls component
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
+
+import { describe, it, expect, beforeEach, mock, vi } from "bun:test";
+import { TestingLibraryMatchers } from "@testing-library/jest-dom/matchers";
+
+// Extend Bun's expect with jest-dom matchers
+declare module "bun:test" {
+  interface Matchers<T> extends TestingLibraryMatchers<typeof expect.stringContaining, T> {}
+}
+
 import { renderWithProviders, screen, userEvent } from "@/test/test-utils";
 import { DownloadControls } from "./DownloadControls";
 
 describe("DownloadControls", () => {
   const mockHandlers = {
-    onDownload: vi.fn(),
-    onCancel: vi.fn(),
-    onPreview: vi.fn(),
-    onSettings: vi.fn(),
-    onQuit: vi.fn(),
+    onDownload: mock(() => {}),
+    onCancel: mock(() => {}),
+    onPreview: mock(() => {}),
+    onSettings: mock(() => {}),
+    onQuit: mock(() => {}),
   };
 
   beforeEach(() => {
+    // Clear localStorage to ensure clean state for atomWithStorage
+    localStorage.clear();
     vi.clearAllMocks();
+    Object.values(mockHandlers).forEach((handler) => handler.mockClear?.());
   });
 
   describe("Initial Render", () => {

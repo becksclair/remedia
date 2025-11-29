@@ -7,6 +7,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useAtomValue, useSetAtom } from "jotai";
 import { useTauriApi } from "@/lib/TauriApiContext";
+import { addLogEntryAtom } from "@/state/app-atoms";
 import {
   downloadLocationAtom,
   downloadModeAtom,
@@ -34,6 +35,7 @@ export function useDownloadManager(mediaList: VideoInfo[]) {
 
   const tauriApi = useTauriApi();
   const setOutputLocation = useSetAtom(downloadLocationAtom);
+  const addLogEntry = useSetAtom(addLogEntryAtom);
 
   // Read download settings
   const outputLocation = useAtomValue(downloadLocationAtom);
@@ -180,7 +182,12 @@ export function useDownloadManager(mediaList: VideoInfo[]) {
   const cancelAllDownloads = useCallback(async () => {
     try {
       await tauriApi.commands.cancelAllDownloads();
-      console.log("Cancel all downloads requested");
+      addLogEntry({
+        timestamp: Date.now(),
+        source: "app",
+        level: "info",
+        message: "Cancel all downloads requested",
+      });
     } catch (error) {
       console.error("Failed to cancel downloads:", error);
       ErrorHandlers.system(error, "cancel downloads");

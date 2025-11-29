@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import type { JSX } from "react";
 import { useAtomValue, useSetAtom } from "jotai";
 import { logEntriesAtom, addLogEntryAtom } from "@/state/app-atoms";
@@ -60,10 +60,16 @@ export function DebugConsole() {
     [addLogEntry],
   );
 
+  // Memoize event handlers object to prevent useEffect loop
+  const eventHandlers = useMemo(
+    () => ({
+      [TAURI_EVENT.ytDlpStderr]: handleYtDlpStderr,
+    }),
+    [handleYtDlpStderr],
+  );
+
   // Subscribe to Tauri events for logs
-  useTauriEvents({
-    [TAURI_EVENT.ytDlpStderr]: handleYtDlpStderr,
-  });
+  useTauriEvents(eventHandlers);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentMatchIndex, setCurrentMatchIndex] = useState(-1);
   const [matches, setMatches] = useState<number[]>([]);

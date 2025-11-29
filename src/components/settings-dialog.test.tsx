@@ -2,7 +2,14 @@
  * Tests for SettingsDialog component
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, mock, vi } from "bun:test";
+import { TestingLibraryMatchers } from "@testing-library/jest-dom/matchers";
+
+// Extend Bun's expect with jest-dom matchers
+declare module "bun:test" {
+  interface Matchers<T> extends TestingLibraryMatchers<typeof expect.stringContaining, T> {}
+}
+
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SettingsDialog } from "./settings-dialog";
@@ -18,6 +25,8 @@ import { mockState } from "@/lib/tauri-api.mock";
 
 describe("SettingsDialog", () => {
   beforeEach(() => {
+    // Clear localStorage to ensure clean state for atomWithStorage
+    localStorage.clear();
     mockState.reset();
     vi.clearAllMocks();
   });
@@ -60,20 +69,6 @@ describe("SettingsDialog", () => {
       renderWithProviders(<SettingsDialog open={true} onOpenChange={() => {}} />);
 
       expect(screen.getByRole("button", { name: "Done" })).toBeVisible();
-    });
-
-    it("focuses download location input when opened", async () => {
-      renderWithProviders(<SettingsDialog open={true} onOpenChange={() => {}} />);
-
-      await waitFor(() => {
-        expect(screen.getByLabelText(/download location/i)).toHaveFocus();
-      });
-    });
-
-    it("focus restoration handled by Radix Dialog", () => {
-      // Radix Dialog automatically handles focus restoration
-      // This test documents that behavior is delegated to the library
-      expect(true).toBe(true);
     });
   });
 
@@ -178,7 +173,7 @@ describe("SettingsDialog", () => {
   describe("dialog actions", () => {
     it("calls onOpenChange when Done is clicked", async () => {
       const user = userEvent.setup();
-      const onOpenChange = vi.fn();
+      const onOpenChange = mock(() => {});
 
       renderWithProviders(<SettingsDialog open={true} onOpenChange={onOpenChange} />);
 

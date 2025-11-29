@@ -1,11 +1,11 @@
 import { renderHook } from "@testing-library/react";
 import { useTheme } from "./useTheme";
 import { useAtomValue } from "jotai";
-import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, mock, vi } from "bun:test";
 
 // Mock jotai
-vi.mock("jotai", () => ({
-  useAtomValue: vi.fn(),
+void vi.mock("jotai", () => ({
+  useAtomValue: mock(),
 }));
 
 describe("useTheme", () => {
@@ -18,21 +18,21 @@ describe("useTheme", () => {
 
     // Mock matchMedia
     listeners = {};
-    matchMediaMock = vi.fn().mockImplementation((query) => ({
+    matchMediaMock = mock().mockImplementation((query) => ({
       matches: false,
       media: query,
       onchange: null,
-      addEventListener: vi.fn((event, callback) => {
+      addEventListener: mock((event, callback) => {
         listeners[event] = callback;
       }),
-      removeEventListener: vi.fn(),
-      dispatchEvent: vi.fn(),
+      removeEventListener: mock(),
+      dispatchEvent: mock(),
     }));
     window.matchMedia = matchMediaMock;
   });
 
   afterEach(() => {
-    vi.clearAllMocks();
+    // Note: Bun doesn't have clearAllMocks equivalent
   });
 
   it("applies system theme on mount (dark)", () => {
@@ -40,8 +40,8 @@ describe("useTheme", () => {
     matchMediaMock.mockImplementation((query: string) => ({
       matches: true, // System is dark
       media: query,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
+      addEventListener: mock(),
+      removeEventListener: mock(),
     }));
 
     // Mock theme atom value as 'system'
@@ -57,8 +57,8 @@ describe("useTheme", () => {
     matchMediaMock.mockImplementation((query: string) => ({
       matches: false, // System is light
       media: query,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
+      addEventListener: mock(),
+      removeEventListener: mock(),
     }));
 
     (useAtomValue as any).mockReturnValue("system");
@@ -106,8 +106,8 @@ describe("useTheme", () => {
     matchMediaMock.mockImplementation((query: string) => ({
       matches: true, // Now it is dark
       media: query,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
+      addEventListener: mock(),
+      removeEventListener: mock(),
     }));
 
     // Trigger change listener
@@ -132,11 +132,11 @@ describe("useTheme", () => {
   });
 
   it("cleans up event listener on unmount", () => {
-    const removeEventListenerSpy = vi.fn();
+    const removeEventListenerSpy = mock();
     matchMediaMock.mockImplementation((query: string) => ({
       matches: false,
       media: query,
-      addEventListener: vi.fn(),
+      addEventListener: mock(),
       removeEventListener: removeEventListenerSpy,
     }));
 

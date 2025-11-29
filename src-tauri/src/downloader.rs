@@ -11,11 +11,13 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tauri::AppHandle;
 use tauri::Emitter;
+use tauri::Manager;
 use tauri::Window;
 use tauri::async_runtime::spawn;
 
 use crate::download_queue::{DownloadStatus, QueuedDownload, get_queue};
 use crate::events::*;
+use crate::logging::append_yt_dlp_log;
 use crate::redgifs::fetch_redgifs_thumbnail;
 use crate::remote_control::{broadcast_if_active, broadcast_remote_event};
 use crate::thumbnail::resolve_thumbnail;
@@ -329,9 +331,7 @@ async fn run_yt_dlp(cmd: &mut Command) -> Result<(String, String), std::io::Erro
     #[cfg(windows)]
     cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
 
-    println!("[DEBUG] Spawning yt-dlp command");
     let mut child = cmd.spawn()?;
-    println!("[DEBUG] yt-dlp process spawned");
 
     let mut stdout = child.stdout.take().ok_or_else(|| std::io::Error::other("Could not capture stdout"))?;
     let mut stderr = child.stderr.take().ok_or_else(|| std::io::Error::other("Could not capture stderr"))?;
@@ -340,15 +340,12 @@ async fn run_yt_dlp(cmd: &mut Command) -> Result<(String, String), std::io::Erro
     let mut errors = String::new();
 
     // Read stdout and stderr concurrently
-    println!("[DEBUG] Reading yt-dlp output...");
     let (out_res, err_res) = tokio::join!(stdout.read_to_string(&mut output), stderr.read_to_string(&mut errors));
 
     out_res?;
     err_res?;
-    println!("[DEBUG] yt-dlp output read, waiting for process...");
 
     child.wait().await?;
-    println!("[DEBUG] yt-dlp process completed");
 
     Ok((output, errors))
 }
@@ -622,7 +619,7 @@ fn should_emit_stderr(line: &str) -> bool {
 
 #[tauri::command]
 pub async fn get_media_info(
-    _app: AppHandle,
+    app: AppHandle,
     window: Window,
     media_idx: i32,
     media_source_url: String,
@@ -648,7 +645,9 @@ pub async fn get_media_info(
     let (output, errors) = run_yt_dlp(&mut cmd).await.map_err(|e| e.to_string())?;
 
     if !errors.is_empty() {
-        println!("Errors: {errors}");
+        for line in errors.lines().filter(|l| !l.trim().is_empty()) {
+            append_yt_dlp_log(&app, media_idx, line);
+        }
     }
 
     // yt-dlp outputs one JSON object per line for playlists, or a single object for a single video
@@ -1031,6 +1030,10 @@ fn execute_download(
 
                             // Filter stderr events to prevent flooding the frontend
                             if !progress_emitted && should_emit_stderr(&line) {
+                                // Persist to rotated log file next to the app config
+                                let app = window.app_handle();
+                                append_yt_dlp_log(app, media_idx, &line);
+
                                 if let Err(e) = window.emit("yt-dlp-stderr", (media_idx, line.clone())) {
                                     eprintln!("Failed to emit yt-dlp stderr: {}", e);
                                 }

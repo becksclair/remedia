@@ -1,4 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "bun:test";
+import { TestingLibraryMatchers } from "@testing-library/jest-dom/matchers";
+
+// Extend Bun's expect with jest-dom matchers
+declare module "bun:test" {
+  interface Matchers<T> extends TestingLibraryMatchers<typeof expect.stringContaining, T> {}
+}
+
 import { renderWithProviders, screen, userEvent, createMockMediaItem } from "@/test/test-utils";
 import { MediaTable } from "./MediaTable";
 import type { VideoInfo } from "@/utils/media-helpers";
@@ -7,7 +14,9 @@ describe("MediaTable", () => {
   const mockOnRemoveItem = vi.fn();
 
   beforeEach(() => {
-    mockOnRemoveItem.mockClear();
+    // Clear localStorage to ensure clean state for atomWithStorage
+    localStorage.clear();
+    vi.clearAllMocks();
   });
 
   describe("Initial Render", () => {

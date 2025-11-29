@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach } from "bun:test";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { createElement, type ReactNode } from "react";
 

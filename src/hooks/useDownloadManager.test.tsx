@@ -5,7 +5,14 @@
  * See ../test/integration/download-flow-integration.test.tsx for end-to-end tests.
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, spyOn, vi } from "bun:test";
+import { TestingLibraryMatchers } from "@testing-library/jest-dom/matchers";
+
+// Extend Bun's expect with jest-dom matchers
+declare module "bun:test" {
+  interface Matchers<T> extends TestingLibraryMatchers<typeof expect.stringContaining, T> {}
+}
+
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { useDownloadManager } from "./useDownloadManager";
 import {
@@ -27,8 +34,12 @@ import type { VideoInfo } from "@/utils/media-helpers";
 
 describe("useDownloadManager", () => {
   beforeEach(() => {
+    // Clear localStorage to ensure clean state for atomWithStorage
+    localStorage.clear();
     mockState.reset();
     vi.clearAllMocks();
+    // Restore all spies to ensure test isolation
+    vi.restoreAllMocks();
   });
 
   describe("initial state", () => {
@@ -52,7 +63,7 @@ describe("useDownloadManager", () => {
           status: "Pending",
         }),
       ];
-      const downloadMediaSpy = vi.spyOn(mockTauriApi.commands, "downloadMedia");
+      const downloadMediaSpy = spyOn(mockTauriApi.commands, "downloadMedia");
 
       const { result } = renderHook(() => useDownloadManager(mediaList), {
         wrapper,
@@ -65,17 +76,21 @@ describe("useDownloadManager", () => {
       await waitFor(() => {
         expect(downloadMediaSpy).toHaveBeenCalledTimes(2);
       });
+
+      // Cleanup: wait a bit for any async operations to complete
+      await new Promise((resolve) => setTimeout(resolve, 50));
     });
 
     it("skips items with status Done", async () => {
       const wrapper = createTestWrapper();
+      // Use unique URLs to avoid any potential caching/reference issues
       const mediaList: VideoInfo[] = [
-        createMockMediaItem("https://example.com/video1", { status: "Done" }),
-        createMockMediaItem("https://example.com/video2", {
+        createMockMediaItem("https://example.com/done-video-" + Math.random(), { status: "Done" }),
+        createMockMediaItem("https://example.com/pending-video-" + Math.random(), {
           status: "Pending",
         }),
       ];
-      const downloadMediaSpy = vi.spyOn(mockTauriApi.commands, "downloadMedia");
+      const downloadMediaSpy = spyOn(mockTauriApi.commands, "downloadMedia");
 
       const { result } = renderHook(() => useDownloadManager(mediaList), {
         wrapper,
@@ -87,9 +102,10 @@ describe("useDownloadManager", () => {
 
       await waitFor(() => {
         expect(downloadMediaSpy).toHaveBeenCalledTimes(1);
+        // Should only be called for the second item (index 1, the Pending one)
         expect(downloadMediaSpy).toHaveBeenCalledWith(
-          1,
-          "https://example.com/video2",
+          1, // Index 1 (second item)
+          expect.stringContaining("pending-video"),
           "/tmp/downloads",
           undefined, // subfolder
           expect.any(Object),
@@ -132,7 +148,7 @@ describe("useDownloadManager", () => {
           status: "Pending",
         }),
       ];
-      const downloadMediaSpy = vi.spyOn(mockTauriApi.commands, "downloadMedia");
+      const downloadMediaSpy = spyOn(mockTauriApi.commands, "downloadMedia");
 
       const { result } = renderHook(() => useDownloadManager(mediaList), {
         wrapper,
@@ -168,7 +184,7 @@ describe("useDownloadManager", () => {
   describe("cancelAllDownloads", () => {
     it("calls the cancelAllDownloads command", async () => {
       const wrapper = createTestWrapper();
-      const cancelSpy = vi.spyOn(mockTauriApi.commands, "cancelAllDownloads");
+      const cancelSpy = spyOn(mockTauriApi.commands, "cancelAllDownloads");
 
       const { result } = renderHook(() => useDownloadManager([]), { wrapper });
 
@@ -223,7 +239,7 @@ describe("useDownloadManager", () => {
           status: "Pending",
         }),
       ];
-      const downloadMediaSpy = vi.spyOn(mockTauriApi.commands, "downloadMedia");
+      const downloadMediaSpy = spyOn(mockTauriApi.commands, "downloadMedia");
 
       const { result } = renderHook(() => useDownloadManager(mediaList), {
         wrapper,
@@ -254,7 +270,7 @@ describe("useDownloadManager", () => {
           status: "Pending",
         }),
       ];
-      const downloadMediaSpy = vi.spyOn(mockTauriApi.commands, "downloadMedia");
+      const downloadMediaSpy = spyOn(mockTauriApi.commands, "downloadMedia");
 
       const { result } = renderHook(() => useDownloadManager(mediaList), {
         wrapper,
@@ -282,7 +298,7 @@ describe("useDownloadManager", () => {
           status: "Pending",
         }),
       ];
-      const downloadMediaSpy = vi.spyOn(mockTauriApi.commands, "downloadMedia");
+      const downloadMediaSpy = spyOn(mockTauriApi.commands, "downloadMedia");
 
       const { result } = renderHook(() => useDownloadManager(mediaList), {
         wrapper,
@@ -315,7 +331,7 @@ describe("useDownloadManager", () => {
           status: "Pending",
         }),
       ];
-      const downloadMediaSpy = vi.spyOn(mockTauriApi.commands, "downloadMedia");
+      const downloadMediaSpy = spyOn(mockTauriApi.commands, "downloadMedia");
 
       const { result } = renderHook(() => useDownloadManager(mediaList), {
         wrapper,
@@ -345,7 +361,7 @@ describe("useDownloadManager", () => {
           status: "Pending",
         }),
       ];
-      const downloadMediaSpy = vi.spyOn(mockTauriApi.commands, "downloadMedia");
+      const downloadMediaSpy = spyOn(mockTauriApi.commands, "downloadMedia");
 
       const { result } = renderHook(() => useDownloadManager(mediaList), {
         wrapper,
@@ -377,7 +393,7 @@ describe("useDownloadManager", () => {
           status: "Pending",
         }),
       ];
-      const downloadMediaSpy = vi.spyOn(mockTauriApi.commands, "downloadMedia");
+      const downloadMediaSpy = spyOn(mockTauriApi.commands, "downloadMedia");
 
       const { result } = renderHook(() => useDownloadManager(mediaList), {
         wrapper,
@@ -407,7 +423,7 @@ describe("useDownloadManager", () => {
           status: "Pending",
         }),
       ];
-      const downloadMediaSpy = vi.spyOn(mockTauriApi.commands, "downloadMedia");
+      const downloadMediaSpy = spyOn(mockTauriApi.commands, "downloadMedia");
 
       const { result } = renderHook(() => useDownloadManager(mediaList), {
         wrapper,

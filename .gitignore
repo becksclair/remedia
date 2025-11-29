@@ -30,3 +30,5 @@ junit*.xml
 .claude/settings.local.json
 target-remote
 target-remote2
+
+src-tauri/rustc-ice*.txt

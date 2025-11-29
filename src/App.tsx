@@ -418,111 +418,156 @@ function App(): JSX.Element {
   };
 
   /**
-   * Tauri event handlers
+   * Tauri event handlers - wrapped in useCallback to prevent dependency issues
    */
-  const handleMediaInfo = ({ payload }: Event<MediaInfoEvent>): void => {
-    const updates = mapMediaInfoEventToUpdate(payload);
+  const handleMediaInfo = useCallback(
+    ({ payload }: Event<MediaInfoEvent>): void => {
+      const updates = mapMediaInfoEventToUpdate(payload);
 
-    if (
-      updates.collectionId &&
-      updates.collectionType &&
-      updates.collectionName &&
-      updates.folderSlug
-    ) {
-      upsertCollections({
-        id: updates.collectionId,
-        kind: updates.collectionType,
-        name: updates.collectionName,
-        slug: updates.folderSlug,
-      });
-    }
-
-    updateMediaItem(updates);
-  };
-
-  const handleProgress = (event: Event<MediaProgressEvent>): void => {
-    const [mediaIdx, progress] = event.payload as MediaProgressEvent;
-    updateMediaItemByIndex(mediaIdx, {
-      progress: clampProgress(progress),
-      status: "Downloading",
-    });
-  };
-
-  const handleComplete = (event: Event<number>): void => {
-    const mediaIdx = event.payload;
-    updateMediaItemByIndex(mediaIdx, { progress: 100, status: "Done" });
-  };
-
-  const handleError = (event: Event<number>): void => {
-    const mediaIdx = event.payload;
-    updateMediaItemByIndex(mediaIdx, { status: "Error" });
-  };
-
-  const handleCancelled = (event: Event<number>): void => {
-    const mediaIdx = event.payload;
-    updateMediaItemByIndex(mediaIdx, { status: "Cancelled" });
-  };
-
-  const handleQueued = (event: Event<number>): void => {
-    const mediaIdx = event.payload;
-    updateMediaItemByIndex(mediaIdx, { status: "Pending", progress: 0 });
-  };
-
-  const handleStarted = (event: Event<number>): void => {
-    const mediaIdx = event.payload;
-    updateMediaItemByIndex(mediaIdx, { status: "Downloading" });
-  };
-
-  const handleYtDlpStderr = (event: Event<[number, string]>): void => {
-    const [mediaIdx, message] = event.payload;
-    console.log(`[yt-dlp stderr][media ${mediaIdx}]: ${message}`);
-
-    // Normalize case once for robust log-level detection
-    const messageLower = message.toLowerCase();
-
-    // Determine log level using canonical prefixes and word-boundary regex
-    let level: "error" | "warn" | "info" = "info";
-
-    // Check canonical log prefixes first (most reliable)
-    if (message.startsWith("ERROR") || message.startsWith("Error") || message.startsWith("error")) {
-      level = "error";
-    } else if (
-      message.startsWith("WARNING") ||
-      message.startsWith("Warning") ||
-      message.startsWith("WARN") ||
-      message.startsWith("Warn") ||
-      message.startsWith("warn")
-    ) {
-      level = "warn";
-    } else {
-      // Fallback to word-boundary regex for whole-word severity tokens
-      if (/\b(error|err)\b/i.test(messageLower)) {
-        level = "error";
-      } else if (/\b(warn|warning)\b/i.test(messageLower)) {
-        level = "warn";
+      if (
+        updates.collectionId &&
+        updates.collectionType &&
+        updates.collectionName &&
+        updates.folderSlug
+      ) {
+        upsertCollections({
+          id: updates.collectionId,
+          kind: updates.collectionType,
+          name: updates.collectionName,
+          slug: updates.folderSlug,
+        });
       }
-    }
 
-    addLogEntry({
-      timestamp: Date.now(),
-      source: "yt-dlp",
-      level,
-      message,
-      mediaIdx,
-    });
-  };
+      updateMediaItem(updates);
+    },
+    [updateMediaItem, upsertCollections],
+  );
+
+  const handleProgress = useCallback(
+    (event: Event<MediaProgressEvent>): void => {
+      const [mediaIdx, progress] = event.payload as MediaProgressEvent;
+      updateMediaItemByIndex(mediaIdx, {
+        progress: clampProgress(progress),
+        status: "Downloading",
+      });
+    },
+    [updateMediaItemByIndex],
+  );
+
+  const handleComplete = useCallback(
+    (event: Event<number>): void => {
+      const mediaIdx = event.payload;
+      updateMediaItemByIndex(mediaIdx, { progress: 100, status: "Done" });
+    },
+    [updateMediaItemByIndex],
+  );
+
+  const handleError = useCallback(
+    (event: Event<number>): void => {
+      const mediaIdx = event.payload;
+      updateMediaItemByIndex(mediaIdx, { status: "Error" });
+    },
+    [updateMediaItemByIndex],
+  );
+
+  const handleCancelled = useCallback(
+    (event: Event<number>): void => {
+      const mediaIdx = event.payload;
+      updateMediaItemByIndex(mediaIdx, { status: "Cancelled" });
+    },
+    [updateMediaItemByIndex],
+  );
+
+  const handleQueued = useCallback(
+    (event: Event<number>): void => {
+      const mediaIdx = event.payload;
+      updateMediaItemByIndex(mediaIdx, { status: "Pending", progress: 0 });
+    },
+    [updateMediaItemByIndex],
+  );
+
+  const handleStarted = useCallback(
+    (event: Event<number>): void => {
+      const mediaIdx = event.payload;
+      updateMediaItemByIndex(mediaIdx, { status: "Downloading" });
+    },
+    [updateMediaItemByIndex],
+  );
+
+  const handleYtDlpStderr = useCallback(
+    (event: Event<[number, string]>): void => {
+      const [mediaIdx, message] = event.payload;
+      if (harnessEnabled) {
+        console.log(`[yt-dlp stderr][media ${mediaIdx}]: ${message}`);
+      }
+
+      // Normalize case once for robust log-level detection
+      const messageLower = message.toLowerCase();
+
+      // Determine log level using canonical prefixes and word-boundary regex
+      let level: "error" | "warn" | "info" = "info";
+
+      // Check canonical log prefixes first (most reliable)
+      if (
+        message.startsWith("ERROR") ||
+        message.startsWith("Error") ||
+        message.startsWith("error")
+      ) {
+        level = "error";
+      } else if (
+        message.startsWith("WARNING") ||
+        message.startsWith("Warning") ||
+        message.startsWith("WARN") ||
+        message.startsWith("Warn") ||
+        message.startsWith("warn")
+      ) {
+        level = "warn";
+      } else {
+        // Fallback to word-boundary regex for whole-word severity tokens
+        if (/\b(error|err)\b/i.test(messageLower)) {
+          level = "error";
+        } else if (/\b(warn|warning)\b/i.test(messageLower)) {
+          level = "warn";
+        }
+      }
+
+      addLogEntry({
+        timestamp: Date.now(),
+        source: "yt-dlp",
+        level,
+        message,
+        mediaIdx,
+      });
+    },
+    [addLogEntry, harnessEnabled],
+  );
+
+  // Memoize event handlers object to prevent useEffect loop in useTauriEvents
+  const tauriEventHandlers = useMemo(
+    () => ({
+      [TAURI_EVENT.updateMediaInfo]: handleMediaInfo,
+      [TAURI_EVENT.downloadProgress]: handleProgress,
+      [TAURI_EVENT.downloadComplete]: handleComplete,
+      [TAURI_EVENT.downloadError]: handleError,
+      [TAURI_EVENT.downloadCancelled]: handleCancelled,
+      [TAURI_EVENT.downloadQueued]: handleQueued,
+      [TAURI_EVENT.downloadStarted]: handleStarted,
+      [TAURI_EVENT.ytDlpStderr]: handleYtDlpStderr,
+    }),
+    [
+      handleMediaInfo,
+      handleProgress,
+      handleComplete,
+      handleError,
+      handleCancelled,
+      handleQueued,
+      handleStarted,
+      handleYtDlpStderr,
+    ],
+  );
 
   // Subscribe to Tauri events
-  useTauriEvents({
-    [TAURI_EVENT.updateMediaInfo]: handleMediaInfo,
-    [TAURI_EVENT.downloadProgress]: handleProgress,
-    [TAURI_EVENT.downloadComplete]: handleComplete,
-    [TAURI_EVENT.downloadError]: handleError,
-    [TAURI_EVENT.downloadCancelled]: handleCancelled,
-    [TAURI_EVENT.downloadQueued]: handleQueued,
-    [TAURI_EVENT.downloadStarted]: handleStarted,
-    [TAURI_EVENT.ytDlpStderr]: handleYtDlpStderr,
-  });
+  useTauriEvents(tauriEventHandlers);
 
   return (
     <main

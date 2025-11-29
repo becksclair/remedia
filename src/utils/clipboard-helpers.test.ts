@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, mock } from "bun:test";
 
 import { shouldCheckClipboard, processClipboardFocus } from "./clipboard-helpers";
 
@@ -29,9 +29,9 @@ describe("shouldCheckClipboard", () => {
 
 describe("processClipboardFocus", () => {
   it("adds URL from clipboard when enabled and cooldown elapsed", async () => {
-    const readClipboardText = vi.fn().mockResolvedValue("https://example.com");
-    const addMediaUrl = vi.fn();
-    const logger = vi.fn();
+    const readClipboardText = mock().mockResolvedValue("https://example.com");
+    const addMediaUrl = mock(() => {});
+    const logger = mock(() => {});
 
     await processClipboardFocus({
       enabled: true,
@@ -48,9 +48,9 @@ describe("processClipboardFocus", () => {
   });
 
   it("skips clipboard read when within cooldown", async () => {
-    const readClipboardText = vi.fn();
-    const addMediaUrl = vi.fn();
-    const logger = vi.fn();
+    const readClipboardText = mock();
+    const addMediaUrl = mock(() => {});
+    const logger = mock(() => {});
 
     await processClipboardFocus({
       enabled: true,
@@ -68,15 +68,15 @@ describe("processClipboardFocus", () => {
 
   it("invokes onError when clipboard read fails", async () => {
     const error = new Error("clipboard failure");
-    const readClipboardText = vi.fn().mockRejectedValue(error);
-    const onError = vi.fn();
-    const logger = vi.fn();
+    const readClipboardText = mock().mockRejectedValue(error);
+    const onError = mock(() => {});
+    const logger = mock(() => {});
 
     await processClipboardFocus({
       enabled: true,
       lastDropTimestamp: 0,
       readClipboardText,
-      addMediaUrl: vi.fn(),
+      addMediaUrl: mock(),
       now: 1000,
       logger,
       onError,
@@ -87,8 +87,8 @@ describe("processClipboardFocus", () => {
   });
 
   it("ignores non-URL clipboard content", async () => {
-    const readClipboardText = vi.fn().mockResolvedValue("not-a-url");
-    const addMediaUrl = vi.fn();
+    const readClipboardText = mock().mockResolvedValue("not-a-url");
+    const addMediaUrl = mock(() => {});
 
     await processClipboardFocus({
       enabled: true,

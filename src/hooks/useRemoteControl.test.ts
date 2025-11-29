@@ -1,5 +1,5 @@
 import { createElement, useEffect } from "react";
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, afterEach, mock } from "bun:test";
 
 import { renderWithProviders, waitFor, act } from "@/test/test-utils";
 import { useRemoteControl } from "./useRemoteControl";
@@ -20,12 +20,12 @@ function RemoteControlHarness({ onReady, ...options }: HarnessProps) {
 }
 
 async function setupRemoteControl(overrides: Partial<Parameters<typeof useRemoteControl>[0]> = {}) {
-  const addMediaUrl = vi.fn();
-  const removeAll = vi.fn();
-  const setOutputLocation = vi.fn();
-  const startAllDownloads = vi.fn().mockResolvedValue(undefined);
-  const cancelAllDownloads = vi.fn().mockResolvedValue(undefined);
-  const logAction = vi.fn();
+  const addMediaUrl = mock(() => {});
+  const removeAll = mock(() => {});
+  const setOutputLocation = mock(() => {});
+  const startAllDownloads = mock(() => Promise.resolve(undefined));
+  const cancelAllDownloads = mock(() => Promise.resolve(undefined));
+  const logAction = mock(() => {});
 
   const props: HarnessProps = {
     addMediaUrl,
@@ -38,7 +38,7 @@ async function setupRemoteControl(overrides: Partial<Parameters<typeof useRemote
     ...overrides,
   } as HarnessProps;
 
-  const onReady = vi.fn();
+  const onReady = mock(() => Promise.resolve(undefined));
   const renderResult = renderWithProviders(
     createElement(RemoteControlHarness, { ...props, onReady }),
   );
@@ -79,7 +79,9 @@ async function setupRemoteControl(overrides: Partial<Parameters<typeof useRemote
 
 describe("useRemoteControl", () => {
   afterEach(() => {
-    vi.restoreAllMocks();
+    // Clear all mock call history to prevent test leakage
+    // Note: Bun doesn't have restoreAllMocks equivalent, so we clear mocks manually
+    mock.clearAllMocks();
   });
 
   it("queues and starts downloads when remoteAddUrl fires", async () => {

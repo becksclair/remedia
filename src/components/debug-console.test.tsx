@@ -1,4 +1,11 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "bun:test";
+import { TestingLibraryMatchers } from "@testing-library/jest-dom/matchers";
+
+// Extend Bun's expect with jest-dom matchers
+declare module "bun:test" {
+  interface Matchers<T> extends TestingLibraryMatchers<typeof expect.stringContaining, T> {}
+}
+
 import { renderWithProviders, screen, userEvent, waitForAsync } from "@/test/test-utils";
 import { DebugConsole } from "./debug-console";
 import { logEntriesAtom } from "@/state/app-atoms";
@@ -6,6 +13,12 @@ import type { LogEntry } from "@/utils/log-helpers";
 import { formatTimestamp } from "@/utils/media-helpers";
 
 describe("DebugConsole", () => {
+  beforeEach(() => {
+    // Clear localStorage to ensure clean state for atomWithStorage
+    localStorage.clear();
+    vi.clearAllMocks();
+  });
+
   const createLogEntry = (
     message: string,
     level: "info" | "warn" | "error" = "info",

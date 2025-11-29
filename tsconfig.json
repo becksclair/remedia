@@ -1,13 +1,18 @@
 {
 	"compilerOptions": {
 		"allowImportingTsExtensions": true,
-
 		"forceConsistentCasingInFileNames": true,
 		"isolatedModules": true,
 		"jsx": "react-jsx",
-		"lib": ["ES2020", "DOM", "DOM.Iterable"],
+		"lib": [
+			"ES2020",
+			"DOM",
+			"DOM.Iterable"
+		],
 		"module": "ESNext",
-
+		"types": [
+			"bun-types"
+		],
 		/* Bundler mode */
 		"moduleResolution": "bundler",
 		"noEmit": true,
@@ -15,11 +20,12 @@
 		"noUnusedLocals": true,
 		"noUnusedParameters": true,
 		"paths": {
-			"@/*": ["./src/*"]
+			"@/*": [
+				"./src/*"
+			]
 		},
 		"resolveJsonModule": true,
 		"skipLibCheck": true,
-
 		/* Linting */
 		"strict": true,
 		"noUncheckedIndexedAccess": true,
@@ -28,6 +34,14 @@
 		"target": "ES2020",
 		"useDefineForClassFields": true
 	},
-	"include": ["src", "e2e", "playwright.config.ts"],
-	"references": [{ "path": "./tsconfig.node.json" }]
+	"include": [
+		"src",
+		"e2e",
+		"playwright.config.ts"
+	],
+	"references": [
+		{
+			"path": "./tsconfig.node.json"
+		}
+	]
 }

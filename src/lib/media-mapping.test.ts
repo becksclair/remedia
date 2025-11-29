@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "bun:test";
 import type { MediaInfoEvent } from "@/types";
 import { sanitizeFolderName, buildCollectionId } from "@/utils/media-helpers";
 import { mapMediaInfoEventToUpdate } from "./media-mapping";

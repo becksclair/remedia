@@ -10,16 +10,16 @@ import { Button } from "./components/ui/button";
 const ReactPlayer = _ReactPlayer as any;
 
 /** Audio file extensions for media type detection */
-const AUDIO_EXTENSIONS = /\.(mp3|m4a|aac|opus|ogg|wav|flac|wma|aiff?)$/i;
+export const AUDIO_EXTENSIONS = /\.(mp3|m4a|aac|opus|ogg|wav|flac|wma|aiff?)$/i;
 
 /** Audio-only platforms */
 const AUDIO_PLATFORMS = /soundcloud\.com|audiomack\.com/i;
 
 /** RedGifs URL pattern - needs special embed format */
-const REDGIFS_PATTERN = /redgifs\.com\/watch\/([a-zA-Z0-9]+)/i;
+export const REDGIFS_PATTERN = /redgifs\.com\/watch\/([a-zA-Z0-9]+)/i;
 
 /** Transform URL to iframe-friendly embed format where needed */
-function getIframeUrl(url: string): string {
+export function getIframeUrl(url: string): string {
   const redGifsMatch = url.match(REDGIFS_PATTERN);
   if (redGifsMatch?.[1]) {
     return `https://www.redgifs.com/ifr/${redGifsMatch[1]}`;
@@ -28,7 +28,7 @@ function getIframeUrl(url: string): string {
 }
 
 /** Check if URL is audio-only content */
-function isAudioUrl(url: string): boolean {
+export function isAudioUrl(url: string): boolean {
   try {
     const pathname = new URL(url, "file://").pathname;
     if (AUDIO_EXTENSIONS.test(pathname)) return true;

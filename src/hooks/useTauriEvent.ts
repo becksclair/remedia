@@ -1,7 +1,9 @@
 import type { Event, EventCallback } from "@tauri-apps/api/event";
 import { useEffect, useRef } from "react";
+import { useSetAtom } from "jotai";
 import { useTauriApi } from "@/lib/TauriApiContext";
 import type { TauriEventName, TauriEventPayloadMap } from "@/types";
+import { addLogEntryAtom } from "@/state/app-atoms";
 
 // Registry of all active hook instances, keyed by instance ID
 const handlerRegistry = new Map<number, Record<string, unknown>>();
@@ -57,6 +59,7 @@ if (typeof window !== "undefined") {
  */
 function useTauriEvents<E extends TauriEventName>(eventHandlers: TauriEventHandlers<E>) {
   const tauriApi = useTauriApi();
+  const addLogEntry = useSetAtom(addLogEntryAtom);
   const instanceIdRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -76,8 +79,18 @@ function useTauriEvents<E extends TauriEventName>(eventHandlers: TauriEventHandl
             handler as EventCallback<unknown>,
           );
           unlistenFunctions.push(unlistenFn);
-          if (!(typeof window !== "undefined" && window.__E2E_TESTS__)) {
-            console.log(`Registered listener for ${eventName}`);
+          const isTestEnvironment =
+            typeof window !== "undefined" &&
+            (window.__E2E_TESTS__ || process.env.NODE_ENV === "test");
+          if (!isTestEnvironment) {
+            const message = `Registered listener for ${eventName}`;
+            console.log(message);
+            addLogEntry({
+              timestamp: Date.now(),
+              source: "app",
+              level: "info",
+              message,
+            });
           }
         } catch (error) {
           console.error(`Failed to listen to Tauri event '${eventName}':`, error);
@@ -113,11 +126,20 @@ function useTauriEvents<E extends TauriEventName>(eventHandlers: TauriEventHandl
       if (instanceIdRef.current !== null) {
         handlerRegistry.delete(instanceIdRef.current);
       }
-      if (!(typeof window !== "undefined" && window.__E2E_TESTS__)) {
-        console.log("Removed all Tauri event listeners");
+      const isTestEnvironment =
+        typeof window !== "undefined" && (window.__E2E_TESTS__ || process.env.NODE_ENV === "test");
+      if (!isTestEnvironment) {
+        const message = "Removed all Tauri event listeners";
+        console.log(message);
+        addLogEntry({
+          timestamp: Date.now(),
+          source: "app",
+          level: "info",
+          message,
+        });
       }
     };
-  }, [tauriApi, eventHandlers]);
+  }, [tauriApi, eventHandlers, addLogEntry]);
 }
 
 export { useTauriEvents };
