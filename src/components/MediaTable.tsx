@@ -25,20 +25,11 @@ import {
 import { cn } from "@/lib/utils";
 import { useAtom } from "jotai";
 import { tableRowSelectionAtom } from "@/state/app-atoms";
-
-export interface VideoInfo {
-  url: string;
-  title: string;
-  thumbnail?: string;
-  previewUrl?: string;
-  audioOnly: boolean;
-  progress: number;
-  status: "Pending" | "Downloading" | "Done" | "Error" | "Cancelled";
-}
+import type { VideoInfo } from "@/utils/media-helpers";
 
 interface MediaTableProps {
   mediaList: VideoInfo[];
-  onRemoveItem: (title: string) => void;
+  onRemoveItem: (id: string) => void;
   className?: string;
 }
 
@@ -48,7 +39,7 @@ const ROW_HEIGHT = 96;
 /**
  * Creates table column definitions for the media list
  */
-function createMediaColumns(onRemoveItem: (title: string) => void): ColumnDef<VideoInfo>[] {
+function createMediaColumns(onRemoveItem: (id: string) => void): ColumnDef<VideoInfo>[] {
   return [
     {
       cell: ({ row }) => (
@@ -170,7 +161,7 @@ function createMediaColumns(onRemoveItem: (title: string) => void): ColumnDef<Vi
               </DropdownMenuItem>
               <DropdownMenuItem
                 data-testid={`row-${row.id}-delete`}
-                onClick={() => onRemoveItem(row.getValue("title"))}
+                onClick={() => onRemoveItem(row.original.id)}
                 aria-label="Remove media item from list"
               >
                 Delete

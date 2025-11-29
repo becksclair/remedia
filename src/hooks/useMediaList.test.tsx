@@ -6,12 +6,17 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { useMediaList } from "./useMediaList";
 import { TauriApiProvider } from "@/lib/TauriApiContext";
+import { PlaylistProvider } from "@/lib/PlaylistContext";
 import { mockTauriApi, mockState } from "@/lib/tauri-api.mock";
 import type { ReactNode } from "react";
 
 // Wrapper with TauriApiProvider
 function wrapper({ children }: { children: ReactNode }) {
-  return <TauriApiProvider api={mockTauriApi}>{children}</TauriApiProvider>;
+  return (
+    <TauriApiProvider api={mockTauriApi}>
+      <PlaylistProvider>{children}</PlaylistProvider>
+    </TauriApiProvider>
+  );
 }
 
 describe("useMediaList", () => {
@@ -221,7 +226,7 @@ describe("useMediaList", () => {
       });
 
       act(() => {
-        result.current.removeItem("Video 1");
+        result.current.removeItem("https://example.com/video1");
       });
 
       expect(result.current.mediaList).toHaveLength(0);
@@ -235,7 +240,7 @@ describe("useMediaList", () => {
       });
 
       act(() => {
-        result.current.removeItem("Nonexistent");
+        result.current.removeItem("nonexistent-id");
       });
 
       expect(result.current.mediaList).toHaveLength(1);

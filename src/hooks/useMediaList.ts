@@ -5,40 +5,84 @@
  */
 
 import { useState, useCallback } from "react";
-import { createMediaItem, urlExists } from "@/utils/media-helpers";
-import type { VideoInfo } from "@/components/MediaTable";
+import { createMediaItem, urlExists, type VideoInfo } from "@/utils/media-helpers";
 import { useTauriApi } from "@/lib/TauriApiContext";
+import { usePlaylistContext } from "@/lib/PlaylistContext";
 
 export function useMediaList() {
   const [mediaList, setMediaList] = useState<VideoInfo[]>([]);
   const tauriApi = useTauriApi();
+  const { expandPlaylist } = usePlaylistContext();
 
   /**
    * Add a media URL to the list
    */
   const addMediaUrl = useCallback(
     (url: string) => {
-      setMediaList((prevList) => {
-        if (urlExists(prevList, url)) {
-          console.log("URL already exists in the list");
-          return prevList;
+      const placeholderIdxPromise = new Promise<number | null>((resolve) => {
+        setMediaList((prevList) => {
+          if (urlExists(prevList, url)) {
+            console.log("URL already exists in the list");
+            resolve(null);
+            return prevList;
+          }
+
+          const nextList = [...prevList, createMediaItem(url)];
+          resolve(nextList.length - 1);
+          return nextList;
+        });
+      });
+
+      void (async () => {
+        const placeholderIdx = await placeholderIdxPromise;
+        if (placeholderIdx === null) return;
+
+        const expanded = await expandPlaylist(url);
+
+        if (expanded.length > 0) {
+          setMediaList((prevList) => {
+            // Remove the placeholder we inserted for the playlist URL
+            const withoutPlaceholder = prevList.filter((item) => item.url !== url);
+            const next = [...withoutPlaceholder];
+            const additions: Array<{ url: string; idx: number; title?: string }> = [];
+
+            expanded.forEach((entry) => {
+              if (!entry.url || urlExists(next, entry.url)) return;
+
+              const idx = next.length;
+              additions.push({ url: entry.url, idx, title: entry.title });
+              next.push({
+                ...createMediaItem(entry.url),
+                title: entry.title ?? entry.url,
+              });
+            });
+
+            queueMicrotask(() => {
+              additions.forEach(({ url: mediaSourceUrl, idx }) => {
+                void tauriApi.commands.getMediaInfo(idx, mediaSourceUrl).catch((error) =>
+                  console.warn("getMediaInfo failed; using placeholder metadata", {
+                    url: mediaSourceUrl,
+                    error,
+                  }),
+                );
+              });
+            });
+
+            return next;
+          });
+
+          return;
         }
 
-        const nextList = [...prevList, createMediaItem(url)];
-        const mediaIdx = nextList.length - 1;
-
-        // Request media information using the new index
-        void tauriApi.commands.getMediaInfo(mediaIdx, url).catch((error) =>
+        void tauriApi.commands.getMediaInfo(placeholderIdx, url).catch((error) =>
           console.warn("getMediaInfo failed; using placeholder metadata", {
             url,
             error,
           }),
         );
-
-        return nextList;
-      });
+      })();
     },
-    [tauriApi.commands],
+    [expandPlaylist, tauriApi.commands],
   );
 
   /**
@@ -63,6 +107,7 @@ export function useMediaList() {
           thumbnail: updates.thumbnail ?? existing.thumbnail,
           title: updates.title ?? existing.title,
           url,
+          id: existing.id ?? url,
         };
         const next = [...prevList];
         next[idx] = merged;
@@ -70,6 +115,7 @@ export function useMediaList() {
       }
 
       const defaultItem: VideoInfo = {
+        id: url,
         audioOnly: false,
         progress: 0,
         status: updates.status ?? "Pending",
@@ -83,6 +129,7 @@ export function useMediaList() {
         ...updates,
         title: updates.title ?? defaultItem.title,
         url,
+        id: defaultItem.id,
       };
 
       return [...prevList, newItem];
@@ -111,8 +158,8 @@ export function useMediaList() {
   /**
    * Remove an item by title
    */
-  const removeItem = useCallback((title: string) => {
-    setMediaList((prevList) => prevList.filter((item) => item.title !== title));
+  const removeItem = useCallback((id: string) => {
+    setMediaList((prevList) => prevList.filter((item) => item.id !== id));
   }, []);
 
   /**

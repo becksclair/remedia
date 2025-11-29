@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderWithProviders, screen, userEvent, createMockMediaItem } from "@/test/test-utils";
-import { MediaTable, type VideoInfo } from "./MediaTable";
+import { MediaTable } from "./MediaTable";
+import type { VideoInfo } from "@/utils/media-helpers";
 
 describe("MediaTable", () => {
   const mockOnRemoveItem = vi.fn();
@@ -238,7 +239,7 @@ describe("MediaTable", () => {
       await user.click(screen.getByTestId("row-0-menu"));
       await user.click(screen.getByTestId("row-0-delete"));
 
-      expect(mockOnRemoveItem).toHaveBeenCalledWith("Test Item");
+      expect(mockOnRemoveItem).toHaveBeenCalledWith("https://example.com/1");
     });
   });
 });

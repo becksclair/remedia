@@ -20,6 +20,7 @@ import {
   DEFAULT_DOWNLOAD_SETTINGS,
 } from "@/test/test-utils";
 import { TauriApiProvider } from "@/lib/TauriApiContext";
+import { PlaylistProvider } from "@/lib/PlaylistContext";
 import { mockTauriApi, mockState } from "@/lib/tauri-api.mock";
 import { Provider as JotaiProvider } from "jotai";
 import type { ReactNode } from "react";
@@ -127,6 +128,32 @@ describe("Download Flow Integration", () => {
       });
     });
 
+    it("expands playlist URLs into individual items", async () => {
+      mockState.playlistEntries = [
+        { url: "https://example.com/a", title: "First" },
+        { url: "https://example.com/b", title: "Second" },
+      ];
+
+      const wrapper = createTestWrapper();
+      const mediaListHook = renderHook(() => useMediaList(), { wrapper });
+
+      act(() => {
+        mediaListHook.result.current.addMediaUrl("https://example.com/playlist");
+      });
+
+      await waitFor(() => {
+        expect(mediaListHook.result.current.mediaList).toHaveLength(2);
+      });
+
+      expect(mediaListHook.result.current.mediaList[0]?.title).toBe("First");
+      expect(mediaListHook.result.current.mediaList[1]?.title).toBe("Second");
+
+      await waitFor(() => {
+        expect(getMediaInfoSpy).toHaveBeenCalledWith(0, "https://example.com/a");
+        expect(getMediaInfoSpy).toHaveBeenCalledWith(1, "https://example.com/b");
+      });
+    });
+
     it("skips already completed downloads", async () => {
       const wrapper = createTestWrapper();
       const mediaListHook = renderHook(() => useMediaList(), { wrapper });
@@ -169,29 +196,31 @@ describe("Download Flow Integration", () => {
         return (
           <JotaiProvider>
             <TauriApiProvider api={mockTauriApi}>
-              <HydrateAtoms
-                initialValues={[
-                  [downloadLocationAtom, "/custom/path"],
-                  [downloadModeAtom, "audio"],
-                  [audioFormatAtom, "mp3"],
-                  [audioQualityAtom, "0"],
-                  [downloadRateLimitAtom, "1M"],
-                  [maxFileSizeAtom, "500M"],
-                  ...DEFAULT_DOWNLOAD_SETTINGS.filter(
-                    ([atom]) =>
-                      ![
-                        downloadLocationAtom,
-                        downloadModeAtom,
-                        audioFormatAtom,
-                        audioQualityAtom,
-                        downloadRateLimitAtom,
-                        maxFileSizeAtom,
-                      ].includes(atom as any),
-                  ),
-                ]}
-              >
-                {children}
-              </HydrateAtoms>
+              <PlaylistProvider>
+                <HydrateAtoms
+                  initialValues={[
+                    [downloadLocationAtom, "/custom/path"],
+                    [downloadModeAtom, "audio"],
+                    [audioFormatAtom, "mp3"],
+                    [audioQualityAtom, "0"],
+                    [downloadRateLimitAtom, "1M"],
+                    [maxFileSizeAtom, "500M"],
+                    ...DEFAULT_DOWNLOAD_SETTINGS.filter(
+                      ([atom]) =>
+                        ![
+                          downloadLocationAtom,
+                          downloadModeAtom,
+                          audioFormatAtom,
+                          audioQualityAtom,
+                          downloadRateLimitAtom,
+                          maxFileSizeAtom,
+                        ].includes(atom as any),
+                    ),
+                  ]}
+                >
+                  {children}
+                </HydrateAtoms>
+              </PlaylistProvider>
             </TauriApiProvider>
           </JotaiProvider>
         );

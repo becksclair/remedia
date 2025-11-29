@@ -23,7 +23,7 @@ import {
   audioQualityAtom,
 } from "@/test/test-utils";
 import { mockTauriApi, mockState } from "@/lib/tauri-api.mock";
-import type { VideoInfo } from "@/components/MediaTable";
+import type { VideoInfo } from "@/utils/media-helpers";
 
 describe("useDownloadManager", () => {
   beforeEach(() => {

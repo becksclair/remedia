@@ -7,6 +7,7 @@
 import { render, type RenderOptions } from "@testing-library/react";
 import type { ReactElement, ReactNode } from "react";
 import { TauriApiProvider } from "@/lib/TauriApiContext";
+import { PlaylistProvider } from "@/lib/PlaylistContext";
 import { mockTauriApi, mockState } from "@/lib/tauri-api.mock";
 import { Provider as JotaiProvider } from "jotai";
 import { useHydrateAtoms } from "jotai/utils";
@@ -56,7 +57,9 @@ function AllTheProviders({ children, initialValues = [] }: AllTheProvidersProps)
   return (
     <JotaiProvider>
       <TauriApiProvider api={mockTauriApi}>
-        <HydrateAtoms initialValues={initialValues}>{children}</HydrateAtoms>
+        <PlaylistProvider>
+          <HydrateAtoms initialValues={initialValues}>{children}</HydrateAtoms>
+        </PlaylistProvider>
       </TauriApiProvider>
     </JotaiProvider>
   );
@@ -113,6 +116,7 @@ export function createMockMediaItem(
   }>,
 ) {
   return {
+    id: url,
     url,
     title: url,
     thumbnail: "",
@@ -167,7 +171,9 @@ export function createTestWrapper(atomOverrides: Array<readonly [any, any]> = []
     return (
       <JotaiProvider>
         <TauriApiProvider api={mockTauriApi}>
-          <HydrateAtoms initialValues={merged}>{children}</HydrateAtoms>
+          <PlaylistProvider>
+            <HydrateAtoms initialValues={merged}>{children}</HydrateAtoms>
+          </PlaylistProvider>
         </TauriApiProvider>
       </JotaiProvider>
     );

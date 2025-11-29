@@ -23,7 +23,7 @@ import {
 import { hasActiveDownloads, calculateGlobalProgress } from "@/utils/media-helpers";
 import { ErrorHandlers } from "@/shared/error-handler";
 import type { DownloadSettings } from "@/types";
-import type { VideoInfo } from "@/components/MediaTable";
+import type { VideoInfo } from "@/utils/media-helpers";
 
 export function useDownloadManager(mediaList: VideoInfo[]) {
   const [globalProgress, setGlobalProgress] = useState(0);
@@ -51,27 +51,101 @@ export function useDownloadManager(mediaList: VideoInfo[]) {
   /**
    * Start download for all media in the list
    */
-  const startDownload = useCallback(async () => {
-    if (inFlightRef.current) return;
-    inFlightRef.current = true;
-    setGlobalProgress(0);
-    setGlobalDownloading(true);
+  const startDownload = useCallback(
+    async (options?: { indices?: number[] }) => {
+      if (inFlightRef.current) return;
+      inFlightRef.current = true;
+      setGlobalProgress(0);
+      setGlobalDownloading(true);
 
-    // Ensure we always have a valid output directory before invoking backend
-    let resolvedOutput = outputLocation;
-    if (!resolvedOutput) {
-      try {
-        resolvedOutput = await tauriApi.path.getDownloadDir();
-        setOutputLocation(resolvedOutput);
-      } catch (error) {
-        console.error("Failed to resolve download directory", error);
-        setGlobalDownloading(false);
-        return;
+      // Ensure we always have a valid output directory before invoking backend
+      let resolvedOutput = outputLocation;
+      if (!resolvedOutput) {
+        try {
+          resolvedOutput = await tauriApi.path.getDownloadDir();
+          setOutputLocation(resolvedOutput);
+        } catch (error) {
+          console.error("Failed to resolve download directory", error);
+          setGlobalDownloading(false);
+          return;
+        }
       }
-    }
 
-    // Collect current settings
-    const settings: DownloadSettings = {
+      // Collect current settings
+      const settings: DownloadSettings = {
+        downloadMode,
+        videoQuality,
+        maxResolution,
+        videoFormat,
+        audioFormat,
+        audioQuality,
+        downloadRateLimit,
+        maxFileSize,
+        appendUniqueId,
+        uniqueIdType,
+      };
+
+      try {
+        const indexFilter = options?.indices ? new Set(options.indices) : null;
+        const kickOff = async (attempt: number): Promise<void> => {
+          const pending = mediaList
+            .map((media, idx) => ({ media, idx }))
+            .filter(
+              ({ media, idx }) => media.status !== "Done" && (!indexFilter || indexFilter.has(idx)),
+            );
+
+          if (pending.length === 0) {
+            if (attempt < retryLimit) {
+              await new Promise((r) => setTimeout(r, retryDelayMs));
+              return kickOff(attempt + 1);
+            }
+            console.warn("startDownload: no pending items after retries, giving up");
+            setGlobalDownloading(false);
+            inFlightRef.current = false;
+            return;
+          }
+
+          await Promise.all(
+            pending.map(({ media, idx }) =>
+              tauriApi.commands.downloadMedia(idx, media.url, resolvedOutput, settings),
+            ),
+          );
+        };
+
+        await kickOff(0);
+      } catch (err) {
+        console.error("Error starting download:", err);
+        ErrorHandlers.download(err, undefined, async () => {
+          // Retry the entire download process
+          const kickOff = async (attempt: number): Promise<void> => {
+            const pending = mediaList
+              .map((media, idx) => ({ media, idx }))
+              .filter(({ media }) => media.status !== "Done");
+
+            if (pending.length === 0) {
+              if (attempt < retryLimit) {
+                await new Promise((r) => setTimeout(r, retryDelayMs));
+                return kickOff(attempt + 1);
+              }
+              console.warn("retry: no pending items after retries, giving up");
+              return;
+            }
+
+            await Promise.all(
+              pending.map(({ media, idx }) =>
+                tauriApi.commands.downloadMedia(idx, media.url, resolvedOutput, settings),
+              ),
+            );
+          };
+          await kickOff(0);
+        });
+        setGlobalDownloading(false);
+        inFlightRef.current = false;
+      }
+    },
+    [
+      mediaList,
+      outputLocation,
       downloadMode,
       videoQuality,
       maxResolution,
@@ -82,79 +156,11 @@ export function useDownloadManager(mediaList: VideoInfo[]) {
       maxFileSize,
       appendUniqueId,
       uniqueIdType,
-    };
-
-    try {
-      const kickOff = async (attempt: number): Promise<void> => {
-        const pending = mediaList
-          .map((media, idx) => ({ media, idx }))
-          .filter(({ media }) => media.status !== "Done");
-
-        if (pending.length === 0) {
-          if (attempt < retryLimit) {
-            await new Promise((r) => setTimeout(r, retryDelayMs));
-            return kickOff(attempt + 1);
-          }
-          console.warn("startDownload: no pending items after retries, giving up");
-          setGlobalDownloading(false);
-          inFlightRef.current = false;
-          return;
-        }
-
-        await Promise.all(
-          pending.map(({ media, idx }) =>
-            tauriApi.commands.downloadMedia(idx, media.url, resolvedOutput, settings),
-          ),
-        );
-      };
-
-      await kickOff(0);
-    } catch (err) {
-      console.error("Error starting download:", err);
-      ErrorHandlers.download(err, undefined, async () => {
-        // Retry the entire download process
-        const kickOff = async (attempt: number): Promise<void> => {
-          const pending = mediaList
-            .map((media, idx) => ({ media, idx }))
-            .filter(({ media }) => media.status !== "Done");
-
-          if (pending.length === 0) {
-            if (attempt < retryLimit) {
-              await new Promise((r) => setTimeout(r, retryDelayMs));
-              return kickOff(attempt + 1);
-            }
-            console.warn("retry: no pending items after retries, giving up");
-            return;
-          }
-
-          await Promise.all(
-            pending.map(({ media, idx }) =>
-              tauriApi.commands.downloadMedia(idx, media.url, resolvedOutput, settings),
-            ),
-          );
-        };
-        await kickOff(0);
-      });
-      setGlobalDownloading(false);
-      inFlightRef.current = false;
-    }
-  }, [
-    mediaList,
-    outputLocation,
-    downloadMode,
-    videoQuality,
-    maxResolution,
-    videoFormat,
-    audioFormat,
-    audioQuality,
-    downloadRateLimit,
-    maxFileSize,
-    appendUniqueId,
-    uniqueIdType,
-    tauriApi.commands,
-    tauriApi.path,
-    setOutputLocation,
-  ]);
+      tauriApi.commands,
+      tauriApi.path,
+      setOutputLocation,
+    ],
+  );
 
   /**
    * Cancel all active downloads
