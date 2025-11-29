@@ -95,6 +95,7 @@ describe("Download Flow Integration", () => {
           0,
           testUrl,
           "/tmp/downloads",
+          undefined,
           expect.objectContaining({
             downloadMode: "video",
             videoQuality: "best",
@@ -129,10 +130,13 @@ describe("Download Flow Integration", () => {
     });
 
     it("expands playlist URLs into individual items", async () => {
-      mockState.playlistEntries = [
-        { url: "https://example.com/a", title: "First" },
-        { url: "https://example.com/b", title: "Second" },
-      ];
+      mockState.playlistExpansion = {
+        playlistName: "Test Playlist",
+        entries: [
+          { url: "https://example.com/a", title: "First" },
+          { url: "https://example.com/b", title: "Second" },
+        ],
+      };
 
       const wrapper = createTestWrapper();
       const mediaListHook = renderHook(() => useMediaList(), { wrapper });
@@ -185,6 +189,7 @@ describe("Download Flow Integration", () => {
           1,
           "https://example.com/pending.mp4",
           expect.any(String),
+          undefined, // subfolder
           expect.any(Object),
         );
       });
@@ -248,6 +253,7 @@ describe("Download Flow Integration", () => {
           0,
           "https://example.com/audio.mp3",
           "/custom/path",
+          undefined, // subfolder
           expect.objectContaining({
             downloadMode: "audio",
             audioFormat: "mp3",

@@ -76,7 +76,9 @@ function useTauriEvents<E extends TauriEventName>(eventHandlers: TauriEventHandl
             handler as EventCallback<unknown>,
           );
           unlistenFunctions.push(unlistenFn);
-          console.log(`Registered listener for ${eventName}`);
+          if (!(typeof window !== "undefined" && window.__E2E_TESTS__)) {
+            console.log(`Registered listener for ${eventName}`);
+          }
         } catch (error) {
           console.error(`Failed to listen to Tauri event '${eventName}':`, error);
         }
@@ -111,7 +113,9 @@ function useTauriEvents<E extends TauriEventName>(eventHandlers: TauriEventHandl
       if (instanceIdRef.current !== null) {
         handlerRegistry.delete(instanceIdRef.current);
       }
-      console.log("Removed all Tauri event listeners");
+      if (!(typeof window !== "undefined" && window.__E2E_TESTS__)) {
+        console.log("Removed all Tauri event listeners");
+      }
     };
   }, [tauriApi, eventHandlers]);
 }

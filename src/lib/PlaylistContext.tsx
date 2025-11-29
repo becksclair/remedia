@@ -1,31 +1,37 @@
 import { createContext, useCallback, useContext, type ReactNode } from "react";
 
 import { useTauriApi } from "@/lib/TauriApiContext";
-import type { PlaylistEntry } from "@/types";
+import type { PlaylistExpansion } from "@/types";
 
 interface PlaylistContextValue {
-  expandPlaylist: (url: string) => Promise<PlaylistEntry[]>;
+  expandPlaylist: (url: string) => Promise<PlaylistExpansion>;
 }
 
 const PlaylistContext = createContext<PlaylistContextValue | null>(null);
+
+const EMPTY_EXPANSION: PlaylistExpansion = { entries: [] };
 
 export function PlaylistProvider({ children }: { children: ReactNode }) {
   const tauriApi = useTauriApi();
 
   const expandPlaylist = useCallback(
-    async (url: string): Promise<PlaylistEntry[]> => {
+    async (url: string): Promise<PlaylistExpansion> => {
       try {
-        const entries = await tauriApi.commands.expandPlaylist(url);
-        if (!Array.isArray(entries) || entries.length === 0) {
-          return [];
+        const expansion = await tauriApi.commands.expandPlaylist(url);
+        if (!expansion || !Array.isArray(expansion.entries)) {
+          return EMPTY_EXPANSION;
         }
-        return entries.filter((entry) => Boolean(entry?.url));
+        return {
+          playlistName: expansion.playlistName,
+          uploader: expansion.uploader,
+          entries: expansion.entries.filter((entry) => Boolean(entry?.url)),
+        };
       } catch (error) {
         console.warn("expandPlaylist failed; falling back to single URL", {
           url,
           error,
         });
-        return [];
+        return EMPTY_EXPANSION;
       }
     },
     [tauriApi.commands],

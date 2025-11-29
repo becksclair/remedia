@@ -29,8 +29,13 @@ import { useQueueStatus } from "@/hooks/useQueueStatus";
 
 // State
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import { downloadLocationAtom, clipboardAutoImportAtom, maxConcurrentDownloadsAtom } from "@/state/settings-atoms";
+import {
+  downloadLocationAtom,
+  clipboardAutoImportAtom,
+  maxConcurrentDownloadsAtom,
+} from "@/state/settings-atoms";
 import { tableRowSelectionAtom, addLogEntryAtom, type LogEntry } from "@/state/app-atoms";
+import { upsertCollectionsAtom } from "@/state/collection-atoms";
 
 // Utils
 import { isValidUrl, clampProgress, getSelectedIndices } from "@/utils/media-helpers";
@@ -44,6 +49,7 @@ import { TAURI_EVENT } from "@/types";
 
 // Tauri API
 import { useTauriApi } from "@/lib/TauriApiContext";
+import { mapMediaInfoEventToUpdate } from "@/lib/media-mapping";
 
 import "./App.css";
 
@@ -85,6 +91,7 @@ function App(): JSX.Element {
   const setOutputLocation = useSetAtom(downloadLocationAtom);
   const [rowSelection] = useAtom(tableRowSelectionAtom);
   const addLogEntry = useSetAtom(addLogEntryAtom);
+  const upsertCollections = useSetAtom(upsertCollectionsAtom);
 
   const logAction = useCallback((...args: unknown[]) => {
     if (harnessEnabled) console.log("[remote-action]", ...args);
@@ -381,15 +388,24 @@ function App(): JSX.Element {
   /**
    * Tauri event handlers
    */
-  const handleMediaInfo = ({
-    payload: [_mediaIdx, mediaSourceUrl, title, thumbnail, previewUrl],
-  }: Event<MediaInfoEvent>): void => {
-    updateMediaItem({
-      thumbnail,
-      title,
-      url: mediaSourceUrl,
-      previewUrl: previewUrl || undefined,
-    });
+  const handleMediaInfo = ({ payload }: Event<MediaInfoEvent>): void => {
+    const updates = mapMediaInfoEventToUpdate(payload);
+
+    if (
+      updates.collectionId &&
+      updates.collectionType &&
+      updates.collectionName &&
+      updates.folderSlug
+    ) {
+      upsertCollections({
+        id: updates.collectionId,
+        kind: updates.collectionType,
+        name: updates.collectionName,
+        slug: updates.folderSlug,
+      });
+    }
+
+    updateMediaItem(updates);
   };
 
   const handleProgress = (event: Event<MediaProgressEvent>): void => {

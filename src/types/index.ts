@@ -3,8 +3,30 @@
 // Tauri event payloads
 // [mediaIdx, progress]
 export type MediaProgressEvent = [number, number];
-// [mediaIdx, mediaSourceUrl, title, thumbnail, previewUrl]
-export type MediaInfoEvent = [number, string, string, string, string];
+// [
+//   mediaIdx,
+//   mediaSourceUrl,
+//   title,
+//   thumbnail,
+//   previewUrl,
+//   uploader,
+//   collectionId,
+//   collectionKind,
+//   collectionName,
+//   folderSlug,
+// ]
+export type MediaInfoEvent = [
+  number,
+  string,
+  string,
+  string,
+  string,
+  string | null,
+  string | null,
+  ("playlist" | "channel" | "single") | null,
+  string | null,
+  string | null,
+];
 // [mediaIdx, stderrLine]
 export type YtDlpStderrEvent = [number, string];
 
@@ -77,6 +99,7 @@ export interface DownloadMediaCommand {
   mediaIdx: number;
   mediaSourceUrl: string;
   outputLocation: string;
+  subfolder?: string;
   settings: DownloadSettings;
 }
 
@@ -88,6 +111,16 @@ export interface GetMediaInfoCommand {
 export interface PlaylistEntry {
   url: string;
   title?: string;
+}
+
+export interface PlaylistExpansion {
+  playlistName?: string;
+  uploader?: string;
+  entries: PlaylistEntry[];
+  collectionId?: string;
+  collectionKind?: "playlist" | "channel" | "single";
+  collectionName?: string;
+  folderSlug?: string;
 }
 
 export interface ExpandPlaylistCommand {

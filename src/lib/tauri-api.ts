@@ -18,7 +18,7 @@ import {
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
-import type { DownloadSettings, PlaylistEntry } from "@/types";
+import type { DownloadSettings, PlaylistExpansion } from "@/types";
 
 /**
  * Tauri Command API
@@ -30,9 +30,9 @@ export interface TauriCommands {
   getMediaInfo(mediaIdx: number, mediaSourceUrl: string): Promise<void>;
 
   /**
-   * Expand playlist/profile URLs into concrete media URLs
+   * Expand playlist/profile URLs into concrete media URLs with metadata
    */
-  expandPlaylist(mediaSourceUrl: string): Promise<PlaylistEntry[]>;
+  expandPlaylist(mediaSourceUrl: string): Promise<PlaylistExpansion>;
 
   /**
    * Download media from a URL
@@ -41,6 +41,7 @@ export interface TauriCommands {
     mediaIdx: number,
     mediaSourceUrl: string,
     outputLocation: string,
+    subfolder: string | undefined,
     settings: DownloadSettings,
   ): Promise<void>;
 
@@ -196,20 +197,22 @@ class RealTauriApi implements TauriApi {
       await tauriInvoke("get_media_info", { mediaIdx, mediaSourceUrl });
     },
 
-    async expandPlaylist(mediaSourceUrl: string): Promise<PlaylistEntry[]> {
-      return await tauriInvoke<PlaylistEntry[]>("expand_playlist", { mediaSourceUrl });
+    async expandPlaylist(mediaSourceUrl: string): Promise<PlaylistExpansion> {
+      return await tauriInvoke<PlaylistExpansion>("expand_playlist", { mediaSourceUrl });
     },
 
     async downloadMedia(
       mediaIdx: number,
       mediaSourceUrl: string,
       outputLocation: string,
+      subfolder: string | undefined,
       settings: DownloadSettings,
     ): Promise<void> {
       await tauriInvoke("download_media", {
         mediaIdx,
         mediaSourceUrl,
         outputLocation,
+        subfolder,
         settings,
       });
     },

@@ -23,6 +23,7 @@ pub struct QueuedDownload {
     pub url: String,
     pub output_location: String,
     pub settings: String, // JSON serialized settings
+    pub subfolder: Option<String>, // Playlist name or channel name for folder organization
     pub status: DownloadStatus,
 }
 
@@ -186,6 +187,7 @@ mod tests {
             url: format!("https://example.com/{}", idx),
             output_location: "/tmp".to_string(),
             settings: "{}".to_string(),
+            subfolder: None,
             status: DownloadStatus::Queued,
         }
     }

@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import type { PlaylistEntry } from "@/types";
+import type { PlaylistExpansion } from "@/types";
 
 type MockState = {
   commandCalls: { command: string; args: unknown }[];
@@ -12,7 +12,7 @@ type MockState = {
   pendingTimers: Set<ReturnType<typeof setTimeout>>;
   queuedDownloads: number[];
   maxConcurrentDownloads: number;
-  playlistEntries: PlaylistEntry[];
+  playlistExpansion: PlaylistExpansion | null;
   reset(): void;
   emitEvent<T>(event: string, payload: T): void;
 };

@@ -107,7 +107,13 @@ export function useDownloadManager(mediaList: VideoInfo[]) {
 
           await Promise.all(
             pending.map(({ media, idx }) =>
-              tauriApi.commands.downloadMedia(idx, media.url, resolvedOutput, settings),
+              tauriApi.commands.downloadMedia(
+                idx,
+                media.url,
+                resolvedOutput,
+                media.subfolder,
+                settings,
+              ),
             ),
           );
         };
@@ -133,7 +139,13 @@ export function useDownloadManager(mediaList: VideoInfo[]) {
 
             await Promise.all(
               pending.map(({ media, idx }) =>
-                tauriApi.commands.downloadMedia(idx, media.url, resolvedOutput, settings),
+                tauriApi.commands.downloadMedia(
+                  idx,
+                  media.url,
+                  resolvedOutput,
+                  media.subfolder,
+                  settings,
+                ),
               ),
             );
           };

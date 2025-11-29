@@ -91,6 +91,7 @@ describe("useDownloadManager", () => {
           1,
           "https://example.com/video2",
           "/tmp/downloads",
+          undefined, // subfolder
           expect.any(Object),
         );
       });
@@ -146,6 +147,7 @@ describe("useDownloadManager", () => {
           0,
           "https://example.com/video1",
           "/tmp/downloads",
+          undefined, // subfolder
           expect.objectContaining({
             downloadMode: "audio",
             videoQuality: "high",
@@ -236,6 +238,7 @@ describe("useDownloadManager", () => {
           0,
           "https://example.com/video1",
           "/tmp/downloads",
+          undefined,
           expect.objectContaining({
             appendUniqueId: true,
             uniqueIdType: "native",
@@ -266,6 +269,7 @@ describe("useDownloadManager", () => {
           0,
           "https://example.com/video1",
           "/tmp/downloads",
+          undefined,
           expect.objectContaining({ appendUniqueId: false }),
         );
       });
@@ -293,6 +297,7 @@ describe("useDownloadManager", () => {
           0,
           "https://example.com/video1",
           "/tmp/downloads",
+          undefined,
           expect.objectContaining({
             appendUniqueId: true,
             uniqueIdType: "hash",
@@ -325,6 +330,7 @@ describe("useDownloadManager", () => {
           0,
           "https://example.com/video1",
           "/tmp/downloads",
+          undefined,
           expect.objectContaining({
             downloadRateLimit: "50M",
           }),
@@ -354,6 +360,7 @@ describe("useDownloadManager", () => {
           0,
           "https://example.com/video1",
           "/tmp/downloads",
+          undefined,
           expect.objectContaining({
             downloadRateLimit: "unlimited",
           }),
@@ -385,6 +392,7 @@ describe("useDownloadManager", () => {
           0,
           "https://example.com/video1",
           "/tmp/downloads",
+          undefined,
           expect.objectContaining({
             maxFileSize: "100M",
           }),
@@ -414,6 +422,7 @@ describe("useDownloadManager", () => {
           0,
           "https://example.com/video1",
           "/tmp/downloads",
+          undefined,
           expect.objectContaining({
             maxFileSize: "unlimited",
           }),

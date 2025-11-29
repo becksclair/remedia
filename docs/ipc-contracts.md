@@ -16,13 +16,26 @@ All shared types are defined in `src/types/index.ts`:
 ```typescript
 // Event payload types
 export type MediaProgressEvent = [number, number];        // [mediaIdx, progress]
-export type MediaInfoEvent = [number, string, string, string]; // [mediaIdx, url, title, thumbnail]
+export type MediaInfoEvent = [
+  number,
+  string,
+  string,
+  string,
+  string,
+  string | null,
+  string | null,
+  ("playlist" | "channel" | "single") | null,
+  string | null,
+  string | null,
+]; // [mediaIdx, url, title, thumbnail, previewUrl, uploader, collectionId, collectionKind, collectionName, folderSlug]
 
 // Command payload types
 export interface DownloadMediaCommand {
   mediaIdx: number;
   mediaSourceUrl: string;
   outputLocation: string;
+  subfolder?: string;
+  settings: DownloadSettings;
 }
 
 export interface GetMediaInfoCommand {
@@ -72,7 +85,9 @@ Initiates download of a media file using yt-dlp.
 invoke("download_media", {
   mediaIdx: number,
   mediaSourceUrl: string,
-  outputLocation: string
+  outputLocation: string,
+  subfolder?: string,
+  settings: DownloadSettings,
 }): Promise<void>
 ```
 
@@ -80,6 +95,8 @@ invoke("download_media", {
 - `mediaIdx`: Unique identifier for tracking progress
 - `mediaSourceUrl`: URL to download from
 - `outputLocation`: Directory path where files should be saved
+- `subfolder` (optional): Playlist or channel folder name for organizing downloads
+- `settings`: Structured download settings (quality, format, rate limit, size, unique ID behavior)
 
 **Behavior:**
 - Spawns async yt-dlp process with comprehensive options:
@@ -180,13 +197,19 @@ Emitted when media metadata is extracted.
 
 **Event Name:** `"update-media-info"`
 
-**Payload:** `MediaInfoEvent` - `[mediaIdx, mediaSourceUrl, title, thumbnail]`
+**Payload:** `MediaInfoEvent` - `[mediaIdx, mediaSourceUrl, title, thumbnail, previewUrl, uploader, collectionId?, collectionKind?, collectionName?, folderSlug?]`
 
 **Fields:**
 - `mediaIdx`: Index identifier from the original command
 - `mediaSourceUrl`: Original URL used for extraction
 - `title`: Extracted media title (fallbacks to URL if not found)
 - `thumbnail`: Thumbnail URL or empty string if not available
+- `previewUrl`: Preview media URL if available (e.g. short clip), otherwise empty string
+- `uploader`: Sanitized uploader/channel/playlist owner name, or `null` if not available
+- `collectionId` (optional): Stable collection identifier (e.g. `"channel:MyChannel"`)
+- `collectionKind` (optional): `"playlist" | "channel" | "single"`
+- `collectionName` (optional): Human-readable collection name used for grouping
+- `folderSlug` (optional): Filesystem-friendly folder name derived from the collection
 
 **Usage:**
 - Updates media list with extracted information

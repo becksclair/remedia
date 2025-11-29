@@ -2,12 +2,22 @@
  * Pure utility functions for media list management
  */
 
-export interface VideoInfo {
+export type CollectionKind = "playlist" | "channel" | "single";
+
+export interface CollectionMetadata {
+  collectionType?: CollectionKind;
+  collectionName?: string;
+  folderSlug?: string;
+  collectionId?: string;
+}
+
+export interface VideoInfo extends CollectionMetadata {
   id: string;
   url: string;
   title: string;
   thumbnail?: string;
   previewUrl?: string;
+  subfolder?: string; // Playlist name or channel name for folder organization
   audioOnly: boolean;
   progress: number;
   status: "Pending" | "Downloading" | "Done" | "Error" | "Cancelled";
@@ -114,4 +124,39 @@ export function createMediaItem(url: string): VideoInfo {
  */
 export function urlExists(mediaList: VideoInfo[], url: string): boolean {
   return mediaList.some((media) => media.url === url);
+}
+
+export function sanitizeFolderName(name: string): string {
+  const trimmed = name.trim();
+  if (!trimmed) return "untitled";
+
+  // Replace characters that are typically invalid in file/folder names
+  let result = trimmed.replace(/[<>:"/\\|?*]/g, "_");
+
+  // Collapse runs of whitespace and underscores into a single underscore
+  result = result.replace(/[\s_]+/g, "_");
+
+  // Remove trailing dots and spaces which are problematic on Windows
+  result = result.replace(/[. ]+$/g, "");
+
+  // Trim leading/trailing underscores
+  result = result.replace(/^_+|_+$/g, "");
+
+  if (!result) return "untitled";
+  return result;
+}
+
+export function buildCollectionId(
+  kind: CollectionKind,
+  {
+    name,
+    url,
+  }: {
+    name?: string | null;
+    url?: string;
+  },
+): string {
+  const baseName = name?.trim();
+  const key = baseName && baseName.length > 0 ? baseName : (url ?? "unknown");
+  return `${kind}:${key}`;
 }

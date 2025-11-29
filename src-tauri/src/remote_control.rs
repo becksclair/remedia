@@ -236,7 +236,7 @@ async fn handle_socket(
                     match &app {
                         Some(app_handle) => {
                             if let Some(win) = app_handle.get_window("main") {
-                                download_media(app_handle.clone(), win, media_idx, url.clone(), path.clone(), settings);
+                                download_media(app_handle.clone(), win, media_idx, url.clone(), path.clone(), None, settings);
                                 let _ = tx
                                     .lock()
                                     .await

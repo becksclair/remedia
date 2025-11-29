@@ -8,6 +8,7 @@ import { useMediaList } from "./useMediaList";
 import { TauriApiProvider } from "@/lib/TauriApiContext";
 import { PlaylistProvider } from "@/lib/PlaylistContext";
 import { mockTauriApi, mockState } from "@/lib/tauri-api.mock";
+import { sanitizeFolderName, buildCollectionId } from "@/utils/media-helpers";
 import type { ReactNode } from "react";
 
 // Wrapper with TauriApiProvider
@@ -321,6 +322,41 @@ describe("useMediaList", () => {
       });
 
       expect(result.current.mediaList).toHaveLength(1);
+    });
+  });
+
+  describe("playlist expansion metadata", () => {
+    it("sets subfolder and collection metadata from playlist expansion", async () => {
+      const { result } = renderHook(() => useMediaList(), { wrapper });
+
+      mockState.playlistExpansion = {
+        playlistName: "My Playlist",
+        uploader: "Test Channel",
+        entries: [
+          { url: "https://example.com/a", title: "First" },
+          { url: "https://example.com/b", title: "Second" },
+        ],
+      };
+
+      act(() => {
+        result.current.addMediaUrl("https://example.com/playlist");
+      });
+
+      await waitFor(() => {
+        expect(result.current.mediaList).toHaveLength(2);
+      });
+
+      const first = result.current.mediaList[0]!;
+      expect(first.subfolder).toBe(sanitizeFolderName("My Playlist"));
+      expect(first.collectionType).toBe("playlist");
+      expect(first.collectionName).toBe("My Playlist");
+      expect(first.folderSlug).toBe(sanitizeFolderName("My Playlist"));
+      expect(first.collectionId).toBe(
+        buildCollectionId("playlist", {
+          name: "My Playlist",
+          url: "https://example.com/playlist",
+        }),
+      );
     });
   });
 });

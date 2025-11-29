@@ -9,6 +9,7 @@ import {
   getSelectedIndices,
   createMediaItem,
   urlExists,
+  sanitizeFolderName,
   type VideoInfo,
 } from "./media-helpers";
 
@@ -237,5 +238,22 @@ describe("urlExists", () => {
   it("is case-sensitive", () => {
     const mediaList = [createItem("https://Example.com")];
     expect(urlExists(mediaList, "https://example.com")).toBe(false);
+  });
+});
+
+describe("sanitizeFolderName", () => {
+  it("replaces invalid characters and collapses whitespace", () => {
+    const result = sanitizeFolderName(" My <Weird> Playlist: Name? ");
+    expect(result).toBe("My_Weird_Playlist_Name");
+  });
+
+  it("returns 'untitled' for empty or whitespace-only names", () => {
+    expect(sanitizeFolderName("")).toBe("untitled");
+    expect(sanitizeFolderName("   ")).toBe("untitled");
+  });
+
+  it("trims trailing dots and spaces", () => {
+    const result = sanitizeFolderName("My Name.  ");
+    expect(result).toBe("My_Name");
   });
 });

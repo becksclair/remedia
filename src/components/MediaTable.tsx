@@ -101,6 +101,14 @@ function createMediaColumns(onRemoveItem: (id: string) => void): ColumnDef<Video
           title={row.getValue("title")}
         >
           {row.getValue("title")}
+          {row.original.subfolder && (
+            <span
+              className="block text-xs text-muted-foreground mt-0.5 truncate"
+              title={`Folder: ${row.original.subfolder}`}
+            >
+              📁 {row.original.subfolder}
+            </span>
+          )}
         </div>
       ),
     },

@@ -18,7 +18,7 @@ import type {
   TauriDialog,
   TauriShell,
 } from "./tauri-api";
-import type { DownloadSettings, PlaylistEntry } from "@/types";
+import type { DownloadSettings, PlaylistExpansion } from "@/types";
 import { TAURI_EVENT } from "@/types";
 
 /**
@@ -90,7 +90,7 @@ export const mockState = {
   // Download queue state
   queuedDownloads: [] as number[],
   maxConcurrentDownloads: 3,
-  playlistEntries: [] as PlaylistEntry[],
+  playlistExpansion: null as PlaylistExpansion | null,
 
   /**
    * Reset mock state between tests
@@ -110,7 +110,7 @@ export const mockState = {
     this.dialogResult = null;
     this.queuedDownloads = [];
     this.maxConcurrentDownloads = 3;
-    this.playlistEntries = [];
+    this.playlistExpansion = null;
     mockEventListeners.clear();
   },
 
@@ -148,11 +148,12 @@ class MockCommands implements TauriCommands {
     mediaIdx: number,
     mediaSourceUrl: string,
     outputLocation: string,
+    subfolder: string | undefined,
     settings: DownloadSettings,
   ): Promise<void> {
     mockState.commandCalls.push({
       command: "download_media",
-      args: { mediaIdx, mediaSourceUrl, outputLocation, settings },
+      args: { mediaIdx, mediaSourceUrl, outputLocation, subfolder, settings },
     });
 
     mockState.activeDownloads.add(mediaIdx);
@@ -230,18 +231,18 @@ class MockCommands implements TauriCommands {
     });
   }
 
-  async expandPlaylist(mediaSourceUrl: string): Promise<PlaylistEntry[]> {
+  async expandPlaylist(mediaSourceUrl: string): Promise<PlaylistExpansion> {
     mockState.commandCalls.push({
       command: "expand_playlist",
       args: { mediaSourceUrl },
     });
 
-    if (mockState.playlistEntries.length > 0) {
-      return mockState.playlistEntries;
+    if (mockState.playlistExpansion) {
+      return mockState.playlistExpansion;
     }
 
     // Default mock response: return empty to signal non-playlist
-    return [];
+    return { entries: [] };
   }
 }
 

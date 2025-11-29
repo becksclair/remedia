@@ -5,14 +5,24 @@
  */
 
 import { useState, useCallback } from "react";
-import { createMediaItem, urlExists, type VideoInfo } from "@/utils/media-helpers";
+import { useSetAtom } from "jotai";
+import {
+  createMediaItem,
+  urlExists,
+  sanitizeFolderName,
+  buildCollectionId,
+  type VideoInfo,
+  type CollectionKind,
+} from "@/utils/media-helpers";
 import { useTauriApi } from "@/lib/TauriApiContext";
 import { usePlaylistContext } from "@/lib/PlaylistContext";
+import { upsertCollectionsAtom } from "@/state/collection-atoms";
 
 export function useMediaList() {
   const [mediaList, setMediaList] = useState<VideoInfo[]>([]);
   const tauriApi = useTauriApi();
   const { expandPlaylist } = usePlaylistContext();
+  const upsertCollections = useSetAtom(upsertCollectionsAtom);
 
   /**
    * Add a media URL to the list
@@ -37,16 +47,49 @@ export function useMediaList() {
         const placeholderIdx = await placeholderIdxPromise;
         if (placeholderIdx === null) return;
 
-        const expanded = await expandPlaylist(url);
+        const expansion = await expandPlaylist(url);
 
-        if (expanded.length > 0) {
+        if (expansion.entries.length > 0) {
+          // Prefer backend-provided collection metadata when available
+          const backendKind = expansion.collectionKind as CollectionKind | undefined;
+          const backendName =
+            expansion.collectionName ?? expansion.playlistName ?? expansion.uploader;
+          const backendSlug =
+            expansion.folderSlug ?? (backendName ? sanitizeFolderName(backendName) : undefined);
+
+          const collectionType: CollectionKind =
+            backendKind ??
+            (expansion.playlistName ? "playlist" : expansion.uploader ? "channel" : "single");
+
+          const collectionName = backendName ?? undefined;
+          const folderSlug = backendSlug;
+
+          const subfolder =
+            backendSlug ?? backendName ?? expansion.playlistName ?? expansion.uploader;
+
+          const collectionId =
+            expansion.collectionId ??
+            buildCollectionId(collectionType, {
+              name: collectionName,
+              url,
+            });
+
+          if (collectionId && collectionType && collectionName && folderSlug) {
+            upsertCollections({
+              id: collectionId,
+              kind: collectionType,
+              name: collectionName,
+              slug: folderSlug,
+            });
+          }
+
           setMediaList((prevList) => {
             // Remove the placeholder we inserted for the playlist URL
             const withoutPlaceholder = prevList.filter((item) => item.url !== url);
             const next = [...withoutPlaceholder];
             const additions: Array<{ url: string; idx: number; title?: string }> = [];
 
-            expanded.forEach((entry) => {
+            expansion.entries.forEach((entry) => {
               if (!entry.url || urlExists(next, entry.url)) return;
 
               const idx = next.length;
@@ -54,6 +97,11 @@ export function useMediaList() {
               next.push({
                 ...createMediaItem(entry.url),
                 title: entry.title ?? entry.url,
+                subfolder,
+                collectionType,
+                collectionName,
+                folderSlug,
+                collectionId,
               });
             });
 
@@ -82,7 +130,7 @@ export function useMediaList() {
         );
       })();
     },
-    [expandPlaylist, tauriApi.commands],
+    [expandPlaylist, tauriApi.commands, upsertCollections],
   );
 
   /**
@@ -106,6 +154,12 @@ export function useMediaList() {
           audioOnly: updates.audioOnly ?? existing.audioOnly,
           thumbnail: updates.thumbnail ?? existing.thumbnail,
           title: updates.title ?? existing.title,
+          // Keep existing subfolder if set (playlist items), otherwise use update
+          subfolder: existing.subfolder ?? updates.subfolder,
+          collectionType: existing.collectionType ?? updates.collectionType,
+          collectionName: existing.collectionName ?? updates.collectionName,
+          collectionId: existing.collectionId ?? updates.collectionId,
+          folderSlug: existing.folderSlug ?? updates.folderSlug,
           url,
           id: existing.id ?? url,
         };
@@ -122,6 +176,11 @@ export function useMediaList() {
         title: updates.title ?? url,
         url,
         thumbnail: updates.thumbnail,
+        subfolder: updates.subfolder,
+        collectionId: updates.collectionId,
+        folderSlug: updates.folderSlug,
+        collectionType: updates.collectionType,
+        collectionName: updates.collectionName,
       };
 
       const newItem: VideoInfo = {

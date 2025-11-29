@@ -357,6 +357,11 @@ struct ExtractedMediaInfo {
     title: String,
     thumbnail: String,
     preview_url: String,
+    uploader: Option<String>,
+    collection_id: Option<String>,
+    collection_kind: Option<String>,
+    collection_name: Option<String>,
+    folder_slug: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -365,6 +370,38 @@ pub struct PlaylistItem {
     url: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     title: Option<String>,
+}
+
+/// Result from expanding a playlist URL
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct PlaylistExpansion {
+    /// Playlist title (for folder naming)
+    pub playlist_name: Option<String>,
+    /// Channel/uploader name (fallback for folder naming)
+    pub uploader: Option<String>,
+    /// Individual video entries
+    pub entries: Vec<PlaylistItem>,
+    /// Canonical collection identifier (e.g. "playlist:My Playlist")
+    pub collection_id: Option<String>,
+    /// Collection kind: "playlist", "channel", or "single"
+    pub collection_kind: Option<String>,
+    /// Human-readable collection name
+    pub collection_name: Option<String>,
+    /// Filesystem-friendly folder slug
+    pub folder_slug: Option<String>,
+}
+
+/// Sanitize a string for use as a folder name (Windows-safe)
+fn sanitize_folder_name(name: &str) -> String {
+    name.chars()
+        .map(|c| match c {
+            '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|' => '_',
+            _ => c,
+        })
+        .collect::<String>()
+        .trim()
+        .to_string()
 }
 
 /// Normalize a yt-dlp flat-playlist entry into a usable URL + optional title
@@ -401,13 +438,40 @@ fn normalize_playlist_entry(entry: &Value) -> Option<PlaylistItem> {
     })
 }
 
-/// Parse yt-dlp `-J --flat-playlist` JSON into playlist entries
-fn parse_playlist_entries(json_str: &str) -> Result<Vec<PlaylistItem>, String> {
+/// Parse yt-dlp `-J --flat-playlist` JSON into playlist expansion with metadata
+fn parse_playlist_expansion(json_str: &str) -> Result<PlaylistExpansion, String> {
     let v: Value = serde_json::from_str(json_str).map_err(|e| format!("Failed to parse yt-dlp JSON: {}", e))?;
+
+    // Extract playlist metadata for folder naming
+    let playlist_name = v
+        .get("title")
+        .or_else(|| v.get("playlist_title"))
+        .and_then(|t| t.as_str())
+        .filter(|s| !s.is_empty())
+        .map(|s| sanitize_folder_name(s));
+
+    let uploader = v
+        .get("uploader")
+        .or_else(|| v.get("channel"))
+        .or_else(|| v.get("uploader_id"))
+        .and_then(|u| u.as_str())
+        .filter(|s| !s.is_empty())
+        .map(|s| sanitize_folder_name(s));
 
     let entries = match v.get("entries").and_then(|e| e.as_array()) {
         Some(e) => e,
-        None => return Ok(Vec::new()), // Not a playlist (single video or unsupported format)
+        None => {
+            // Not a playlist (single video or unsupported format)
+            return Ok(PlaylistExpansion {
+                playlist_name,
+                uploader,
+                entries: Vec::new(),
+                collection_id: None,
+                collection_kind: None,
+                collection_name: None,
+                folder_slug: None,
+            });
+        }
     };
 
     let mut seen = HashSet::new();
@@ -428,7 +492,29 @@ fn parse_playlist_entries(json_str: &str) -> Result<Vec<PlaylistItem>, String> {
         }
     }
 
-    Ok(items)
+    let (collection_kind, collection_name, folder_slug, collection_id) = if let Some(ref name) = playlist_name {
+        let kind = "playlist".to_string();
+        let slug = name.clone();
+        let id = format!("{}:{}", kind, name);
+        (Some(kind), Some(name.clone()), Some(slug), Some(id))
+    } else if let Some(ref name) = uploader {
+        let kind = "channel".to_string();
+        let slug = name.clone();
+        let id = format!("{}:{}", kind, name);
+        (Some(kind), Some(name.clone()), Some(slug), Some(id))
+    } else {
+        (None, None, None, None)
+    };
+
+    Ok(PlaylistExpansion {
+        playlist_name,
+        uploader,
+        entries: items,
+        collection_id,
+        collection_kind,
+        collection_name,
+        folder_slug,
+    })
 }
 
 /// Extract the best direct URL for preview from formats array
@@ -483,7 +569,7 @@ fn extract_preview_url(v: &Value) -> Option<String> {
     None
 }
 
-/// Extract title, thumbnail, and preview URL from yt-dlp JSON output
+/// Extract title, thumbnail, preview URL, and uploader from yt-dlp JSON output
 fn extract_media_info_from_json(json_str: &str, media_source_url: &str) -> Option<ExtractedMediaInfo> {
     let v: Value = serde_json::from_str(json_str).ok()?;
 
@@ -493,10 +579,33 @@ fn extract_media_info_from_json(json_str: &str, media_source_url: &str) -> Optio
     let thumbnail = resolve_thumbnail(&v).unwrap_or_default();
     let preview_url = extract_preview_url(&v).unwrap_or_default();
 
+    // Extract uploader/channel for folder naming (single videos)
+    let uploader = v
+        .get("uploader")
+        .or_else(|| v.get("channel"))
+        .or_else(|| v.get("uploader_id"))
+        .and_then(|u| u.as_str())
+        .filter(|s| !s.is_empty())
+        .map(|s| sanitize_folder_name(s));
+
+    let (collection_kind, collection_name, folder_slug, collection_id) = if let Some(ref name) = uploader {
+        let kind = "channel".to_string();
+        let slug = name.clone();
+        let id = format!("{}:{}", kind, name);
+        (Some(kind), Some(name.clone()), Some(slug), Some(id))
+    } else {
+        (None, None, None, None)
+    };
+
     Some(ExtractedMediaInfo {
         title,
         thumbnail,
         preview_url,
+        uploader,
+        collection_id,
+        collection_kind,
+        collection_name,
+        folder_slug,
     })
 }
 
@@ -560,12 +669,28 @@ pub async fn get_media_info(
                         info.title.clone(),
                         info.thumbnail.clone(),
                         info.preview_url.clone(),
+                        info.uploader.clone(),
+                        info.collection_id.clone(),
+                        info.collection_kind.clone(),
+                        info.collection_name.clone(),
+                        info.folder_slug.clone(),
                     ),
                 )
                 .map_err(|e| e.to_string())?;
             broadcast_remote_event(
                 EVT_UPDATE_MEDIA_INFO,
-                serde_json::json!([media_idx, media_source_url.clone(), info.title, info.thumbnail, info.preview_url]),
+                serde_json::json!([
+                    media_idx,
+                    media_source_url.clone(),
+                    info.title,
+                    info.thumbnail,
+                    info.preview_url,
+                    info.uploader,
+                    info.collection_id,
+                    info.collection_kind,
+                    info.collection_name,
+                    info.folder_slug,
+                ]),
             );
         } else {
             println!("Failed to parse yt-dlp output line as generic JSON: {trimmed}");
@@ -579,7 +704,7 @@ pub async fn get_media_info(
 }
 
 #[tauri::command]
-pub async fn expand_playlist(_app: AppHandle, media_source_url: String) -> Result<Vec<PlaylistItem>, String> {
+pub async fn expand_playlist(_app: AppHandle, media_source_url: String) -> Result<PlaylistExpansion, String> {
     validate_url(&media_source_url)?;
 
     let mut cmd = Command::new("yt-dlp");
@@ -600,8 +725,7 @@ pub async fn expand_playlist(_app: AppHandle, media_source_url: String) -> Resul
         eprintln!("[expand_playlist] yt-dlp stderr: {}", errors);
     }
 
-    let items = parse_playlist_entries(&output)?;
-    Ok(items)
+    parse_playlist_expansion(&output)
 }
 
 /// Process the queue and start next available download
@@ -643,6 +767,7 @@ fn process_queue(window: Window) {
             queued_download.media_idx,
             queued_download.url,
             queued_download.output_location,
+            queued_download.subfolder,
             settings,
         );
     }
@@ -654,6 +779,7 @@ fn execute_download(
     media_idx: i32,
     media_source_url: String,
     output_location: String,
+    subfolder: Option<String>,
     settings: DownloadSettings,
 ) {
     let window_clone = window.clone();
@@ -675,18 +801,34 @@ fn execute_download(
             }
         };
 
+        // Build base output directory (with subfolder if present)
+        let output_dir = match &subfolder {
+            Some(folder) if !folder.is_empty() => {
+                let subfolder_path = format!("{}{}{}", output_location, path::MAIN_SEPARATOR, folder);
+                // Create subfolder if it doesn't exist
+                if let Err(e) = std::fs::create_dir_all(&subfolder_path) {
+                    eprintln!("Warning: Failed to create subfolder {}: {}", subfolder_path, e);
+                    // Fall back to base output location
+                    output_location.clone()
+                } else {
+                    subfolder_path
+                }
+            }
+            _ => output_location.clone(),
+        };
+
         // Build output template: optionally include unique ID for avoiding collisions
         let output_format = if settings.append_unique_id {
             if settings.unique_id_type == "hash" {
                 // Custom short hash - consistent 8-char format across all platforms
                 let unique_id = generate_unique_id(&media_source_url);
-                format!("{}{}%(title)s [{}].%(ext)s", output_location, path::MAIN_SEPARATOR, unique_id)
+                format!("{}{}%(title)s [{}].%(ext)s", output_dir, path::MAIN_SEPARATOR, unique_id)
             } else {
                 // Native yt-dlp ID - truly idempotent per video (handles URL variations)
-                format!("{}{}%(title)s [%(id)s].%(ext)s", output_location, path::MAIN_SEPARATOR)
+                format!("{}{}%(title)s [%(id)s].%(ext)s", output_dir, path::MAIN_SEPARATOR)
             }
         } else {
-            format!("{}{}%(title)s.%(ext)s", output_location, path::MAIN_SEPARATOR)
+            format!("{}{}%(title)s.%(ext)s", output_dir, path::MAIN_SEPARATOR)
         };
 
         // Build the yt-dlp command
@@ -918,6 +1060,7 @@ pub fn download_media(
     media_idx: i32,
     media_source_url: String,
     output_location: String,
+    subfolder: Option<String>,
     settings: DownloadSettings,
 ) {
     // Validate inputs at boundary
@@ -959,6 +1102,7 @@ pub fn download_media(
         url: media_source_url.clone(),
         output_location: output_location.clone(),
         settings: settings_json,
+        subfolder,
         status: DownloadStatus::Queued,
     };
 
@@ -1078,25 +1222,71 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_playlist_entries_constructs_urls() {
+    fn test_parse_playlist_expansion_constructs_urls() {
         let json = r#"{
             "_type":"playlist",
+            "title":"My Playlist",
+            "uploader":"TestChannel",
             "entries":[
                 {"id":"abc123","extractor":"Youtube","title":"First"},
                 {"id":"unrulygleamingalaskanmalamute","extractor":"RedGifs","title":"Second"}
             ]
         }"#;
 
-        let items = parse_playlist_entries(json).expect("should parse playlist JSON");
-        assert_eq!(items.len(), 2);
-        assert_eq!(items[0].url, "https://www.youtube.com/watch?v=abc123");
-        assert_eq!(items[0].title.as_deref(), Some("First"));
-        assert_eq!(items[1].url, "https://www.redgifs.com/watch/unrulygleamingalaskanmalamute");
-        assert_eq!(items[1].title.as_deref(), Some("Second"));
+        let expansion = parse_playlist_expansion(json).expect("should parse playlist JSON");
+        assert_eq!(expansion.playlist_name.as_deref(), Some("My Playlist"));
+        assert_eq!(expansion.uploader.as_deref(), Some("TestChannel"));
+        assert_eq!(expansion.entries.len(), 2);
+        assert_eq!(expansion.entries[0].url, "https://www.youtube.com/watch?v=abc123");
+        assert_eq!(expansion.entries[0].title.as_deref(), Some("First"));
+        assert_eq!(expansion.entries[1].url, "https://www.redgifs.com/watch/unrulygleamingalaskanmalamute");
+        assert_eq!(expansion.entries[1].title.as_deref(), Some("Second"));
     }
 
     #[test]
-    fn test_parse_playlist_entries_dedupes_and_limits() {
+    fn test_parse_playlist_expansion_collection_metadata_from_title() {
+        let json = r#"{
+            "_type":"playlist",
+            "title":"My Playlist",
+            "uploader":"TestChannel",
+            "entries":[
+                {"id":"abc123","extractor":"Youtube"}
+            ]
+        }"#;
+
+        let expansion = parse_playlist_expansion(json).expect("should parse playlist JSON");
+
+        // playlist_name is sanitized title
+        assert_eq!(expansion.playlist_name.as_deref(), Some("My Playlist"));
+        // collection metadata prefers playlist_name over uploader
+        assert_eq!(expansion.collection_kind.as_deref(), Some("playlist"));
+        assert_eq!(expansion.collection_name.as_deref(), Some("My Playlist"));
+        assert_eq!(expansion.folder_slug.as_deref(), Some("My Playlist"));
+        assert_eq!(expansion.collection_id.as_deref(), Some("playlist:My Playlist"));
+    }
+
+    #[test]
+    fn test_parse_playlist_expansion_collection_metadata_from_uploader_when_no_title() {
+        let json = r#"{
+            "_type":"playlist",
+            "uploader":"TestChannel",
+            "entries":[
+                {"id":"abc123","extractor":"Youtube"}
+            ]
+        }"#;
+
+        let expansion = parse_playlist_expansion(json).expect("should parse playlist JSON");
+
+        assert_eq!(expansion.playlist_name, None);
+        assert_eq!(expansion.uploader.as_deref(), Some("TestChannel"));
+        assert_eq!(expansion.collection_kind.as_deref(), Some("channel"));
+        assert_eq!(expansion.collection_name.as_deref(), Some("TestChannel"));
+        assert_eq!(expansion.folder_slug.as_deref(), Some("TestChannel"));
+        assert_eq!(expansion.collection_id.as_deref(), Some("channel:TestChannel"));
+    }
+
+    #[test]
+    fn test_parse_playlist_expansion_dedupes_and_limits() {
         let json = r#"{
             "_type":"playlist",
             "entries":[
@@ -1105,9 +1295,38 @@ mod tests {
             ]
         }"#;
 
-        let items = parse_playlist_entries(json).expect("should parse playlist JSON");
-        assert_eq!(items.len(), 1);
-        assert_eq!(items[0].url, "https://example.com/video");
+        let expansion = parse_playlist_expansion(json).expect("should parse playlist JSON");
+        assert_eq!(expansion.entries.len(), 1);
+        assert_eq!(expansion.entries[0].url, "https://example.com/video");
+    }
+
+    #[test]
+    fn test_parse_playlist_expansion_non_playlist_has_no_collection_metadata() {
+        let json = r#"{
+            "title":"Single Video",
+            "uploader":"UploaderName"
+        }"#;
+
+        let expansion = parse_playlist_expansion(json).expect("should parse non-playlist JSON");
+
+        // No entries for non-playlist input
+        assert_eq!(expansion.entries.len(), 0);
+        // playlist_name and uploader may be populated, but collection metadata should be None
+        assert_eq!(expansion.collection_kind, None);
+        assert_eq!(expansion.collection_name, None);
+        assert_eq!(expansion.folder_slug, None);
+        assert_eq!(expansion.collection_id, None);
+    }
+
+    #[test]
+    fn test_sanitize_folder_name() {
+        assert_eq!(sanitize_folder_name("Normal Name"), "Normal Name");
+        assert_eq!(sanitize_folder_name("With/Slash"), "With_Slash");
+        assert_eq!(sanitize_folder_name("With:Colon"), "With_Colon");
+        assert_eq!(sanitize_folder_name("With*Star"), "With_Star");
+        assert_eq!(sanitize_folder_name("With?Question"), "With_Question");
+        assert_eq!(sanitize_folder_name("Best of 2024 | Top Picks"), "Best of 2024 _ Top Picks");
+        assert_eq!(sanitize_folder_name("  Trimmed  "), "Trimmed");
     }
 
     #[test]
@@ -1191,6 +1410,42 @@ mod tests {
         assert!(info.thumbnail.starts_with("https://thumbs"));
         assert!(!info.preview_url.is_empty(), "Preview URL should be extracted");
         assert!(info.preview_url.contains("media.redgifs.com"));
+    }
+
+    #[test]
+    fn test_extract_media_info_with_uploader_sets_collection_metadata() {
+        let json = r#"{
+            "title":"Some Video",
+            "uploader":"Some Channel"
+        }"#;
+
+        let source_url = "https://example.com/watch?v=123";
+        let info = extract_media_info_from_json(json, source_url).expect("should parse media json");
+
+        assert_eq!(info.title, "Some Video");
+        assert_eq!(info.uploader.as_deref(), Some("Some Channel"));
+        assert_eq!(info.collection_kind.as_deref(), Some("channel"));
+        assert_eq!(info.collection_name.as_deref(), Some("Some Channel"));
+        assert_eq!(info.folder_slug.as_deref(), Some("Some Channel"));
+        assert_eq!(info.collection_id.as_deref(), Some("channel:Some Channel"));
+    }
+
+    #[test]
+    fn test_extract_media_info_without_uploader_has_no_collection_and_uses_fallback_title() {
+        let json = r#"{
+            "thumbnail":"https://example.com/thumb.jpg"
+        }"#;
+
+        let source_url = "https://example.com/video";
+        let info = extract_media_info_from_json(json, source_url).expect("should parse minimal json");
+
+        // Title should fall back to source URL when missing in JSON
+        assert_eq!(info.title, source_url);
+        assert!(info.uploader.is_none());
+        assert!(info.collection_kind.is_none());
+        assert!(info.collection_name.is_none());
+        assert!(info.folder_slug.is_none());
+        assert!(info.collection_id.is_none());
     }
 
     #[test]
