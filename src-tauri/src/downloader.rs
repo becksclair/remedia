@@ -448,7 +448,7 @@ fn parse_playlist_expansion(json_str: &str) -> Result<PlaylistExpansion, String>
         .or_else(|| v.get("playlist_title"))
         .and_then(|t| t.as_str())
         .filter(|s| !s.is_empty())
-        .map(|s| sanitize_folder_name(s));
+        .map(sanitize_folder_name);
 
     let uploader = v
         .get("uploader")
@@ -456,7 +456,7 @@ fn parse_playlist_expansion(json_str: &str) -> Result<PlaylistExpansion, String>
         .or_else(|| v.get("uploader_id"))
         .and_then(|u| u.as_str())
         .filter(|s| !s.is_empty())
-        .map(|s| sanitize_folder_name(s));
+        .map(sanitize_folder_name);
 
     let entries = match v.get("entries").and_then(|e| e.as_array()) {
         Some(e) => e,
@@ -586,7 +586,7 @@ fn extract_media_info_from_json(json_str: &str, media_source_url: &str) -> Optio
         .or_else(|| v.get("uploader_id"))
         .and_then(|u| u.as_str())
         .filter(|s| !s.is_empty())
-        .map(|s| sanitize_folder_name(s));
+        .map(sanitize_folder_name);
 
     let (collection_kind, collection_name, folder_slug, collection_id) = if let Some(ref name) = uploader {
         let kind = "channel".to_string();
