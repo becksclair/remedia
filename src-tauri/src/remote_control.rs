@@ -25,10 +25,24 @@ pub type RemoteEval = Arc<dyn Fn(&str) -> Result<(), String> + Send + Sync + 'st
 // Broadcast channel used to push app events back to remote test clients.
 static REMOTE_BROADCAST: OnceCell<broadcast::Sender<String>> = OnceCell::new();
 
+/// Check if any remote clients are connected (O(1) check to skip serialization overhead).
+pub fn is_remote_active() -> bool {
+    REMOTE_BROADCAST.get().is_some_and(|tx| tx.receiver_count() > 0)
+}
+
 /// Publish an event to any connected remote clients (best-effort, no-op if remote WS disabled).
 pub fn broadcast_remote_event(event: &str, payload: Value) {
     if let Some(tx) = REMOTE_BROADCAST.get() {
         let _ = tx.send(json!({ "event": event, "payload": payload }).to_string());
+    }
+}
+
+/// Conditionally broadcast an event only if remote clients are connected.
+/// This avoids JSON serialization overhead when no one is listening.
+#[inline]
+pub fn broadcast_if_active(event: &str, payload: Value) {
+    if is_remote_active() {
+        broadcast_remote_event(event, payload);
     }
 }
 #[derive(Deserialize)]
@@ -236,7 +250,15 @@ async fn handle_socket(
                     match &app {
                         Some(app_handle) => {
                             if let Some(win) = app_handle.get_window("main") {
-                                download_media(app_handle.clone(), win, media_idx, url.clone(), path.clone(), None, settings);
+                                download_media(
+                                    app_handle.clone(),
+                                    win,
+                                    media_idx,
+                                    url.clone(),
+                                    path.clone(),
+                                    None,
+                                    settings,
+                                );
                                 let _ = tx
                                     .lock()
                                     .await

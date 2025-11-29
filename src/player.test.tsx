@@ -13,6 +13,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import Player from "./player";
+import { mockURLSearchParamsGet } from "./test/setup";
 
 // Mock react-player
 vi.mock("react-player", () => ({
@@ -39,25 +40,15 @@ vi.mock("react-player", () => ({
   }),
 }));
 
-// Mock URLSearchParams
-const mockGet = vi.fn();
-const mockURLSearchParams = vi.fn().mockImplementation(function (this: any) {
-  this.get = mockGet;
-});
-
-Object.defineProperty(window, "URLSearchParams", {
-  value: mockURLSearchParams,
-  writable: true,
-});
-
 describe("Player", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockURLSearchParamsGet.mockReset();
   });
 
   describe("error handling", () => {
     it("shows error message when URL is invalid", async () => {
-      mockGet.mockReturnValue("invalid-url");
+      mockURLSearchParamsGet.mockReturnValue("invalid-url");
 
       render(<Player />);
 
@@ -72,7 +63,7 @@ describe("Player", () => {
     });
 
     it("shows error message when no URL provided", () => {
-      mockGet.mockReturnValue(null);
+      mockURLSearchParamsGet.mockReturnValue(null);
 
       render(<Player />);
 
@@ -81,7 +72,7 @@ describe("Player", () => {
     });
 
     it("shows retry button and allows retrying after error", async () => {
-      mockGet.mockReturnValue("invalid-url");
+      mockURLSearchParamsGet.mockReturnValue("invalid-url");
 
       render(<Player />);
 
@@ -97,7 +88,7 @@ describe("Player", () => {
 
   describe("loading states", () => {
     it("shows loading indicator for slow URLs", () => {
-      mockGet.mockReturnValue("slow-url");
+      mockURLSearchParamsGet.mockReturnValue("slow-url");
 
       render(<Player />);
 
@@ -107,7 +98,7 @@ describe("Player", () => {
     });
 
     it("shows loading indicator for audio URLs", () => {
-      mockGet.mockReturnValue("https://example.com/audio.mp3");
+      mockURLSearchParamsGet.mockReturnValue("https://example.com/audio.mp3");
 
       render(<Player />);
 
@@ -116,7 +107,7 @@ describe("Player", () => {
     });
 
     it("hides loading indicator when media loads successfully", async () => {
-      mockGet.mockReturnValue("https://example.com/video.mp4");
+      mockURLSearchParamsGet.mockReturnValue("https://example.com/video.mp4");
 
       render(<Player />);
 
@@ -135,7 +126,7 @@ describe("Player", () => {
 
   describe("iframe fallback", () => {
     it("attempts iframe fallback when react-player fails", async () => {
-      mockGet.mockReturnValue("invalid-url");
+      mockURLSearchParamsGet.mockReturnValue("invalid-url");
 
       render(<Player />);
 
@@ -152,7 +143,7 @@ describe("Player", () => {
     });
 
     it("transforms RedGifs URLs to iframe format", () => {
-      mockGet.mockReturnValue("https://redgifs.com/watch/abc123");
+      mockURLSearchParamsGet.mockReturnValue("https://redgifs.com/watch/abc123");
 
       render(<Player />);
 
@@ -164,7 +155,7 @@ describe("Player", () => {
   describe("URL display", () => {
     it("shows the problematic URL in error state", async () => {
       const testUrl = "https://invalid-domain.com/video";
-      mockGet.mockReturnValue(testUrl);
+      mockURLSearchParamsGet.mockReturnValue(testUrl);
 
       render(<Player />);
 

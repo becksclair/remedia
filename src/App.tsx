@@ -124,7 +124,7 @@ function App(): JSX.Element {
   } = useMediaList();
   const { globalProgress, globalDownloading, startDownload, cancelAllDownloads } =
     useDownloadManager(mediaList);
-  const { queueStats } = useQueueStatus();
+  const { queueStats, refreshQueueStatus } = useQueueStatus();
   const completedCount = mediaList.filter((item) => item.status === "Done").length;
   const totalCount = mediaList.length;
   const { preview } = usePreviewLauncher({
@@ -191,6 +191,38 @@ function App(): JSX.Element {
       }
     })();
   }, [tauriApi.path, outputLocation, setOutputLocation]);
+
+  /**
+   * Sync max concurrent downloads setting to backend on mount and when it changes.
+   * - Immediate sync on mount (before any downloads can start)
+   * - Debounced for subsequent changes to avoid spamming backend
+   */
+  const initialSyncDoneRef = useRef(false);
+  useEffect(() => {
+    if (!isTauriRuntime()) return;
+
+    const syncToBackend = async () => {
+      try {
+        await tauriApi.commands.setMaxConcurrentDownloads(maxConcurrent);
+        await refreshQueueStatus();
+      } catch (error) {
+        console.error("Failed to sync max concurrent downloads:", error);
+      }
+    };
+
+    // Immediate sync on mount, debounced for subsequent changes
+    if (!initialSyncDoneRef.current) {
+      initialSyncDoneRef.current = true;
+      void syncToBackend();
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      void syncToBackend();
+    }, 150);
+
+    return () => clearTimeout(timeoutId);
+  }, [tauriApi.commands, maxConcurrent, refreshQueueStatus]);
 
   /**
    * Expose test helper for E2E tests
@@ -537,7 +569,7 @@ function App(): JSX.Element {
           totalCount={totalCount}
           queuedCount={queueStats.queued}
           activeCount={queueStats.active}
-          maxConcurrent={maxConcurrent}
+          maxConcurrent={queueStats.maxConcurrent}
           onDownload={handleStartAllDownloads}
           onCancel={handleCancelAll}
           onPreview={preview}

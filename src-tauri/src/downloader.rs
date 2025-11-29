@@ -16,7 +16,8 @@ use tauri::async_runtime::spawn;
 
 use crate::download_queue::{DownloadStatus, QueuedDownload, get_queue};
 use crate::events::*;
-use crate::remote_control::broadcast_remote_event;
+use crate::redgifs::fetch_redgifs_thumbnail;
+use crate::remote_control::{broadcast_if_active, broadcast_remote_event};
 use crate::thumbnail::resolve_thumbnail;
 
 // Download Manager: Track cancellation flags for active downloads
@@ -569,15 +570,13 @@ fn extract_preview_url(v: &Value) -> Option<String> {
     None
 }
 
-/// Extract title, thumbnail, preview URL, and uploader from yt-dlp JSON output
-fn extract_media_info_from_json(json_str: &str, media_source_url: &str) -> Option<ExtractedMediaInfo> {
-    let v: Value = serde_json::from_str(json_str).ok()?;
-
+/// Extract title, thumbnail, preview URL, and uploader from an already-parsed yt-dlp JSON value
+fn extract_media_info_from_value(v: &Value, media_source_url: &str) -> Option<ExtractedMediaInfo> {
     let title =
         v.get("title").and_then(|t| t.as_str()).filter(|s| !s.is_empty()).unwrap_or(media_source_url).to_string();
 
-    let thumbnail = resolve_thumbnail(&v).unwrap_or_default();
-    let preview_url = extract_preview_url(&v).unwrap_or_default();
+    let thumbnail = resolve_thumbnail(v).unwrap_or_default();
+    let preview_url = extract_preview_url(v).unwrap_or_default();
 
     // Extract uploader/channel for folder naming (single videos)
     let uploader = v
@@ -607,6 +606,12 @@ fn extract_media_info_from_json(json_str: &str, media_source_url: &str) -> Optio
         collection_name,
         folder_slug,
     })
+}
+
+/// Extract title, thumbnail, preview URL, and uploader from yt-dlp JSON output string
+fn extract_media_info_from_json(json_str: &str, media_source_url: &str) -> Option<ExtractedMediaInfo> {
+    let v: Value = serde_json::from_str(json_str).ok()?;
+    extract_media_info_from_value(&v, media_source_url)
 }
 
 /// Check if a stderr line should be emitted to the frontend
@@ -654,47 +659,78 @@ pub async fn get_media_info(
             continue;
         }
 
-        if let Some(info) = extract_media_info_from_json(trimmed, &media_source_url) {
-            if info.thumbnail.is_empty() {
-                println!("Invalid thumbnail URL extracted from: '{}'", trimmed);
+        let v: Value = match serde_json::from_str(trimmed) {
+            Ok(v) => v,
+            Err(e) => {
+                println!("Failed to parse yt-dlp output line as JSON in get_media_info: {}: {}", e, trimmed);
+                continue;
             }
+        };
 
-            found_any = true;
-            window
-                .emit(
-                    EVT_UPDATE_MEDIA_INFO,
-                    (
-                        media_idx,
-                        media_source_url.clone(),
-                        info.title.clone(),
-                        info.thumbnail.clone(),
-                        info.preview_url.clone(),
-                        info.uploader.clone(),
-                        info.collection_id.clone(),
-                        info.collection_kind.clone(),
-                        info.collection_name.clone(),
-                        info.folder_slug.clone(),
-                    ),
-                )
-                .map_err(|e| e.to_string())?;
-            broadcast_remote_event(
+        let mut info = match extract_media_info_from_value(&v, &media_source_url) {
+            Some(info) => info,
+            None => {
+                println!("Failed to extract media info from yt-dlp JSON: {trimmed}");
+                continue;
+            }
+        };
+
+        // RedGifs-specific enhancement: if we still have no thumbnail, try the official API
+        if info.thumbnail.is_empty()
+            && v.get("extractor").and_then(|e| e.as_str()) == Some("RedGifs")
+            && let Some(id) =
+                v.get("id").and_then(|i| i.as_str()).or_else(|| v.get("display_id").and_then(|i| i.as_str()))
+        {
+            match fetch_redgifs_thumbnail(id).await {
+                Ok(Some(url)) => {
+                    info.thumbnail = url;
+                }
+                Ok(None) => {
+                    println!("RedGifs API did not return thumbnail for id {}", id);
+                }
+                Err(e) => {
+                    eprintln!("RedGifs thumbnail fetch failed for id {}: {}", id, e);
+                }
+            }
+        }
+
+        if info.thumbnail.is_empty() {
+            println!("Invalid thumbnail URL extracted from: '{}'", trimmed);
+        }
+
+        found_any = true;
+        window
+            .emit(
                 EVT_UPDATE_MEDIA_INFO,
-                serde_json::json!([
+                (
                     media_idx,
                     media_source_url.clone(),
-                    info.title,
-                    info.thumbnail,
-                    info.preview_url,
-                    info.uploader,
-                    info.collection_id,
-                    info.collection_kind,
-                    info.collection_name,
-                    info.folder_slug,
-                ]),
-            );
-        } else {
-            println!("Failed to parse yt-dlp output line as generic JSON: {trimmed}");
-        }
+                    info.title.clone(),
+                    info.thumbnail.clone(),
+                    info.preview_url.clone(),
+                    info.uploader.clone(),
+                    info.collection_id.clone(),
+                    info.collection_kind.clone(),
+                    info.collection_name.clone(),
+                    info.folder_slug.clone(),
+                ),
+            )
+            .map_err(|e| e.to_string())?;
+        broadcast_remote_event(
+            EVT_UPDATE_MEDIA_INFO,
+            serde_json::json!([
+                media_idx,
+                media_source_url.clone(),
+                info.title,
+                info.thumbnail,
+                info.preview_url,
+                info.uploader,
+                info.collection_id,
+                info.collection_kind,
+                info.collection_name,
+                info.folder_slug,
+            ]),
+        );
     }
     if !found_any {
         return Err("No valid media info found in yt-dlp output.".to_string());
@@ -728,13 +764,21 @@ pub async fn expand_playlist(_app: AppHandle, media_source_url: String) -> Resul
     parse_playlist_expansion(&output)
 }
 
-/// Process the queue and start next available download
+/// Process the queue and start downloads until capacity is reached.
+/// This loops to fill all available slots, so changing max_concurrent takes effect immediately.
 fn process_queue(window: Window) {
-    let queue = get_queue();
-    let mut queue = queue.lock().unwrap();
+    loop {
+        // Pull the next download to start, if any capacity available
+        let maybe_download = {
+            let queue = get_queue();
+            let mut queue = queue.lock().unwrap();
+            queue.next_to_start()
+        };
 
-    // Try to start next download if slots available
-    if let Some(queued_download) = queue.next_to_start() {
+        let Some(queued_download) = maybe_download else {
+            break; // No more capacity or no queued items
+        };
+
         // Deserialize settings from JSON
         let settings: DownloadSettings = match serde_json::from_str(&queued_download.settings) {
             Ok(s) => s,
@@ -744,10 +788,12 @@ fn process_queue(window: Window) {
                     eprintln!("Failed to emit download error: {}", emit_err);
                 }
                 broadcast_remote_event(EVT_DOWNLOAD_ERROR, serde_json::json!(queued_download.media_idx));
-                queue.fail(queued_download.media_idx);
-                drop(queue);
-                process_queue(window.clone());
-                return;
+                {
+                    let queue = get_queue();
+                    let mut queue = queue.lock().unwrap();
+                    queue.fail(queued_download.media_idx);
+                }
+                continue; // Try next item in queue
             }
         };
 
@@ -763,7 +809,7 @@ fn process_queue(window: Window) {
 
         // Start the download
         execute_download(
-            window,
+            window.clone(),
             queued_download.media_idx,
             queued_download.url,
             queued_download.output_location,
@@ -915,7 +961,7 @@ fn execute_download(
         if let Err(e) = window.emit(EVT_DOWNLOAD_PROGRESS, (media_idx, 0.0)) {
             eprintln!("Failed to emit initial download progress: {}", e);
         }
-        broadcast_remote_event(EVT_DOWNLOAD_PROGRESS, serde_json::json!([media_idx, 0.0]));
+        broadcast_if_active(EVT_DOWNLOAD_PROGRESS, serde_json::json!([media_idx, 0.0]));
 
         let mut cancelled = false;
         let mut stdout_done = false;
@@ -946,11 +992,11 @@ fn execute_download(
                                     if let Err(e) = window.emit(EVT_DOWNLOAD_PROGRESS, (media_idx, percent)) {
                                         eprintln!("Failed to emit download progress: {}", e);
                                     }
-                                    broadcast_remote_event(EVT_DOWNLOAD_PROGRESS, serde_json::json!([media_idx, percent]));
+                                    broadcast_if_active(EVT_DOWNLOAD_PROGRESS, serde_json::json!([media_idx, percent]));
                                     last_progress_emit = std::time::Instant::now();
                                 }
                             }
-                            broadcast_remote_event("download-raw", serde_json::json!([media_idx, "stdout", line]));
+                            broadcast_if_active("download-raw", serde_json::json!([media_idx, "stdout", line]));
                         }
                         Ok(None) => stdout_done = true,
                         Err(e) => {
@@ -976,7 +1022,7 @@ fn execute_download(
                                     eprintln!("Failed to emit download progress: {}", e);
                                 }
                                 last_progress_emit = std::time::Instant::now();
-                                broadcast_remote_event(
+                                broadcast_if_active(
                                     EVT_DOWNLOAD_PROGRESS,
                                     serde_json::json!([media_idx, percent]),
                                 );
@@ -988,9 +1034,9 @@ fn execute_download(
                                 if let Err(e) = window.emit("yt-dlp-stderr", (media_idx, line.clone())) {
                                     eprintln!("Failed to emit yt-dlp stderr: {}", e);
                                 }
-                                broadcast_remote_event("yt-dlp-stderr", serde_json::json!([media_idx, line]));
+                                broadcast_if_active("yt-dlp-stderr", serde_json::json!([media_idx, line]));
                             }
-                            broadcast_remote_event("download-raw", serde_json::json!([media_idx, "stderr", line]));
+                            broadcast_if_active("download-raw", serde_json::json!([media_idx, "stderr", line]));
                         }
                         Ok(None) => stderr_done = true,
                         Err(e) => {
@@ -1177,18 +1223,25 @@ pub fn cancel_all_downloads(window: Window) {
     }
 }
 
-/// Update the maximum number of concurrent downloads
+/// Update the maximum number of concurrent downloads.
+/// If capacity increased and there are queued items, immediately starts more downloads.
 #[tauri::command]
-pub fn set_max_concurrent_downloads(max_concurrent: usize) -> Result<(), String> {
+pub fn set_max_concurrent_downloads(window: Window, max_concurrent: usize) -> Result<(), String> {
     if max_concurrent == 0 {
         return Err("Max concurrent downloads must be at least 1".to_string());
     }
 
-    let queue = get_queue();
-    let mut queue = queue.lock().unwrap();
-    queue.set_max_concurrent(max_concurrent);
+    {
+        let queue = get_queue();
+        let mut queue = queue.lock().unwrap();
+        queue.set_max_concurrent(max_concurrent);
+    }
 
     eprintln!("Updated max concurrent downloads to {}", max_concurrent);
+
+    // Kick the queue so new capacity is used immediately
+    process_queue(window);
+
     Ok(())
 }
 

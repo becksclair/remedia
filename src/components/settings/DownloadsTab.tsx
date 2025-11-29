@@ -1,7 +1,6 @@
 import { useAtom } from "jotai";
 
 import { Separator } from "@/components/ui/separator";
-import { useTauriApi } from "@/lib/TauriApiContext";
 import {
   downloadModeAtom,
   maxConcurrentDownloadsAtom,
@@ -50,20 +49,15 @@ const MAX_FILE_SIZE_OPTIONS: SelectOption[] = [
 ];
 
 export function DownloadsTab() {
-  const tauriApi = useTauriApi();
   const [downloadMode, setDownloadMode] = useAtom(downloadModeAtom);
   const [maxConcurrentDownloads, setMaxConcurrentDownloads] = useAtom(maxConcurrentDownloadsAtom);
   const [downloadRateLimit, setDownloadRateLimit] = useAtom(downloadRateLimitAtom);
   const [maxFileSize, setMaxFileSize] = useAtom(maxFileSizeAtom);
 
-  const handleMaxConcurrentChange = async (value: string) => {
+  // Only update the atom - App.tsx effect handles backend sync with debounce
+  const handleMaxConcurrentChange = (value: string) => {
     const numValue = Number.parseInt(value, 10);
     setMaxConcurrentDownloads(numValue);
-    try {
-      await tauriApi.commands.setMaxConcurrentDownloads(numValue);
-    } catch (err) {
-      console.error("Failed to update max concurrent downloads:", err);
-    }
   };
 
   return (

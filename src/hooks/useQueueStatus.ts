@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useMemo, useRef } from "react";
 
 import { useTauriApi } from "@/lib/TauriApiContext";
 import { useTauriEvents } from "@/hooks/useTauriEvent";
@@ -16,9 +16,13 @@ const DEFAULT_STATS: QueueStats = {
   maxConcurrent: 0,
 };
 
+/** Debounce interval for queue status refresh (ms) */
+const QUEUE_STATUS_DEBOUNCE_MS = 100;
+
 export function useQueueStatus() {
   const tauriApi = useTauriApi();
   const [queueStats, setQueueStats] = useState<QueueStats>(DEFAULT_STATS);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const refreshQueueStatus = useCallback(async () => {
     try {
@@ -29,26 +33,34 @@ export function useQueueStatus() {
     }
   }, [tauriApi.commands]);
 
+  // Debounced refresh to avoid IPC storm during batch operations
+  const debouncedRefresh = useMemo(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      timeoutRef.current = setTimeout(() => {
+        void refreshQueueStatus();
+        timeoutRef.current = null;
+      }, QUEUE_STATUS_DEBOUNCE_MS);
+    };
+  }, [refreshQueueStatus]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
+
   useEffect(() => {
     void refreshQueueStatus();
   }, [refreshQueueStatus]);
 
   useTauriEvents<DownloadEventName>({
-    [TAURI_EVENT.downloadQueued]: () => {
-      void refreshQueueStatus();
-    },
-    [TAURI_EVENT.downloadStarted]: () => {
-      void refreshQueueStatus();
-    },
-    [TAURI_EVENT.downloadCancelled]: () => {
-      void refreshQueueStatus();
-    },
-    [TAURI_EVENT.downloadComplete]: () => {
-      void refreshQueueStatus();
-    },
-    [TAURI_EVENT.downloadError]: () => {
-      void refreshQueueStatus();
-    },
+    [TAURI_EVENT.downloadQueued]: debouncedRefresh,
+    [TAURI_EVENT.downloadStarted]: debouncedRefresh,
+    [TAURI_EVENT.downloadCancelled]: debouncedRefresh,
+    [TAURI_EVENT.downloadComplete]: debouncedRefresh,
+    [TAURI_EVENT.downloadError]: debouncedRefresh,
   });
 
   return { queueStats, refreshQueueStatus };

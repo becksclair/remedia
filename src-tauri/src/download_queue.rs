@@ -3,7 +3,7 @@ use once_cell::sync::Lazy;
 ///
 /// Manages concurrent downloads with a queue system.
 /// Limits the number of simultaneous downloads and queues additional requests.
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::{Arc, Mutex};
 
 /// Download status for queue management
@@ -35,6 +35,9 @@ pub struct DownloadQueue {
     /// Queue of pending downloads
     queue: VecDeque<QueuedDownload>,
 
+    /// Set of queued media indices for O(1) duplicate checking
+    queued_set: HashSet<i32>,
+
     /// Currently active downloads
     active: HashMap<i32, QueuedDownload>,
 }
@@ -45,22 +48,22 @@ impl DownloadQueue {
         Self {
             max_concurrent: max_concurrent.max(1), // At least 1
             queue: VecDeque::new(),
+            queued_set: HashSet::new(),
             active: HashMap::new(),
         }
     }
 
-    /// Add a download to the queue
+    /// Add a download to the queue (O(1) duplicate checking)
     pub fn enqueue(&mut self, download: QueuedDownload) -> Result<(), String> {
-        // Check if already queued or active
-        if self.queue.iter().any(|d| d.media_idx == download.media_idx) {
-            // Idempotent enqueue: if already queued, consider it success.
-            return Ok(());
-        }
-        if self.active.contains_key(&download.media_idx) {
-            // Already downloading; treat as success to avoid duplicate errors.
+        let idx = download.media_idx;
+
+        // O(1) check if already queued or active
+        if self.queued_set.contains(&idx) || self.active.contains_key(&idx) {
+            // Idempotent: already queued or downloading
             return Ok(());
         }
 
+        self.queued_set.insert(idx);
         self.queue.push_back(download);
         Ok(())
     }
@@ -72,6 +75,7 @@ impl DownloadQueue {
         }
 
         if let Some(mut download) = self.queue.pop_front() {
+            self.queued_set.remove(&download.media_idx);
             download.status = DownloadStatus::Downloading;
             self.active.insert(download.media_idx, download.clone());
             Some(download)
@@ -96,9 +100,11 @@ impl DownloadQueue {
 
     /// Cancel a specific download
     pub fn cancel(&mut self, media_idx: i32) -> bool {
-        // Remove from queue if queued
-        if let Some(pos) = self.queue.iter().position(|d| d.media_idx == media_idx) {
-            self.queue.remove(pos);
+        // Remove from queued_set and queue if queued
+        if self.queued_set.remove(&media_idx) {
+            if let Some(pos) = self.queue.iter().position(|d| d.media_idx == media_idx) {
+                self.queue.remove(pos);
+            }
             return true;
         }
 
@@ -119,6 +125,7 @@ impl DownloadQueue {
         while let Some(download) = self.queue.pop_front() {
             cancelled.push(download.media_idx);
         }
+        self.queued_set.clear();
 
         // Cancel all active
         for (idx, _) in self.active.drain() {

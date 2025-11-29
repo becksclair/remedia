@@ -2,13 +2,13 @@
  * useMediaList Hook
  *
  * Manages media list state and operations.
+ * Uses a single Map for O(1) lookups - Map preserves insertion order in ES6+.
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import { useSetAtom } from "jotai";
 import {
   createMediaItem,
-  urlExists,
   sanitizeFolderName,
   buildCollectionId,
   type VideoInfo,
@@ -18,35 +18,57 @@ import { useTauriApi } from "@/lib/TauriApiContext";
 import { usePlaylistContext } from "@/lib/PlaylistContext";
 import { upsertCollectionsAtom } from "@/state/collection-atoms";
 
+/** Max concurrent metadata fetches to avoid overwhelming backend */
+const METADATA_CONCURRENCY = 5;
+
 export function useMediaList() {
-  const [mediaList, setMediaList] = useState<VideoInfo[]>([]);
+  // Single Map state - preserves insertion order in ES6+
+  const [mediaMap, setMediaMap] = useState<Map<string, VideoInfo>>(new Map());
+
+  // Ref for synchronous access to current map (avoids Promise-in-setState)
+  // Updated synchronously inside setState callbacks to stay in sync
+  const mediaMapRef = useRef<Map<string, VideoInfo>>(new Map());
+
   const tauriApi = useTauriApi();
   const { expandPlaylist } = usePlaylistContext();
   const upsertCollections = useSetAtom(upsertCollectionsAtom);
+
+  // Derive array for external consumption (memoized)
+  const mediaList = useMemo(() => Array.from(mediaMap.values()), [mediaMap]);
+
+  /**
+   * Helper to find URL index in the map
+   */
+  const findUrlIndex = useCallback((targetUrl: string): number => {
+    let index = 0;
+    for (const url of mediaMapRef.current.keys()) {
+      if (url === targetUrl) return index;
+      index++;
+    }
+    return -1;
+  }, []);
 
   /**
    * Add a media URL to the list
    */
   const addMediaUrl = useCallback(
     (url: string) => {
-      const placeholderIdxPromise = new Promise<number | null>((resolve) => {
-        setMediaList((prevList) => {
-          if (urlExists(prevList, url)) {
-            console.log("URL already exists in the list");
-            resolve(null);
-            return prevList;
-          }
+      // Check if already exists using ref (synchronous)
+      if (mediaMapRef.current.has(url)) {
+        console.log("URL already exists in the list");
+        return;
+      }
 
-          const nextList = [...prevList, createMediaItem(url)];
-          resolve(nextList.length - 1);
-          return nextList;
-        });
+      // Add placeholder item and update ref synchronously
+      setMediaMap((prev) => {
+        if (prev.has(url)) return prev;
+        const next = new Map(prev);
+        next.set(url, createMediaItem(url));
+        mediaMapRef.current = next; // Keep ref in sync
+        return next;
       });
 
       void (async () => {
-        const placeholderIdx = await placeholderIdxPromise;
-        if (placeholderIdx === null) return;
-
         const expansion = await expandPlaylist(url);
 
         if (expansion.entries.length > 0) {
@@ -83,69 +105,91 @@ export function useMediaList() {
             });
           }
 
-          setMediaList((prevList) => {
-            // Remove the placeholder we inserted for the playlist URL
-            const withoutPlaceholder = prevList.filter((item) => item.url !== url);
-            const next = [...withoutPlaceholder];
-            const additions: Array<{ url: string; idx: number; title?: string }> = [];
-
-            expansion.entries.forEach((entry) => {
-              if (!entry.url || urlExists(next, entry.url)) return;
-
-              const idx = next.length;
-              additions.push({ url: entry.url, idx, title: entry.title });
-              next.push({
-                ...createMediaItem(entry.url),
-                title: entry.title ?? entry.url,
-                subfolder,
-                collectionType,
-                collectionName,
-                folderSlug,
-                collectionId,
-              });
+          // Build new items
+          const newItems: VideoInfo[] = [];
+          expansion.entries.forEach((entry) => {
+            if (!entry.url) return;
+            newItems.push({
+              ...createMediaItem(entry.url),
+              title: entry.title ?? entry.url,
+              subfolder,
+              collectionType,
+              collectionName,
+              folderSlug,
+              collectionId,
             });
+          });
 
-            queueMicrotask(() => {
-              additions.forEach(({ url: mediaSourceUrl, idx }) => {
-                void tauriApi.commands.getMediaInfo(idx, mediaSourceUrl).catch((error) =>
-                  console.warn("getMediaInfo failed; using placeholder metadata", {
-                    url: mediaSourceUrl,
-                    error,
-                  }),
-                );
-              });
-            });
+          // Pre-compute URLs to add (use ref to check for duplicates)
+          const newUrls = newItems
+            .map((item) => item.url)
+            .filter((itemUrl) => itemUrl !== url && !mediaMapRef.current.has(itemUrl));
 
+          // Single atomic state update - remove placeholder, add entries
+          setMediaMap((prev) => {
+            const next = new Map(prev);
+            next.delete(url); // Remove playlist placeholder
+
+            for (const item of newItems) {
+              if (!next.has(item.url)) {
+                next.set(item.url, item);
+              }
+            }
+
+            mediaMapRef.current = next; // Keep ref in sync
             return next;
           });
+
+          // Wait a tick for React to commit state, then fetch metadata
+          // Use setTimeout(0) to ensure state is flushed before we compute indices
+          setTimeout(async () => {
+            // Chunked metadata fetching with concurrency control
+            for (let i = 0; i < newUrls.length; i += METADATA_CONCURRENCY) {
+              const chunk = newUrls.slice(i, i + METADATA_CONCURRENCY);
+              await Promise.all(
+                chunk.map((mediaSourceUrl) => {
+                  const idx = findUrlIndex(mediaSourceUrl);
+                  if (idx < 0) return Promise.resolve();
+                  return tauriApi.commands.getMediaInfo(idx, mediaSourceUrl).catch((error) =>
+                    console.warn("getMediaInfo failed; using placeholder metadata", {
+                      url: mediaSourceUrl,
+                      error,
+                    }),
+                  );
+                }),
+              );
+            }
+          }, 0);
 
           return;
         }
 
-        void tauriApi.commands.getMediaInfo(placeholderIdx, url).catch((error) =>
-          console.warn("getMediaInfo failed; using placeholder metadata", {
-            url,
-            error,
-          }),
-        );
+        // Single video - find current index (state is now committed)
+        const currentIdx = findUrlIndex(url);
+        if (currentIdx >= 0) {
+          void tauriApi.commands.getMediaInfo(currentIdx, url).catch((error) =>
+            console.warn("getMediaInfo failed; using placeholder metadata", {
+              url,
+              error,
+            }),
+          );
+        }
       })();
     },
-    [expandPlaylist, tauriApi.commands, upsertCollections],
+    [expandPlaylist, findUrlIndex, tauriApi.commands, upsertCollections],
   );
 
   /**
-   * Update media item by merging updates
+   * Update media item by merging updates (O(1) lookup)
    */
   const updateMediaItem = useCallback((updates: Partial<VideoInfo>): void => {
     const url = updates.url;
     if (!url) return;
 
-    setMediaList((prevList) => {
-      const idx = prevList.findIndex((item) => item.url === url);
+    setMediaMap((prev) => {
+      const existing = prev.get(url);
 
-      if (idx !== -1) {
-        const existing = prevList[idx];
-        if (!existing) return prevList;
+      if (existing) {
         const merged: VideoInfo = {
           ...existing,
           ...updates,
@@ -163,11 +207,13 @@ export function useMediaList() {
           url,
           id: existing.id ?? url,
         };
-        const next = [...prevList];
-        next[idx] = merged;
+        const next = new Map(prev);
+        next.set(url, merged);
+        mediaMapRef.current = next; // Keep ref in sync
         return next;
       }
 
+      // Item doesn't exist - create new
       const defaultItem: VideoInfo = {
         id: url,
         audioOnly: false,
@@ -191,48 +237,76 @@ export function useMediaList() {
         id: defaultItem.id,
       };
 
-      return [...prevList, newItem];
-    });
-  }, []);
-
-  /**
-   * Update media item by index
-   */
-  const updateMediaItemByIndex = useCallback((index: number, updates: Partial<VideoInfo>): void => {
-    setMediaList((prev) => {
-      if (index < 0 || index >= prev.length) return prev;
-      const next = [...prev];
-      const existing = next[index];
-      if (!existing) return prev;
-      next[index] = {
-        ...existing,
-        ...updates,
-        title: updates.title ?? existing.title,
-        url: existing.url,
-      };
+      const next = new Map(prev);
+      next.set(url, newItem);
+      mediaMapRef.current = next; // Keep ref in sync
       return next;
     });
   }, []);
 
   /**
-   * Remove an item by title
+   * Update media item by index (iterates Map entries to find by position)
+   */
+  const updateMediaItemByIndex = useCallback((index: number, updates: Partial<VideoInfo>): void => {
+    setMediaMap((prev) => {
+      const entries = Array.from(prev.entries());
+      if (index < 0 || index >= entries.length) return prev;
+
+      const [url, existing] = entries[index]!;
+      const next = new Map(prev);
+      next.set(url, {
+        ...existing,
+        ...updates,
+        title: updates.title ?? existing.title,
+        url: existing.url,
+      });
+      mediaMapRef.current = next; // Keep ref in sync
+      return next;
+    });
+  }, []);
+
+  /**
+   * Remove an item by id (typically the URL)
    */
   const removeItem = useCallback((id: string) => {
-    setMediaList((prevList) => prevList.filter((item) => item.id !== id));
+    setMediaMap((prev) => {
+      const next = new Map(prev);
+      // Find and delete by id
+      for (const [url, item] of next) {
+        if (item.id === id) {
+          next.delete(url);
+          break;
+        }
+      }
+      mediaMapRef.current = next; // Keep ref in sync
+      return next;
+    });
   }, []);
 
   /**
    * Remove all items
    */
   const removeAll = useCallback(() => {
-    setMediaList([]);
+    const empty = new Map<string, VideoInfo>();
+    mediaMapRef.current = empty; // Keep ref in sync
+    setMediaMap(empty);
   }, []);
 
   /**
    * Remove items at specific indices
    */
   const removeItemsAtIndices = useCallback((indices: Set<number>) => {
-    setMediaList((prevList) => prevList.filter((_, index) => !indices.has(index)));
+    setMediaMap((prev) => {
+      const entries = Array.from(prev.entries());
+      const next = new Map<string, VideoInfo>();
+      entries.forEach(([url, item], idx) => {
+        if (!indices.has(idx)) {
+          next.set(url, item);
+        }
+      });
+      mediaMapRef.current = next; // Keep ref in sync
+      return next;
+    });
   }, []);
 
   return {

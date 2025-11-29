@@ -359,4 +359,59 @@ describe("useMediaList", () => {
       );
     });
   });
+
+  describe("performance", () => {
+    it("handles 100-item playlist within 3 seconds", async () => {
+      const start = performance.now();
+
+      // Mock expansion with 100 items
+      mockState.playlistExpansion = {
+        playlistName: "Large Playlist",
+        entries: Array.from({ length: 100 }, (_, i) => ({
+          url: `https://example.com/video${i}`,
+          title: `Video ${i}`,
+        })),
+      };
+
+      const { result } = renderHook(() => useMediaList(), { wrapper });
+
+      act(() => {
+        result.current.addMediaUrl("https://example.com/playlist");
+      });
+
+      await waitFor(() => {
+        expect(result.current.mediaList).toHaveLength(100);
+      });
+
+      const elapsed = performance.now() - start;
+      expect(elapsed).toBeLessThan(3000);
+    });
+
+    it("maintains O(1) duplicate rejection with many URLs", () => {
+      const { result } = renderHook(() => useMediaList(), { wrapper });
+
+      // Add 50 unique URLs
+      act(() => {
+        for (let i = 0; i < 50; i++) {
+          result.current.addMediaUrl(`https://example.com/video${i}`);
+        }
+      });
+
+      const start = performance.now();
+
+      // Try to add same 50 URLs again - should be O(1) per check
+      act(() => {
+        for (let i = 0; i < 50; i++) {
+          result.current.addMediaUrl(`https://example.com/video${i}`);
+        }
+      });
+
+      const elapsed = performance.now() - start;
+
+      // Should still have only 50 items (duplicates rejected)
+      expect(result.current.mediaList).toHaveLength(50);
+      // Duplicate rejection should be fast (<100ms for 50 checks)
+      expect(elapsed).toBeLessThan(100);
+    });
+  });
 });
