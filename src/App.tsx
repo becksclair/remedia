@@ -29,7 +29,7 @@ import { useQueueStatus } from "@/hooks/useQueueStatus";
 
 // State
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import { downloadLocationAtom, clipboardAutoImportAtom } from "@/state/settings-atoms";
+import { downloadLocationAtom, clipboardAutoImportAtom, maxConcurrentDownloadsAtom } from "@/state/settings-atoms";
 import { tableRowSelectionAtom, addLogEntryAtom, type LogEntry } from "@/state/app-atoms";
 
 // Utils
@@ -81,6 +81,7 @@ function App(): JSX.Element {
   // Global state
   const outputLocation = useAtomValue(downloadLocationAtom);
   const clipboardAutoImport = useAtomValue(clipboardAutoImportAtom);
+  const maxConcurrent = useAtomValue(maxConcurrentDownloadsAtom);
   const setOutputLocation = useSetAtom(downloadLocationAtom);
   const [rowSelection] = useAtom(tableRowSelectionAtom);
   const addLogEntry = useSetAtom(addLogEntryAtom);
@@ -520,7 +521,7 @@ function App(): JSX.Element {
           totalCount={totalCount}
           queuedCount={queueStats.queued}
           activeCount={queueStats.active}
-          maxConcurrent={queueStats.maxConcurrent}
+          maxConcurrent={maxConcurrent}
           onDownload={handleStartAllDownloads}
           onCancel={handleCancelAll}
           onPreview={preview}
