@@ -18,6 +18,7 @@ import {
   themeAtom,
   appendUniqueIdAtom,
   uniqueIdTypeAtom,
+  clipboardAutoImportAtom,
   type Theme,
   type UniqueIdType,
 } from "@/state/settings-atoms";
@@ -44,6 +45,7 @@ export function GeneralTab() {
   const [theme, setTheme] = useAtom(themeAtom);
   const [appendUniqueId, setAppendUniqueId] = useAtom(appendUniqueIdAtom);
   const [uniqueIdType, setUniqueIdType] = useAtom(uniqueIdTypeAtom);
+  const [clipboardAutoImport, setClipboardAutoImport] = useAtom(clipboardAutoImportAtom);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
 
   useEffect(() => {
@@ -125,6 +127,14 @@ export function GeneralTab() {
           data-testid="settings-always-on-top"
         />
       )}
+
+      <SettingsCheckbox
+        id="clipboard-auto-import"
+        label="Auto-import URL from clipboard on focus"
+        checked={clipboardAutoImport}
+        onChange={setClipboardAutoImport}
+        data-testid="settings-clipboard-auto-import"
+      />
 
       <Separator />
 

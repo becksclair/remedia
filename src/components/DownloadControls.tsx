@@ -10,6 +10,11 @@ import { Progress } from "./ui/progress";
 interface DownloadControlsProps {
   globalProgress: number;
   globalDownloading: boolean;
+  completedCount?: number;
+  totalCount?: number;
+  queuedCount?: number;
+  activeCount?: number;
+  maxConcurrent?: number;
   onDownload: () => void;
   onCancel: () => void;
   onPreview: () => void;
@@ -23,6 +28,11 @@ interface DownloadControlsProps {
 export function DownloadControls({
   globalProgress,
   globalDownloading,
+  completedCount,
+  totalCount,
+  queuedCount,
+  activeCount,
+  maxConcurrent,
   onDownload,
   onCancel,
   onPreview,
@@ -47,6 +57,19 @@ export function DownloadControls({
           className="w-full"
           aria-label={`Global download progress: ${globalProgress}%`}
         />
+        {typeof completedCount === "number" && typeof totalCount === "number" && totalCount > 0 && (
+          <p className="mt-2 text-xs text-muted-foreground" data-testid="download-stats">
+            Downloaded: {completedCount} / {totalCount}
+          </p>
+        )}
+        {typeof queuedCount === "number" && typeof activeCount === "number" && (
+          <p className="mt-1 text-xs text-muted-foreground" data-testid="queue-stats">
+            Queue: {queuedCount} queued, {activeCount} active
+            {typeof maxConcurrent === "number" && maxConcurrent > 0
+              ? ` (limit ${maxConcurrent})`
+              : null}
+          </p>
+        )}
       </div>
 
       <div className="flex justify-center gap-x-4 mb-3">

@@ -61,3 +61,5 @@ export const appendUniqueIdAtom = atomWithStorage<boolean>("appendUniqueId", tru
 // "hash" uses a short FNV-1a hash of URL (consistent 8-char format)
 export type UniqueIdType = "native" | "hash";
 export const uniqueIdTypeAtom = atomWithStorage<UniqueIdType>("uniqueIdType", "native");
+
+export const clipboardAutoImportAtom = atomWithStorage<boolean>("clipboardAutoImport", true);

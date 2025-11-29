@@ -187,5 +187,19 @@ describe("DownloadControls", () => {
       const indicator = progressBar.querySelector('[data-slot="progress-indicator"]');
       expect(indicator).toHaveStyle({ transform: "translateX(-0%)" });
     });
+
+    it("renders download stats when provided", () => {
+      renderWithProviders(
+        <DownloadControls
+          globalProgress={10}
+          globalDownloading={false}
+          completedCount={2}
+          totalCount={5}
+          {...mockHandlers}
+        />,
+      );
+
+      expect(screen.getByTestId("download-stats")).toHaveTextContent("Downloaded: 2 / 5");
+    });
   });
 });

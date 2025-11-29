@@ -1,4 +1,21 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
+import type { PlaylistEntry } from "@/types";
+
+type MockState = {
+  commandCalls: { command: string; args: unknown }[];
+  activeDownloads: Set<number>;
+  clipboardContent: string;
+  downloadDir: string;
+  isWayland: boolean;
+  notificationPermission: "granted" | "denied" | "default";
+  dialogResult: string | string[] | null;
+  pendingTimers: Set<ReturnType<typeof setTimeout>>;
+  queuedDownloads: number[];
+  maxConcurrentDownloads: number;
+  playlistEntries: PlaylistEntry[];
+  reset(): void;
+  emitEvent<T>(event: string, payload: T): void;
+};
 
 // Type declarations for Tauri globals
 declare global {
@@ -6,6 +23,7 @@ declare global {
     __TAURI__?: unknown;
     __E2E_emitTauriEvent?: (eventName: string, payload: unknown) => void;
     __E2E_addUrl?: (url: string) => void;
+    __E2E_mockState?: MockState;
   }
 }
 
@@ -23,6 +41,16 @@ async function emitTauriEvent(
   );
 }
 
+async function ensureClipboardAutoImport(page: Page, enabled: boolean) {
+  await page.getByRole("button", { name: "Settings" }).click();
+  const checkbox = page.getByRole("checkbox", { name: "Auto-import URL from clipboard on focus" });
+  const checked = await checkbox.isChecked();
+  if (checked !== enabled) {
+    await checkbox.click();
+  }
+  await page.getByRole("button", { name: "Done" }).click();
+}
+
 test.describe("ReMedia app", () => {
   test("loads main window and handles drag & drop URL", async ({ page }) => {
     await page.goto("/");
@@ -34,6 +62,51 @@ test.describe("ReMedia app", () => {
 
     // After adding, the table should show the URL as title initially
     await expect(page.getByRole("cell", { name: "daybreak.mp4" })).toBeVisible();
+  });
+
+  test("clipboard auto-import respects toggle", async ({ page }) => {
+    await page.goto("/");
+    await page.waitForFunction(() => Boolean(window.__E2E_mockState));
+
+    await ensureClipboardAutoImport(page, true);
+
+    await page.evaluate((url) => {
+      window.__E2E_mockState!.clipboardContent = url;
+    }, "https://example.com/clipboard-enabled");
+
+    await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+    await expect(
+      page.getByRole("cell", { name: "https://example.com/clipboard-enabled" }),
+    ).toBeVisible();
+
+    const tableRows = page.locator("table tbody tr");
+    await expect(tableRows).toHaveCount(1);
+
+    await ensureClipboardAutoImport(page, false);
+
+    await page.evaluate((url) => {
+      window.__E2E_mockState!.clipboardContent = url;
+    }, "https://example.com/clipboard-disabled");
+
+    const rowCount = await tableRows.count();
+    await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+    await expect(tableRows).toHaveCount(rowCount);
+  });
+
+  test("remote control add url triggers download command", async ({ page }) => {
+    await page.goto("/");
+    await page.waitForFunction(() => Boolean(window.__E2E_mockState));
+
+    const remoteUrl = "https://example.com/remote-e2e";
+    await page.evaluate((url) => window.__E2E_emitTauriEvent?.("remote-add-url", url), remoteUrl);
+
+    await expect(page.getByRole("cell", { name: remoteUrl })).toBeVisible();
+
+    await page.waitForFunction(
+      () => window.__E2E_mockState?.commandCalls.some((call) => call.command === "download_media"),
+      undefined,
+      { timeout: 5000 },
+    );
   });
 
   test("receives media info and progress events", async ({ page }) => {
@@ -466,6 +539,10 @@ test.describe("ReMedia app", () => {
     // Click Cancel button (this should trigger cancel all)
     await page.getByRole("button", { name: "Cancel" }).click();
 
+    // Simulate backend cancellation events for both rows
+    await emitTauriEvent(page, "download-cancelled", 0);
+    await emitTauriEvent(page, "download-cancelled", 1);
+
     // Both items should show "Cancelled" status
     await expect(page.getByRole("cell", { name: "Cancelled" }).first()).toBeVisible({
       timeout: 2000,
@@ -487,6 +564,9 @@ test.describe("ReMedia app", () => {
     // Right-click and select "Cancel All"
     await page.getByRole("row").filter({ hasText: "video1" }).click({ button: "right" });
     await page.getByRole("menuitem", { name: "Cancel All" }).click();
+
+    // Simulate backend cancellation event
+    await emitTauriEvent(page, "download-cancelled", 0);
 
     // Status should update to "Cancelled"
     await expect(page.getByRole("cell", { name: "Cancelled" })).toBeVisible({

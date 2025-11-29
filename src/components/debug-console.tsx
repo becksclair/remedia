@@ -4,6 +4,7 @@ import { useAtomValue, useSetAtom } from "jotai";
 import { logEntriesAtom, addLogEntryAtom } from "@/state/app-atoms";
 import { useTauriEvents } from "@/hooks/useTauriEvent";
 import type { Event } from "@tauri-apps/api/event";
+import { TAURI_EVENT } from "@/types";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { formatTimestamp } from "@/utils/media-helpers";
@@ -61,7 +62,7 @@ export function DebugConsole() {
 
   // Subscribe to Tauri events for logs
   useTauriEvents({
-    "yt-dlp-stderr": handleYtDlpStderr,
+    [TAURI_EVENT.ytDlpStderr]: handleYtDlpStderr,
   });
   const [searchTerm, setSearchTerm] = useState("");
   const [currentMatchIndex, setCurrentMatchIndex] = useState(-1);

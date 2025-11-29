@@ -12,6 +12,7 @@ import {
   downloadModeAtom,
   themeAtom,
   maxConcurrentDownloadsAtom,
+  clipboardAutoImportAtom,
 } from "@/state/settings-atoms";
 import { mockState } from "@/lib/tauri-api.mock";
 
@@ -142,6 +143,21 @@ describe("SettingsDialog", () => {
       });
 
       expect(screen.getByLabelText(/theme/i)).toHaveTextContent(/dark/i);
+    });
+  });
+
+  describe("clipboard auto import", () => {
+    it("reflects current clipboard auto-import setting", async () => {
+      const user = userEvent.setup();
+      renderWithProviders(<SettingsDialog open={true} onOpenChange={() => {}} />, {
+        initialAtomValues: [[clipboardAutoImportAtom, true]],
+      });
+
+      const checkbox = screen.getByTestId("settings-clipboard-auto-import");
+      expect(checkbox).toBeChecked();
+
+      await user.click(checkbox);
+      expect(checkbox).not.toBeChecked();
     });
   });
 

@@ -5,7 +5,7 @@
  * Now uses extracted components and hooks for better maintainability.
  */
 
-import { useEffect, useState, useMemo, useRef } from "react";
+import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import type { JSX } from "react";
 import type { Event } from "@tauri-apps/api/event";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
@@ -23,24 +23,24 @@ import { useTauriEvents } from "@/hooks/useTauriEvent";
 import { useMediaList } from "@/hooks/useMediaList";
 import { useDownloadManager } from "@/hooks/useDownloadManager";
 import { useTheme } from "@/hooks/useTheme";
+import { usePreviewLauncher } from "@/hooks/usePreviewLauncher";
+import { useRemoteControl } from "@/hooks/useRemoteControl";
+import { useQueueStatus } from "@/hooks/useQueueStatus";
 
 // State
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import { downloadLocationAtom } from "@/state/settings-atoms";
-import { tableRowSelectionAtom, addLogEntryAtom } from "@/state/app-atoms";
+import { downloadLocationAtom, clipboardAutoImportAtom } from "@/state/settings-atoms";
+import { tableRowSelectionAtom, addLogEntryAtom, type LogEntry } from "@/state/app-atoms";
 
 // Utils
 import { isValidUrl, clampProgress, getSelectedIndices } from "@/utils/media-helpers";
-import {
-  DEBUG_CONSOLE_WIDTH,
-  DEBUG_CONSOLE_HEIGHT,
-  PREVIEW_WINDOW_WIDTH,
-  PREVIEW_WINDOW_HEIGHT,
-} from "@/utils/constants";
+import { processClipboardFocus } from "@/utils/clipboard-helpers";
+import { DEBUG_CONSOLE_WIDTH, DEBUG_CONSOLE_HEIGHT } from "@/utils/constants";
 import { isTauriRuntime } from "@/utils/env";
 
 // Types
 import type { MediaInfoEvent, MediaProgressEvent } from "@/types";
+import { TAURI_EVENT } from "@/types";
 
 // Tauri API
 import { useTauriApi } from "@/lib/TauriApiContext";
@@ -73,20 +73,36 @@ function App(): JSX.Element {
     const env = (import.meta as any).env;
     return env?.ENABLE_REMOTE_HARNESS === "1";
   }, []);
-  const logAction = (...args: unknown[]) => {
-    if (harnessEnabled) console.log("[remote-action]", ...args);
-  };
 
   const [notificationPermission, setNotificationPermission] = useState(false);
   const [dragHovering, setDragHovering] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [remoteStartRequested, setRemoteStartRequested] = useState(false);
 
   // Global state
   const outputLocation = useAtomValue(downloadLocationAtom);
+  const clipboardAutoImport = useAtomValue(clipboardAutoImportAtom);
   const setOutputLocation = useSetAtom(downloadLocationAtom);
   const [rowSelection] = useAtom(tableRowSelectionAtom);
   const addLogEntry = useSetAtom(addLogEntryAtom);
+
+  const logAction = useCallback((...args: unknown[]) => {
+    if (harnessEnabled) console.log("[remote-action]", ...args);
+  }, [harnessEnabled]);
+
+  const logClipboard = useCallback(
+    (level: LogEntry["level"], message: string) => {
+      addLogEntry({
+        timestamp: Date.now(),
+        source: "app",
+        level,
+        message,
+      });
+      if (harnessEnabled) {
+        console.log(`[clipboard][${level}]`, message);
+      }
+    },
+    [addLogEntry, harnessEnabled],
+  );
 
   // Custom hooks
   const {
@@ -94,14 +110,39 @@ function App(): JSX.Element {
     addMediaUrl,
     updateMediaItem,
     updateMediaItemByIndex,
-    removeItem,
-    removeAll,
     removeItemsAtIndices,
+    removeAll,
+    removeItem,
   } = useMediaList();
-
   const { globalProgress, globalDownloading, startDownload, cancelAllDownloads } =
     useDownloadManager(mediaList);
+  const { queueStats } = useQueueStatus();
+  const completedCount = mediaList.filter((item) => item.status === "Done").length;
+  const totalCount = mediaList.length;
+  const { preview } = usePreviewLauncher({
+    mediaList,
+    rowSelection,
+    notificationPermission,
+  });
 
+  const startAllDownloadsCore = useCallback(async () => {
+    if (globalDownloading) return;
+    await startDownload();
+  }, [globalDownloading, startDownload]);
+
+  const cancelAllDownloadsCore = useCallback(async () => {
+    await cancelAllDownloads();
+  }, [cancelAllDownloads]);
+
+  useRemoteControl({
+    addMediaUrl,
+    removeAll,
+    setOutputLocation,
+    startAllDownloads: startAllDownloadsCore,
+    cancelAllDownloads: cancelAllDownloadsCore,
+    mediaListLength: mediaList.length,
+    logAction,
+  });
   /**
    * Request notification permissions
    */
@@ -147,10 +188,7 @@ function App(): JSX.Element {
    * Expose test helper for E2E tests
    */
   useEffect(() => {
-    if (
-      typeof window !== "undefined" &&
-      (process.env.NODE_ENV === "test" || process.env.NODE_ENV === "development")
-    ) {
+    if (typeof window !== "undefined") {
       window.__E2E_addUrl = (url: string) => {
         if (isValidUrl(url)) addMediaUrl(url);
       };
@@ -162,23 +200,13 @@ function App(): JSX.Element {
    * Skip if a drop just occurred (within 500ms) to avoid adding clipboard URL on drag-drop.
    */
   const handleWindowFocus = () => {
-    const timeSinceLastDrop = Date.now() - lastDropTimeRef.current;
-    if (timeSinceLastDrop < 500) {
-      console.log("Skipping clipboard check - drop just occurred");
-      return;
-    }
-
-    void (async () => {
-      try {
-        const text = await tauriApi.clipboard.readText();
-        if (isValidUrl(text)) {
-          addMediaUrl(text);
-          console.log("URL added from clipboard");
-        }
-      } catch (err) {
-        console.log("Error reading clipboard:", err);
-      }
-    })();
+    void processClipboardFocus({
+      enabled: clipboardAutoImport,
+      lastDropTimestamp: lastDropTimeRef.current,
+      readClipboardText: () => tauriApi.clipboard.readText(),
+      addMediaUrl,
+      logger: logClipboard,
+    });
   };
 
   useWindowFocus(handleWindowFocus);
@@ -220,44 +248,6 @@ function App(): JSX.Element {
    * Uses original page URL (not direct stream) to avoid CORS issues.
    * Player has fallback chain: react-player → iframe → error
    */
-  async function preview(): Promise<void> {
-    const selectedRowIndices = getSelectedIndices(rowSelection);
-
-    if (selectedRowIndices.length === 0) {
-      alert("Please select one or more items to preview");
-      return;
-    }
-
-    try {
-      for (const rowIndex of selectedRowIndices) {
-        const selectedItem = mediaList[rowIndex];
-        if (!selectedItem?.url) continue;
-
-        const previewLabel = `preview-win-${rowIndex}-${Date.now()}`;
-        const win: WebviewWindow = tauriApi.window.createWindow(previewLabel, {
-          url: `/player?url=${encodeURIComponent(selectedItem.url)}`,
-          width: PREVIEW_WINDOW_WIDTH,
-          height: PREVIEW_WINDOW_HEIGHT,
-          title: selectedItem.title ? `Preview: ${selectedItem.title}` : "ReMedia Preview",
-        });
-
-        void win.once("tauri://error", (error: unknown) => {
-          console.error("Error creating preview window:", error);
-        });
-      }
-
-      if (notificationPermission) {
-        tauriApi.notification.sendNotification({
-          body: `Loading ${selectedRowIndices.length} media preview(s)...`,
-          title: "Remedia",
-        });
-      }
-    } catch (error) {
-      console.error("Error opening preview window:", error);
-      alert(`Failed to open preview: ${String(error)}`);
-    }
-  }
-
   /**
    * Context menu handlers
    */
@@ -321,40 +311,22 @@ function App(): JSX.Element {
     }
   };
 
-  const handleCancelAll = async (): Promise<void> => {
+  const handleCancelAll = useCallback(async () => {
     logAction("cancel-all");
-    await cancelAllDownloads();
+    await cancelAllDownloadsCore();
+  }, [cancelAllDownloadsCore, logAction]);
 
-    mediaList.forEach((item, idx) => {
-      if (item.status === "Downloading" || item.status === "Pending") {
-        updateMediaItemByIndex(idx, { status: "Cancelled" });
-      }
-    });
-  };
-
-  const handleStartAllDownloads = async (): Promise<void> => {
-    if (globalDownloading) return;
+  const handleStartAllDownloads = useCallback(async () => {
     logAction("start-all", mediaList.length);
-    mediaList.forEach((item, idx) => {
-      if (item.status !== "Done") {
-        updateMediaItemByIndex(idx, { status: "Downloading", progress: 0 });
-      }
-    });
-    await startDownload();
-  };
+    await startAllDownloadsCore();
+  }, [logAction, mediaList.length, startAllDownloadsCore]);
 
   const handleDownloadSelected = async (): Promise<void> => {
     const selectedIndices = getSelectedIndices(rowSelection);
     if (selectedIndices.length === 0) return;
     logAction("download-selected", selectedIndices.length);
 
-    selectedIndices.forEach((idx) => {
-      const item = mediaList[idx];
-      if (item && item.status !== "Done") {
-        updateMediaItemByIndex(idx, { status: "Downloading", progress: 0 });
-      }
-    });
-    await startDownload();
+    await startDownload({ indices: selectedIndices });
   };
 
   const handleRetryFailed = async (): Promise<void> => {
@@ -365,10 +337,7 @@ function App(): JSX.Element {
     if (failedIndices.length === 0) return;
     logAction("retry-failed", failedIndices.length);
 
-    failedIndices.forEach((idx) => {
-      updateMediaItemByIndex(idx, { status: "Pending", progress: 0 });
-    });
-    await startDownload();
+    await startDownload({ indices: failedIndices });
   };
 
   const handleOpenInBrowser = async (): Promise<void> => {
@@ -445,39 +414,16 @@ function App(): JSX.Element {
     updateMediaItemByIndex(mediaIdx, { status: "Cancelled" });
   };
 
-  const handleRemoteAddUrl = (event: Event<string>): void => {
-    const url = event.payload;
-    if (typeof url === "string") {
-      addMediaUrl(url);
-      logAction("remote-add-url", url);
-      setRemoteStartRequested(true);
-    }
+  const handleQueued = (event: Event<number>): void => {
+    const mediaIdx = event.payload;
+    updateMediaItemByIndex(mediaIdx, { status: "Pending", progress: 0 });
   };
 
-  const handleRemoteStart = (): void => {
-    logAction("remote-start-downloads");
-    setRemoteStartRequested(true);
-    void handleStartAllDownloads();
+  const handleStarted = (event: Event<number>): void => {
+    const mediaIdx = event.payload;
+    updateMediaItemByIndex(mediaIdx, { status: "Downloading" });
   };
 
-  const handleRemoteCancel = (): void => {
-    logAction("remote-cancel-downloads");
-    void handleCancelAll();
-  };
-
-  const handleRemoteClear = (): void => {
-    logAction("remote-clear-list");
-    removeAll();
-    setRemoteStartRequested(false);
-  };
-
-  const handleRemoteSetDownloadDir = (event: Event<string>): void => {
-    const path = event.payload;
-    if (typeof path === "string" && path.trim()) {
-      logAction("remote-set-download-dir", path);
-      setOutputLocation(path);
-    }
-  };
   const handleYtDlpStderr = (event: Event<[number, string]>): void => {
     const [mediaIdx, message] = event.payload;
     console.log(`[yt-dlp stderr][media ${mediaIdx}]: ${message}`);
@@ -519,26 +465,15 @@ function App(): JSX.Element {
 
   // Subscribe to Tauri events
   useTauriEvents({
-    "update-media-info": handleMediaInfo,
-    "download-progress": handleProgress,
-    "download-complete": handleComplete,
-    "download-error": handleError,
-    "download-cancelled": handleCancelled,
-    "remote-add-url": handleRemoteAddUrl,
-    "remote-start-downloads": handleRemoteStart,
-    "remote-cancel-downloads": handleRemoteCancel,
-    "remote-clear-list": handleRemoteClear,
-    "remote-set-download-dir": handleRemoteSetDownloadDir,
-    "yt-dlp-stderr": handleYtDlpStderr,
+    [TAURI_EVENT.updateMediaInfo]: handleMediaInfo,
+    [TAURI_EVENT.downloadProgress]: handleProgress,
+    [TAURI_EVENT.downloadComplete]: handleComplete,
+    [TAURI_EVENT.downloadError]: handleError,
+    [TAURI_EVENT.downloadCancelled]: handleCancelled,
+    [TAURI_EVENT.downloadQueued]: handleQueued,
+    [TAURI_EVENT.downloadStarted]: handleStarted,
+    [TAURI_EVENT.ytDlpStderr]: handleYtDlpStderr,
   });
-
-  // Kick off pending remote start after media list materializes
-  useEffect(() => {
-    if (remoteStartRequested && mediaList.length > 0) {
-      setRemoteStartRequested(false);
-      void handleStartAllDownloads();
-    }
-  }, [remoteStartRequested, mediaList, handleStartAllDownloads]);
 
   return (
     <main
@@ -581,6 +516,11 @@ function App(): JSX.Element {
         <DownloadControls
           globalProgress={globalProgress}
           globalDownloading={globalDownloading}
+          completedCount={completedCount}
+          totalCount={totalCount}
+          queuedCount={queueStats.queued}
+          activeCount={queueStats.active}
+          maxConcurrent={queueStats.maxConcurrent}
           onDownload={handleStartAllDownloads}
           onCancel={handleCancelAll}
           onPreview={preview}
