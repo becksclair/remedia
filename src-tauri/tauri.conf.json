@@ -17,6 +17,8 @@
 				"title": "ReMedia",
 				"width": 750,
 				"height": 510,
+				"minWidth": 550,
+				"minHeight": 400,
 				"dragDropEnabled": false,
 				"decorations": true
 			}
