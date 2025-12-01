@@ -1,9 +1,4 @@
-import {
-  sanitizeFolderName,
-  buildCollectionId,
-  type VideoInfo,
-  type CollectionKind,
-} from "@/utils/media-helpers";
+import { sanitizeFolderName, type VideoInfo, type CollectionKind } from "@/utils/media-helpers";
 import type { MediaInfoEvent } from "@/types";
 
 export function mapMediaInfoEventToUpdate(payload: MediaInfoEvent): Partial<VideoInfo> {
@@ -13,32 +8,30 @@ export function mapMediaInfoEventToUpdate(payload: MediaInfoEvent): Partial<Vide
     title,
     thumbnail,
     previewUrl,
-    uploader,
+    _uploader,
     backendCollectionId,
     backendCollectionKind,
     backendCollectionName,
     backendFolderSlug,
   ] = payload;
 
-  const hasUploader = Boolean(uploader && uploader.trim().length > 0);
+  const collectionType: CollectionKind | undefined = backendCollectionKind ?? undefined;
 
-  const collectionType: CollectionKind | undefined =
-    backendCollectionKind ?? (hasUploader ? "channel" : undefined);
-
-  const collectionName = backendCollectionName ?? (hasUploader ? uploader || undefined : undefined);
+  const collectionName = backendCollectionName ?? undefined;
 
   const subfolder =
-    // Prefer explicit backend folder slug/name when available
-    backendFolderSlug ?? backendCollectionName ?? (hasUploader ? uploader || undefined : undefined);
+    // Only set subfolder for actual playlists/channels, not single videos
+    // Backend explicitly sets collection info to None for single videos
+    backendCollectionKind === "playlist" || backendCollectionKind === "channel"
+      ? (backendFolderSlug ?? backendCollectionName ?? undefined)
+      : undefined;
 
   const folderSlug =
-    backendFolderSlug ?? (collectionName ? sanitizeFolderName(collectionName) : undefined);
+    backendCollectionKind === "playlist" || backendCollectionKind === "channel"
+      ? (backendFolderSlug ?? (collectionName ? sanitizeFolderName(collectionName) : undefined))
+      : undefined;
 
-  const collectionId =
-    backendCollectionId ??
-    (collectionType && (collectionName || mediaSourceUrl)
-      ? buildCollectionId(collectionType, { name: collectionName, url: mediaSourceUrl })
-      : undefined);
+  const collectionId = backendCollectionId ?? undefined;
 
   return {
     thumbnail,

@@ -36,3 +36,4 @@ src-tauri/tests-output
 
 tmp/
 tmp-downloads/
+debug-context-menu.png

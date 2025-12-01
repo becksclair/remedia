@@ -113,6 +113,11 @@ export function createMockMediaItem(
     audioOnly: boolean;
     progress: number;
     status: "Pending" | "Downloading" | "Done" | "Error" | "Cancelled";
+    subfolder: string;
+    collectionType: "playlist" | "channel" | "single";
+    collectionName: string;
+    folderSlug: string;
+    collectionId: string;
   }>,
 ) {
   return {

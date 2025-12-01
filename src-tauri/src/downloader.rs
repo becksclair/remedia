@@ -575,7 +575,8 @@ fn extract_media_info_from_value(v: &Value, media_source_url: &str) -> Option<Ex
     let thumbnail = resolve_thumbnail(v).unwrap_or_default();
     let preview_url = extract_preview_url(v).unwrap_or_default();
 
-    // Extract uploader/channel for folder naming (single videos)
+    // Extract uploader/channel for display purposes only (not for folder naming)
+    // Collection/folder info should only be set by expand_playlist when URL is a playlist/channel
     let uploader = v
         .get("uploader")
         .or_else(|| v.get("channel"))
@@ -584,24 +585,17 @@ fn extract_media_info_from_value(v: &Value, media_source_url: &str) -> Option<Ex
         .filter(|s| !s.is_empty())
         .map(sanitize_folder_name);
 
-    let (collection_kind, collection_name, folder_slug, collection_id) = if let Some(ref name) = uploader {
-        let kind = "channel".to_string();
-        let slug = name.clone();
-        let id = format!("{}:{}", kind, name);
-        (Some(kind), Some(name.clone()), Some(slug), Some(id))
-    } else {
-        (None, None, None, None)
-    };
-
+    // Single videos should NOT have collection/folder info - they download to the configured output folder
+    // Collection info is only set by parse_playlist_expansion when the URL is detected as a playlist/channel
     Some(ExtractedMediaInfo {
         title,
         thumbnail,
         preview_url,
         uploader,
-        collection_id,
-        collection_kind,
-        collection_name,
-        folder_slug,
+        collection_id: None,
+        collection_kind: None,
+        collection_name: None,
+        folder_slug: None,
     })
 }
 
@@ -1512,7 +1506,9 @@ mod tests {
     }
 
     #[test]
-    fn test_extract_media_info_with_uploader_sets_collection_metadata() {
+    fn test_extract_media_info_with_uploader_has_no_collection_metadata() {
+        // Single videos should NOT get collection/folder metadata - only playlists/channels
+        // The uploader is extracted for display purposes, but no folder structure is created
         let json = r#"{
             "title":"Some Video",
             "uploader":"Some Channel"
@@ -1524,10 +1520,11 @@ mod tests {
 
         assert_eq!(info.title, "Some Video");
         assert_eq!(info.uploader.as_deref(), Some("Some Channel"));
-        assert_eq!(info.collection_kind.as_deref(), Some("channel"));
-        assert_eq!(info.collection_name.as_deref(), Some("Some Channel"));
-        assert_eq!(info.folder_slug.as_deref(), Some("Some Channel"));
-        assert_eq!(info.collection_id.as_deref(), Some("channel:Some Channel"));
+        // Single videos should not have collection metadata - they download to the configured output folder
+        assert!(info.collection_kind.is_none());
+        assert!(info.collection_name.is_none());
+        assert!(info.folder_slug.is_none());
+        assert!(info.collection_id.is_none());
     }
 
     #[test]

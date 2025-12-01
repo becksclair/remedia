@@ -132,6 +132,58 @@ describe("MediaTable", () => {
     });
   });
 
+  describe("Folder Label Display", () => {
+    it("does not show folder label for single videos (no subfolder)", () => {
+      const mediaList: VideoInfo[] = [
+        createMockMediaItem("https://example.com/video", {
+          title: "Single Video",
+          // No subfolder set - this is a single video, not from a playlist/channel
+        }),
+      ];
+
+      renderWithProviders(<MediaTable mediaList={mediaList} onRemoveItem={mockOnRemoveItem} />);
+
+      // Folder label should not be present
+      expect(screen.queryByText(/📁/)).not.toBeInTheDocument();
+    });
+
+    it("shows folder label for playlist/channel videos (subfolder set)", () => {
+      const mediaList: VideoInfo[] = [
+        createMockMediaItem("https://example.com/video", {
+          title: "Playlist Video",
+          subfolder: "My Playlist",
+          collectionType: "playlist",
+          collectionName: "My Playlist",
+          folderSlug: "My Playlist",
+          collectionId: "playlist:My Playlist",
+        }),
+      ];
+
+      renderWithProviders(<MediaTable mediaList={mediaList} onRemoveItem={mockOnRemoveItem} />);
+
+      // Folder label should be visible with the subfolder name
+      expect(screen.getByText(/📁 My Playlist/)).toBeInTheDocument();
+    });
+
+    it("shows folder label for channel videos", () => {
+      const mediaList: VideoInfo[] = [
+        createMockMediaItem("https://example.com/video", {
+          title: "Channel Video",
+          subfolder: "Some Channel",
+          collectionType: "channel",
+          collectionName: "Some Channel",
+          folderSlug: "Some Channel",
+          collectionId: "channel:Some Channel",
+        }),
+      ];
+
+      renderWithProviders(<MediaTable mediaList={mediaList} onRemoveItem={mockOnRemoveItem} />);
+
+      // Folder label should be visible with the channel name
+      expect(screen.getByText(/📁 Some Channel/)).toBeInTheDocument();
+    });
+  });
+
   describe("Thumbnail Display", () => {
     it("displays thumbnail when provided", () => {
       const mediaList: VideoInfo[] = [
