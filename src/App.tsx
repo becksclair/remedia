@@ -122,6 +122,11 @@ function App(): JSX.Element {
     removeAll,
     removeItem,
   } = useMediaList();
+
+  // Debug: expose mediaList on window for remote harness inspection
+  if (import.meta.env.DEV) {
+    (window as unknown as { __DEBUG_MEDIA_LIST?: typeof mediaList }).__DEBUG_MEDIA_LIST = mediaList;
+  }
   const { globalProgress, globalDownloading, startDownload, cancelAllDownloads } =
     useDownloadManager(mediaList);
   const { queueStats, refreshQueueStatus } = useQueueStatus();
@@ -424,6 +429,19 @@ function App(): JSX.Element {
     ({ payload }: Event<MediaInfoEvent>): void => {
       const updates = mapMediaInfoEventToUpdate(payload);
 
+      // Mirror media-info updates into the debug console so thumbnail decisions are visible.
+      try {
+        const [, mediaSourceUrl, title, thumbnail] = payload;
+        addLogEntry({
+          timestamp: Date.now(),
+          source: "app",
+          level: "info",
+          message: `media-info: url=${mediaSourceUrl} title=${title} thumbnail=${thumbnail}`,
+        });
+      } catch {
+        // Best-effort logging only; ignore errors
+      }
+
       if (
         updates.collectionId &&
         updates.collectionType &&
@@ -440,7 +458,7 @@ function App(): JSX.Element {
 
       updateMediaItem(updates);
     },
-    [updateMediaItem, upsertCollections],
+    [addLogEntry, updateMediaItem, upsertCollections],
   );
 
   const handleProgress = useCallback(

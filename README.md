@@ -150,7 +150,31 @@ bun run test:real-download    # Runs e2e/real-download.spec.ts with real URLs vi
 bun run test:remote            # uses ws bridge (dev builds auto-enable; set REMEDIA_REMOTE_WS=1 for release)
 # Lower-level Rust test (opt-in/CI-safe):
 cmd /C "set CARGO_TARGET_DIR=target-remote&& cargo test --manifest-path src-tauri/Cargo.toml --features remote-e2e --tests"  # works even if dev app holds the default target dir
+
+### Remote Harness Console
+
+The remote websocket harness is enabled automatically on debug builds (`bun tauri dev`) and listens on
+`ws://127.0.0.1:17814`. Use `scripts/remote-console.ts` for ad-hoc debugging or scripted automation:
+
+```bash
+# Interactive REPL (type :help for commands)
+bun scripts/remote-console.ts
+
+# Batch mode: send commands then wait for an app event
+bun scripts/remote-console.ts \
+  --cmd ":clear" \
+  --cmd ":dir C:/tmp/remedia" \
+  --cmd ":add https://www.redgifs.com/watch/fortunatejumpysunbear" \
+  --cmd ":start" \
+  --wait-event download-complete
+
+# Point to a remote instance
+bun scripts/remote-console.ts --url ws://192.168.1.42:17814
 ```
+
+Interactive shortcuts support `:add`, `:dir`, `:start`, `:cancel`, `:status`, `:js`, `:jsfile`, and `:raw <json>`.
+In batch mode pass multiple `--cmd` arguments (plain JSON or the same colon-prefixed shortcuts). Combine with
+`--wait-event <tauri-event>` to block until a specific broadcast (e.g., `download-complete`) arrives.
 
 **Test Coverage:**
 - 58+ unit tests covering utility functions

@@ -22,7 +22,6 @@ describe("Player component utilities", () => {
   });
 
   describe("media type detection", () => {
-
     it("detects audio file extensions", () => {
       expect(AUDIO_EXTENSIONS.test("file.mp3")).toBe(true);
       expect(AUDIO_EXTENSIONS.test("file.m4a")).toBe(true);
@@ -43,7 +42,6 @@ describe("Player component utilities", () => {
   });
 
   describe("RedGifs URL transformation", () => {
-
     it("transforms RedGifs watch URLs to iframe embed URLs", () => {
       const watchUrl = "https://redgifs.com/watch/abc123";
       const iframeUrl = getIframeUrl(watchUrl);

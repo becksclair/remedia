@@ -6,16 +6,14 @@ use std::env;
 use std::net::SocketAddr;
 use std::process;
 use std::sync::Arc;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::net::TcpListener;
 use tokio::sync::{Mutex, broadcast};
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::{WebSocketStream, accept_async};
+use uuid::Uuid;
 
-use tauri::AppHandle;
-use tauri::Emitter;
-use tauri::Manager;
-use tauri::async_runtime::JoinHandle;
+use tauri::{AppHandle, Emitter, Listener, Manager};
 
 use crate::downloader::{DownloadSettings, download_media, get_queue_status};
 
@@ -45,6 +43,35 @@ pub fn broadcast_if_active(event: &str, payload: Value) {
         broadcast_remote_event(event, payload);
     }
 }
+
+/// Helper: listen to a Tauri event from the main window and forward it to any
+/// connected remote clients via the REMOTE_BROADCAST channel.
+fn forward_debug_tauri_event(app: &AppHandle, source_event: &'static str, remote_event: &'static str) {
+    use tauri::Listener;
+
+    let app_for_listen = app.clone();
+    // `listen` registers a handler synchronously; we don't need to spawn a
+    // background task here, which avoids lifetime issues for the event names.
+    app_for_listen.listen(source_event, move |event| {
+        let payload = event.payload();
+        if let Ok(value) = serde_json::from_str::<Value>(payload) {
+            broadcast_remote_event(remote_event, value);
+        } else {
+            broadcast_remote_event(remote_event, json!(payload));
+        }
+    });
+}
+
+/// Tauri command to broadcast debug data from the webview to remote console.
+/// This allows JS scripts to send data back for debugging.
+#[tauri::command]
+pub fn debug_broadcast(data: String) {
+    eprintln!("[debug_broadcast] received data: {}", &data);
+    // Parse as JSON if possible, otherwise wrap as string
+    let payload: Value = serde_json::from_str(&data).unwrap_or_else(|_| json!(data));
+    eprintln!("[debug_broadcast] broadcasting debug-echo with payload");
+    broadcast_remote_event("debug-echo", payload);
+}
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct RemoteCommand {
@@ -52,6 +79,8 @@ struct RemoteCommand {
     url: Option<String>,
     path: Option<String>,
     media_idx: Option<i32>,
+    /// Arbitrary JSON data for debug commands
+    data: Option<Value>,
 }
 
 type WsStream = WebSocketStream<tokio::net::TcpStream>;
@@ -205,6 +234,15 @@ async fn handle_socket(
                     .send(Message::Text(r#"{"event":"remote-recv","payload":"status"}"#.to_string().into()))
                     .await;
             }
+            "debugEcho" => {
+                // Echo arbitrary data back as an event for debugging
+                let data = cmd.data.unwrap_or(json!(null));
+                let _ = tx
+                    .lock()
+                    .await
+                    .send(Message::Text(json!({"event": "debug-echo", "payload": data}).to_string().into()))
+                    .await;
+            }
             "runJs" => {
                 if let Some(script) = cmd.url {
                     match eval(script.as_str()) {
@@ -238,6 +276,200 @@ async fn handle_socket(
                         .await
                         .send(Message::Text(
                             r#"{"ok":false,"action":"runJs","error":"script required"}"#.to_string().into(),
+                        ))
+                        .await;
+                }
+            }
+            // Run JS and automatically broadcast window.__DEBUG_RESULT if set
+            "runJsCapture" => {
+                if let Some(script) = cmd.url {
+                    // Run the provided script
+                    let _ = eval(script.as_str());
+
+                    // Wait for async script completion
+                    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+
+                    // Read __DEBUG_RESULT and broadcast it via a callback script
+                    let broadcast_script = r#"
+                        (function() {
+                            var result = window.__DEBUG_RESULT || null;
+                            if (result) {
+                                // Clear after reading
+                                delete window.__DEBUG_RESULT;
+                                // Store in DOM for retrieval
+                                document.body.setAttribute('data-remote-debug-result', result);
+                            }
+                        })();
+                    "#;
+                    let _ = eval(broadcast_script);
+
+                    // Wait a bit more, then read the DOM attribute via another eval
+                    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+
+                    // Use a simple polling approach - have the script set a known value
+                    // Since we can't read eval results, we'll use a workaround:
+                    // The script already stored result in window.__DEBUG_RESULT
+                    // We send a response indicating the script ran
+                    let _ =
+                        tx.lock()
+                            .await
+                            .send(
+                                Message::Text(
+                                    r#"{"ok":true,"action":"runJsCapture","note":"check debug-echo for result"}"#
+                                        .to_string()
+                                        .into(),
+                                ),
+                            )
+                            .await;
+                } else {
+                    let _ = tx
+                        .lock()
+                        .await
+                        .send(Message::Text(
+                            r#"{"ok":false,"action":"runJsCapture","error":"script required"}"#.to_string().into(),
+                        ))
+                        .await;
+                }
+            }
+            // Run JS and read result from document.body.dataset.debugResult, then broadcast
+            "runJsGetResult" => {
+                if let Some(script) = cmd.url {
+                    // Execute the provided script and propagate eval errors back to the caller
+                    if let Err(e) = eval(script.as_str()) {
+                        let _ = tx
+                            .lock()
+                            .await
+                            .send(Message::Text(
+                                format!(r#"{{"ok":false,"action":"runJsGetResult","error":"eval failed: {}"}}"#, e)
+                                    .into(),
+                            ))
+                            .await;
+                        continue;
+                    }
+
+                    // Give the script a moment to complete
+                    tokio::time::sleep(Duration::from_millis(100)).await;
+
+                    // Build a unique event name using a UUID so we can listen for a one-off result
+                    let result_event_name = format!("remote-get-result-{}", Uuid::new_v4());
+
+                    // If we have an app handle, create a one-off listener for the result event
+                    if let Some(handle) = &app {
+                        let (result_tx, mut result_rx) = tokio::sync::mpsc::channel::<String>(1);
+                        let result_tx_clone = result_tx.clone();
+                        let app_for_listen = handle.clone();
+
+                        // Register a listener that forwards any payload into our mpsc channel.
+                        // The closure is synchronous but we spawn an async task to enqueue into the channel.
+                        let listener_id = app_for_listen.listen(&result_event_name, move |evt| {
+                            let payload = evt.payload().to_string();
+                            let tx = result_tx_clone.clone();
+                            tauri::async_runtime::spawn(async move {
+                                let _ = tx.send(payload).await;
+                            });
+                        });
+
+                        // Build a script that reads fallback locations, clears them, and emits the
+                        // unique event with the captured payload. This tries to be resilient
+                        // across environments and emits a JSON string if the result is an object.
+                        let followup = format!(
+                            r#"
+                            (function() {{
+                                try {{
+                                    var result = window.__REMOTE_DEBUG_LAST_RESULT || document.body.dataset.debugResult || localStorage.getItem('__debug_result') || null;
+                                    delete window.__REMOTE_DEBUG_LAST_RESULT;
+                                    try {{ delete document.body.dataset.debugResult; }} catch(e) {{}}
+                                    try {{ localStorage.removeItem('__debug_result'); }} catch(e) {{}}
+                                    var emit = window.__TAURI__ && window.__TAURI__.event && window.__TAURI__.event.emit;
+                                    try {{
+                                        if (emit) {{
+                                            // If result looks like a JSON string/object, try to parse it
+                                            var payload = result;
+                                            try {{ payload = JSON.parse(result); }} catch(e) {{ /* not JSON */ }}
+                                            emit("{event}", payload);
+                                        }} else {{
+                                            // As a fallback, set the global so it can be polled
+                                            window.__REMOTE_DEBUG_LAST_RESULT = result;
+                                        }}
+                                    }} catch(e) {{
+                                        if (emit) {{ emit("{event}", {{"__error": String(e)}}); }}
+                                    }}
+                                }} catch(e) {{
+                                    var emit = window.__TAURI__ && window.__TAURI__.event && window.__TAURI__.event.emit;
+                                    if (emit) {{ emit("{event}", {{"__error": String(e)}}); }}
+                                }}
+                            }})();
+                        "#,
+                            event = result_event_name
+                        );
+
+                        // Run the follow-up eval and propagate eval errors
+                        if let Err(e) = eval(&followup) {
+                            let _ = tx
+                                .lock()
+                                .await
+                                .send(Message::Text(
+                                    format!(r#"{{"ok":false,"action":"runJsGetResult","error":"followup eval failed: {}"}}"#, e).into(),
+                                ))
+                                .await;
+                            // Cleanup the listener
+                            handle.unlisten(listener_id);
+                            continue;
+                        }
+
+                        // Wait a short while for the listener to receive the payload
+                        match tokio::time::timeout(Duration::from_millis(2000), result_rx.recv()).await {
+                            Ok(Some(payload)) => {
+                                // Try to parse as JSON, fallback to string
+                                let value: Value = serde_json::from_str(&payload).unwrap_or_else(|_| json!(payload));
+                                let _ = tx
+                                    .lock()
+                                    .await
+                                    .send(Message::Text(
+                                        json!({"ok":true, "action":"runJsGetResult", "result": value})
+                                            .to_string()
+                                            .into(),
+                                    ))
+                                    .await;
+                            }
+                            Ok(None) => {
+                                let _ =
+                                    tx.lock()
+                                        .await
+                                        .send(Message::Text(
+                                            r#"{"ok":false,"action":"runJsGetResult","error":"no result received"}"#
+                                                .to_string()
+                                                .into(),
+                                        ))
+                                        .await;
+                            }
+                            Err(_) => {
+                                let _ = tx
+                                    .lock()
+                                    .await
+                                    .send(Message::Text(r#"{"ok":false,"action":"runJsGetResult","error":"timeout waiting for result"}"#.to_string().into()))
+                                    .await;
+                            }
+                        }
+
+                        // Always cleanup the listener
+                        handle.unlisten(listener_id);
+                    } else {
+                        // No app handle to listen for result; return an error to caller
+                        let _ = tx
+                            .lock()
+                            .await
+                            .send(Message::Text(
+                                r#"{"ok":false,"action":"runJsGetResult","error":"app handle unavailable to capture result"}"#.to_string().into(),
+                            ))
+                            .await;
+                    }
+                } else {
+                    let _ = tx
+                        .lock()
+                        .await
+                        .send(Message::Text(
+                            r#"{"ok":false,"action":"runJsGetResult","error":"script required"}"#.to_string().into(),
                         ))
                         .await;
                 }
@@ -325,7 +557,7 @@ pub fn start_remote_control_on(
     emitter: RemoteEmitter,
     eval: RemoteEval,
     app: Option<AppHandle>,
-) -> JoinHandle<()> {
+) -> tauri::async_runtime::JoinHandle<()> {
     tauri::async_runtime::spawn(async move {
         let tx_broadcast = REMOTE_BROADCAST
             .get_or_init(|| {
@@ -412,6 +644,14 @@ pub fn start_remote_control(app: AppHandle) {
             Err("main window not found".to_string())
         }
     });
+
+    // Listen for debug events from frontend and forward to WebSocket.
+    // New unified protocol: debug-snapshot with a { kind, data } payload.
+    forward_debug_tauri_event(&app, "debug-snapshot", "debug-snapshot");
+
+    // Legacy events kept for backward compatibility with older scripts.
+    forward_debug_tauri_event(&app, "debug-thumb-result", "debug-thumb-result");
+    forward_debug_tauri_event(&app, "debug-capture-result", "debug-capture-result");
 
     let addr: SocketAddr = "127.0.0.1:17814".parse().unwrap();
     start_remote_control_on(addr, emitter, eval, Some(app));

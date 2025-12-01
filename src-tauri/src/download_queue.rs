@@ -22,7 +22,7 @@ pub struct QueuedDownload {
     pub media_idx: i32,
     pub url: String,
     pub output_location: String,
-    pub settings: String, // JSON serialized settings
+    pub settings: String,          // JSON serialized settings
     pub subfolder: Option<String>, // Playlist name or channel name for folder organization
     pub status: DownloadStatus,
 }

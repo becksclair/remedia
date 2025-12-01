@@ -605,16 +605,61 @@ fn extract_media_info_from_value(v: &Value, media_source_url: &str) -> Option<Ex
     })
 }
 
-/// Extract title, thumbnail, preview URL, and uploader from yt-dlp JSON output string
-fn extract_media_info_from_json(json_str: &str, media_source_url: &str) -> Option<ExtractedMediaInfo> {
-    let v: Value = serde_json::from_str(json_str).ok()?;
-    extract_media_info_from_value(&v, media_source_url)
-}
-
 /// Check if a stderr line should be emitted to the frontend
 fn should_emit_stderr(line: &str) -> bool {
     let line_lower = line.to_lowercase();
     line_lower.contains("error") || line_lower.contains("warning") || line_lower.contains("failed")
+}
+
+/// Apply provider-specific metadata overrides on top of the generic
+/// `extract_media_info_from_value` result. This is where we plug in custom
+/// behavior for RedGifs, Twitter/X, etc.
+async fn apply_provider_overrides(
+    app: &AppHandle,
+    media_idx: i32,
+    media_source_url: &str,
+    v: &Value,
+    info: &mut ExtractedMediaInfo,
+) {
+    // RedGifs-specific enhancement: prefer the official API poster thumbnail
+    // when available. We still compute a fallback thumbnail via
+    // `resolve_thumbnail`, but override it with the API-provided poster URL
+    // on success. Log these decisions so they are visible in the debug
+    // console.
+    if v.get("extractor").and_then(|e| e.as_str()) == Some("RedGifs")
+        && let Some(id) = v.get("id").and_then(|i| i.as_str()).or_else(|| v.get("display_id").and_then(|i| i.as_str()))
+    {
+        match fetch_redgifs_thumbnail(id).await {
+            Ok(Some(url)) => {
+                append_yt_dlp_log(app, media_idx, &format!("[remedia][redgifs] using API poster thumbnail: {}", url));
+                info.thumbnail = url;
+            }
+            Ok(None) => {
+                append_yt_dlp_log(
+                    app,
+                    media_idx,
+                    &format!(
+                        "[remedia][redgifs] API did not return thumbnail for id {} (source: {})",
+                        id, media_source_url
+                    ),
+                );
+                println!("RedGifs API did not return thumbnail for id {}", id);
+            }
+            Err(e) => {
+                append_yt_dlp_log(
+                    app,
+                    media_idx,
+                    &format!(
+                        "[remedia][redgifs] thumbnail fetch failed for id {} (source: {}): {}",
+                        id, media_source_url, e
+                    ),
+                );
+                eprintln!("RedGifs thumbnail fetch failed for id {}: {}", id, e);
+            }
+        }
+    }
+
+    // Future provider-specific overrides (Twitter/X, etc.) can be added here.
 }
 
 #[tauri::command]
@@ -674,24 +719,10 @@ pub async fn get_media_info(
             }
         };
 
-        // RedGifs-specific enhancement: if we still have no thumbnail, try the official API
-        if info.thumbnail.is_empty()
-            && v.get("extractor").and_then(|e| e.as_str()) == Some("RedGifs")
-            && let Some(id) =
-                v.get("id").and_then(|i| i.as_str()).or_else(|| v.get("display_id").and_then(|i| i.as_str()))
-        {
-            match fetch_redgifs_thumbnail(id).await {
-                Ok(Some(url)) => {
-                    info.thumbnail = url;
-                }
-                Ok(None) => {
-                    println!("RedGifs API did not return thumbnail for id {}", id);
-                }
-                Err(e) => {
-                    eprintln!("RedGifs thumbnail fetch failed for id {}: {}", id, e);
-                }
-            }
-        }
+        // Apply provider-specific overrides (RedGifs, Twitter/X, etc.). This keeps
+        // `get_media_info` focused on orchestration while helpers handle
+        // provider quirks.
+        apply_provider_overrides(&app, media_idx, &media_source_url, &v, &mut info).await;
 
         if info.thumbnail.is_empty() {
             println!("Invalid thumbnail URL extracted from: '{}'", trimmed);
@@ -1430,7 +1461,18 @@ mod tests {
                 continue;
             }
 
-            if let Some(info) = extract_media_info_from_json(trimmed, url) {
+            let v: serde_json::Value = match serde_json::from_str(trimmed) {
+                Ok(v) => v,
+                Err(e) => {
+                    println!(
+                        "Failed to parse yt-dlp output line as JSON in test_redgifs_integration: {}: {}",
+                        e, trimmed
+                    );
+                    continue;
+                }
+            };
+
+            if let Some(info) = extract_media_info_from_value(&v, url) {
                 println!(
                     "Found media: Title='{}', Thumbnail='{}', PreviewUrl='{}'",
                     info.title, info.thumbnail, info.preview_url
@@ -1458,8 +1500,9 @@ mod tests {
             "formats":[{"url":"https://media.redgifs.com/UnrulyGleamingAlaskanmalamute-mobile.mp4"}]
         }"#;
 
+        let v: serde_json::Value = serde_json::from_str(json).expect("valid redgifs json");
         let source_url = "https://www.redgifs.com/watch/unrulygleamingalaskanmalamute";
-        let info = extract_media_info_from_json(json, source_url).expect("should parse redgifs json");
+        let info = extract_media_info_from_value(&v, source_url).expect("should parse redgifs json");
 
         assert!(!info.thumbnail.is_empty(), "Thumbnail should be constructed");
         assert!(info.thumbnail.contains("UnrulyGleamingAlaskanmalamute"));
@@ -1476,7 +1519,8 @@ mod tests {
         }"#;
 
         let source_url = "https://example.com/watch?v=123";
-        let info = extract_media_info_from_json(json, source_url).expect("should parse media json");
+        let v: serde_json::Value = serde_json::from_str(json).expect("valid media json");
+        let info = extract_media_info_from_value(&v, source_url).expect("should parse media json");
 
         assert_eq!(info.title, "Some Video");
         assert_eq!(info.uploader.as_deref(), Some("Some Channel"));
@@ -1493,7 +1537,8 @@ mod tests {
         }"#;
 
         let source_url = "https://example.com/video";
-        let info = extract_media_info_from_json(json, source_url).expect("should parse minimal json");
+        let v: serde_json::Value = serde_json::from_str(json).expect("valid minimal json");
+        let info = extract_media_info_from_value(&v, source_url).expect("should parse minimal json");
 
         // Title should fall back to source URL when missing in JSON
         assert_eq!(info.title, source_url);

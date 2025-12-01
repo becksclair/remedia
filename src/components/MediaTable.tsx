@@ -79,6 +79,9 @@ function createMediaColumns(onRemoveItem: (id: string) => void): ColumnDef<Video
             alt="Media thumbnail"
             src={thumbnailSrc}
             loading="lazy"
+            // Bypass CORS/referrer restrictions for external thumbnails
+            crossOrigin="anonymous"
+            referrerPolicy="no-referrer"
             onError={(event) => {
               const target = event.currentTarget;
               if (target.src !== thumbnailPlaceholder) {

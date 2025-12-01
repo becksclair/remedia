@@ -28,6 +28,7 @@
 ## 🧪 Testing Strategy in Sandbox
 
 ### What We CAN Test
+
 1. ✅ TypeScript compilation (`bun run build`)
 2. ✅ Unit tests with Vitest (utilities, components)
 3. ✅ Rust compilation (`cargo build --manifest-path=src-tauri/Cargo.toml`)
@@ -36,12 +37,14 @@
 6. ✅ Linting and formatting
 
 ### What We CANNOT Test Directly
+
 1. ❌ Actual Tauri GUI (no X11)
 2. ❌ Real yt-dlp downloads (mocked in tests)
 3. ❌ Window management (mocked)
 4. ❌ Clipboard operations (mocked)
 
 ### Solution: Dependency Injection & Mocking
+
 - Create `TauriApiContext` for dependency injection
 - Mock all Tauri commands in tests
 - Use React Testing Library for component isolation
@@ -198,6 +201,7 @@
 ## 🔧 Testing Tools & Setup
 
 ### Frontend Testing Stack
+
 ```json
 {
   "vitest": "^4.0.10",              // Unit tests
@@ -210,6 +214,7 @@
 ```
 
 ### Backend Testing Stack
+
 ```toml
 [dev-dependencies]
 mockall = "0.12"      # Mocking framework
@@ -218,6 +223,7 @@ serial_test = "3.0"   # Serial test execution
 ```
 
 ### CI/CD Tools
+
 - GitHub Actions for CI
 - Husky for pre-commit hooks
 - Codecov for coverage reporting

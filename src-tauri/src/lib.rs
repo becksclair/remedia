@@ -78,7 +78,9 @@ pub fn run() {
         remedia::set_always_on_top,
         remedia::is_wayland,
         remedia::open_preview_window,
-        quit
+        quit,
+        #[cfg(debug_assertions)]
+        remote_control::debug_broadcast
     ]);
 
     builder.run(tauri::generate_context!()).expect("error while running tauri application");

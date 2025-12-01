@@ -147,7 +147,7 @@ export function GeneralTab() {
           type="text"
           id="download-location"
           data-testid="settings-download-location"
-          data-dialog-initial-focus
+          autoFocus
           className="text-sm col-span-2"
           placeholder="Download location..."
           value={outputLocation}
