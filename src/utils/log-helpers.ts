@@ -83,9 +83,9 @@ export function splitTextForHighlight(
 export function getLogLevelClass(level: "info" | "warn" | "error"): string {
   switch (level) {
     case "error":
-      return "text-red-600";
+      return "text-red-600 dark:text-red-400";
     case "warn":
-      return "text-yellow-600";
+      return "text-yellow-600 dark:text-yellow-400";
     case "info":
     default:
       return "text-gray-700 dark:text-gray-300";

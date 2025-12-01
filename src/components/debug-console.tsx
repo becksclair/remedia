@@ -3,6 +3,7 @@ import type { JSX } from "react";
 import { useAtomValue, useSetAtom } from "jotai";
 import { logEntriesAtom, addLogEntryAtom } from "@/state/app-atoms";
 import { useTauriEvents } from "@/hooks/useTauriEvent";
+import { useTheme } from "@/hooks/useTheme";
 import type { Event } from "@tauri-apps/api/event";
 import { TAURI_EVENT } from "@/types";
 import { Button } from "./ui/button";
@@ -18,6 +19,9 @@ import {
 export function DebugConsole() {
   const logEntries = useAtomValue(logEntriesAtom);
   const addLogEntry = useSetAtom(addLogEntryAtom);
+
+  // Apply theme (needed when rendered as standalone window)
+  useTheme();
 
   // Handle yt-dlp-stderr events to populate logs
   const handleYtDlpStderr = useCallback(
@@ -125,7 +129,7 @@ export function DebugConsole() {
             }
           }}
           data-current-match={isCurrentMatch ? "true" : undefined}
-          className={`highlight ${isCurrentMatch ? "bg-yellow-300 font-bold" : "bg-yellow-100"}`}
+          className={`highlight ${isCurrentMatch ? "bg-yellow-300 dark:bg-yellow-500 font-bold" : "bg-yellow-100 dark:bg-yellow-700"}`}
         >
           {split.match}
         </span>
@@ -161,7 +165,7 @@ export function DebugConsole() {
         className="flex-1 overflow-y-auto border rounded p-4 bg-gray-50 dark:bg-gray-900 font-mono text-sm"
       >
         {logEntries.length === 0 ? (
-          <p className="text-gray-500">No log entries yet. Start a download to see logs.</p>
+          <p className="text-gray-500 dark:text-gray-400">No log entries yet. Start a download to see logs.</p>
         ) : (
           <div className="space-y-1">
             {logEntries.map((entry, index) => (
@@ -169,10 +173,10 @@ export function DebugConsole() {
                 key={`${entry.timestamp}-${index}`}
                 className={`flex gap-2 ${getLogLevelClass(entry.level)}`}
               >
-                <span className="text-gray-500 shrink-0">{formatTimestamp(entry.timestamp)}</span>
-                <span className="text-blue-600 shrink-0">[{entry.source}]</span>
+                <span className="text-gray-500 dark:text-gray-400 shrink-0">{formatTimestamp(entry.timestamp)}</span>
+                <span className="text-blue-600 dark:text-blue-400 shrink-0">[{entry.source}]</span>
                 {entry.mediaIdx !== undefined && (
-                  <span className="text-purple-600 shrink-0">[media-{entry.mediaIdx}]</span>
+                  <span className="text-purple-600 dark:text-purple-400 shrink-0">[media-{entry.mediaIdx}]</span>
                 )}
                 <span className="break-all">{highlightText(entry.message, index)}</span>
               </div>

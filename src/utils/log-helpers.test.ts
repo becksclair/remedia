@@ -185,11 +185,11 @@ describe("splitTextForHighlight", () => {
 
 describe("getLogLevelClass", () => {
   it("returns red for error level", () => {
-    expect(getLogLevelClass("error")).toBe("text-red-600");
+    expect(getLogLevelClass("error")).toBe("text-red-600 dark:text-red-400");
   });
 
   it("returns yellow for warn level", () => {
-    expect(getLogLevelClass("warn")).toBe("text-yellow-600");
+    expect(getLogLevelClass("warn")).toBe("text-yellow-600 dark:text-yellow-400");
   });
 
   it("returns gray for info level", () => {
