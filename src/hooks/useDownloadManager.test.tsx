@@ -91,7 +91,7 @@ describe("useDownloadManager", () => {
         () => {
           expect(downloadMediaSpy).toHaveBeenCalledTimes(1);
           // Should only be called for the second item (index 1, the Pending one)
-          const call = downloadMediaSpy.mock.calls[0];
+          const call = downloadMediaSpy.mock.calls[0]!;
           expect(call[0]).toBe(1); // Index 1 (second item)
           expect(call[1]).toContain("pending-video"); // URL
           expect(typeof call[2]).toBe("string"); // outputLocation
@@ -141,13 +141,13 @@ describe("useDownloadManager", () => {
       await waitFor(
         () => {
           expect(downloadMediaSpy).toHaveBeenCalledTimes(1);
-          const call = downloadMediaSpy.mock.calls[0];
+          const call = downloadMediaSpy.mock.calls[0]!;
           expect(call[0]).toBe(0); // mediaIdx
           expect(call[1]).toBe("https://example.com/video1"); // URL
           expect(typeof call[2]).toBe("string"); // outputLocation
           expect(call[3]).toBeUndefined(); // subfolder
           // Verify settings object exists and has required keys
-          const settings = call[4];
+          const settings = call[4]!;
           expect(settings).toBeDefined();
           expect("downloadMode" in settings).toBe(true);
           expect("videoQuality" in settings).toBe(true);
@@ -232,7 +232,7 @@ describe("useDownloadManager", () => {
       await waitFor(
         () => {
           expect(downloadMediaSpy).toHaveBeenCalledTimes(1);
-          const settings = downloadMediaSpy.mock.calls[0][4];
+          const settings = downloadMediaSpy.mock.calls[0]![4]!;
           expect(settings).toBeDefined();
           // Verify all required keys exist
           expect("appendUniqueId" in settings).toBe(true);

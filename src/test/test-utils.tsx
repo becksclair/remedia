@@ -154,7 +154,9 @@ export function createMockRowSelection(selectedIndices: number[]): Record<string
 }
 
 // Mapping from atoms to their localStorage keys
-const ATOM_STORAGE_KEYS: Map<unknown, string> = new Map([
+// Using any type to avoid complex generic constraints with Jotai atoms
+// biome-ignore lint/suspicious/noExplicitAny: Jotai atoms have complex generic types
+const ATOM_STORAGE_KEYS = new Map<any, string>([
   [downloadLocationAtom, "downloadLocation"],
   [downloadModeAtom, "downloadMode"],
   [videoQualityAtom, "videoQuality"],
