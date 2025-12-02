@@ -153,10 +153,25 @@ export function createMockRowSelection(selectedIndices: number[]): Record<string
   );
 }
 
+// Mapping from atoms to their localStorage keys
+const ATOM_STORAGE_KEYS: Map<unknown, string> = new Map([
+  [downloadLocationAtom, "downloadLocation"],
+  [downloadModeAtom, "downloadMode"],
+  [videoQualityAtom, "videoQuality"],
+  [maxResolutionAtom, "maxResolution"],
+  [videoFormatAtom, "videoFormat"],
+  [audioFormatAtom, "audioFormat"],
+  [audioQualityAtom, "audioQuality"],
+  [downloadRateLimitAtom, "downloadRateLimit"],
+  [maxFileSizeAtom, "maxFileSize"],
+  [appendUniqueIdAtom, "appendUniqueId"],
+  [uniqueIdTypeAtom, "uniqueIdType"],
+]);
+
 /**
  * Create a wrapper for renderHook with optional atom overrides
  * Merges DEFAULT_DOWNLOAD_SETTINGS with any overrides
- * Uses a fresh Jotai store with pre-set values to avoid atomWithStorage issues
+ * Pre-populates localStorage to ensure atomWithStorage reads correct values
  */
 export function createTestWrapper(atomOverrides: Array<readonly [any, any]> = []) {
   // Merge defaults with overrides (overrides take precedence)
@@ -173,8 +188,17 @@ export function createTestWrapper(atomOverrides: Array<readonly [any, any]> = []
     }
   }
 
-  // Create a fresh store and pre-set all atom values
-  // This avoids atomWithStorage reading from localStorage before hydration
+  // Clear localStorage and pre-populate with test values
+  // This ensures atomWithStorage reads the correct values on initialization
+  localStorage.clear();
+  for (const [atom, value] of merged) {
+    const key = ATOM_STORAGE_KEYS.get(atom);
+    if (key) {
+      localStorage.setItem(key, JSON.stringify(value));
+    }
+  }
+
+  // Create a fresh store and also set values directly
   const store = createStore();
   for (const [atom, value] of merged) {
     store.set(atom, value);
