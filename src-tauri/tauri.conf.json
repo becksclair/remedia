@@ -23,17 +23,6 @@
 				"decorations": true
 			},
 			{
-				"label": "settings",
-				"url": "/settings",
-				"title": "ReMedia Settings",
-				"visible": false,
-				"width": 600,
-				"height": 700,
-				"minWidth": 500,
-				"minHeight": 600,
-				"decorations": true
-			},
-			{
 				"label": "debug-console",
 				"url": "/debug",
 				"title": "ReMedia Debug Console",

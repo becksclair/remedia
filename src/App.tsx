@@ -15,6 +15,7 @@ import { DropZone } from "./components/drop-zone";
 import { MediaTable } from "./components/MediaTable";
 import { DownloadControls } from "./components/DownloadControls";
 import { MediaListContextMenu } from "./components/MediaListContextMenu";
+import { SettingsDialog } from "./components/settings-dialog";
 
 // Hooks
 import { useWindowFocus } from "@/hooks/use-window-focus";
@@ -32,6 +33,7 @@ import {
   downloadLocationAtom,
   clipboardAutoImportAtom,
   maxConcurrentDownloadsAtom,
+  alwaysOnTopAtom,
 } from "@/state/settings-atoms";
 import { tableRowSelectionAtom, addLogEntryAtom, type LogEntry } from "@/state/app-atoms";
 import { upsertCollectionsAtom } from "@/state/collection-atoms";
@@ -81,11 +83,13 @@ function App(): JSX.Element {
 
   const [notificationPermission, setNotificationPermission] = useState(false);
   const [dragHovering, setDragHovering] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   // Global state
   const outputLocation = useAtomValue(downloadLocationAtom);
   const clipboardAutoImport = useAtomValue(clipboardAutoImportAtom);
   const maxConcurrent = useAtomValue(maxConcurrentDownloadsAtom);
+  const alwaysOnTop = useAtomValue(alwaysOnTopAtom);
   const setOutputLocation = useSetAtom(downloadLocationAtom);
   const [rowSelection] = useAtom(tableRowSelectionAtom);
   const addLogEntry = useSetAtom(addLogEntryAtom);
@@ -337,6 +341,29 @@ function App(): JSX.Element {
   }, [tauriApi.commands, maxConcurrent, refreshQueueStatus]);
 
   /**
+   * Apply always on top setting on mount.
+   * Loads the saved value from localStorage and applies it to the window.
+   * Note: Changes via settings dialog are applied directly, so this only runs once on mount.
+   */
+  const alwaysOnTopInitializedRef = useRef(false);
+  useEffect(() => {
+    if (!isTauriRuntime()) return;
+    if (alwaysOnTopInitializedRef.current) return;
+
+    alwaysOnTopInitializedRef.current = true;
+    // Capture the current value at the time the effect runs
+    const currentAlwaysOnTop = alwaysOnTop;
+    void (async () => {
+      try {
+        await tauriApi.commands.setAlwaysOnTop(currentAlwaysOnTop);
+      } catch (error) {
+        console.error("Failed to apply always on top setting:", error);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tauriApi.commands]); // Only depend on tauriApi.commands - alwaysOnTop is captured on mount
+
+  /**
    * Expose test helper for E2E tests
    */
   useEffect(() => {
@@ -526,22 +553,8 @@ function App(): JSX.Element {
     }
   };
 
-  const handleShowSettingsWindow = async (): Promise<void> => {
-    try {
-      console.log("[Window] Creating settings window with URL: /settings");
-      const settingsWindow = await createWindowAtomic("settings", {
-        url: "/settings",
-        width: 600,
-        height: 700,
-        title: "ReMedia Settings",
-      });
-
-      await settingsWindow.show();
-      await settingsWindow.setFocus();
-      console.log("[Window] Settings window created and shown successfully");
-    } catch (error) {
-      console.error("Failed to show settings window:", error);
-    }
+  const handleShowSettingsWindow = (): void => {
+    setSettingsOpen(true);
   };
 
   /**
@@ -762,6 +775,9 @@ function App(): JSX.Element {
           onQuit={() => tauriApi.commands.quit()}
         />
       </div>
+
+      {/* Settings Dialog */}
+      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </main>
   );
 }

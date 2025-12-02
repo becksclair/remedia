@@ -4,7 +4,6 @@ import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import App from "./App";
 import Player from "@/player";
 import { DebugConsole } from "@/components/debug-console";
-import { SettingsWindow } from "@/components/settings-window";
 import { ErrorBoundary } from "@/shared/error-boundary";
 import { TauriApiProvider } from "@/lib/TauriApiContext";
 import { PlaylistProvider } from "@/lib/PlaylistContext";
@@ -77,9 +76,6 @@ const initializeRouting = async () => {
   if (windowLabel === "debug-console" || pathname === "/debug") {
     console.log("✓ Rendering DebugConsole component");
     createRoot(document.getElementById("root")!).render(renderWithApi(<DebugConsole />));
-  } else if (windowLabel === "settings" || pathname === "/settings") {
-    console.log("✓ Rendering SettingsWindow component");
-    createRoot(document.getElementById("root")!).render(renderWithApi(<SettingsWindow />));
   } else if (pathname === "/player") {
     console.log("✓ Rendering Player component");
     createRoot(document.getElementById("root")!).render(renderWithApi(<Player />));
@@ -125,8 +121,6 @@ if (isTauriRuntime()) {
     createRoot(document.getElementById("root")!).render(renderWithApi(<Player />));
   } else if (window.location.pathname === "/debug") {
     createRoot(document.getElementById("root")!).render(renderWithApi(<DebugConsole />));
-  } else if (window.location.pathname === "/settings") {
-    createRoot(document.getElementById("root")!).render(renderWithApi(<SettingsWindow />));
   } else {
     createRoot(document.getElementById("root")!).render(renderWithApi(<App />));
   }
