@@ -9,7 +9,7 @@ import type { ReactElement, ReactNode } from "react";
 import { TauriApiProvider } from "@/lib/TauriApiContext";
 import { PlaylistProvider } from "@/lib/PlaylistContext";
 import { mockTauriApi, mockState } from "@/lib/tauri-api.mock";
-import { Provider as JotaiProvider } from "jotai";
+import { Provider as JotaiProvider, createStore } from "jotai";
 import { useHydrateAtoms } from "jotai/utils";
 import {
   downloadLocationAtom,
@@ -156,6 +156,7 @@ export function createMockRowSelection(selectedIndices: number[]): Record<string
 /**
  * Create a wrapper for renderHook with optional atom overrides
  * Merges DEFAULT_DOWNLOAD_SETTINGS with any overrides
+ * Uses a fresh Jotai store with pre-set values to avoid atomWithStorage issues
  */
 export function createTestWrapper(atomOverrides: Array<readonly [any, any]> = []) {
   // Merge defaults with overrides (overrides take precedence)
@@ -172,13 +173,18 @@ export function createTestWrapper(atomOverrides: Array<readonly [any, any]> = []
     }
   }
 
+  // Create a fresh store and pre-set all atom values
+  // This avoids atomWithStorage reading from localStorage before hydration
+  const store = createStore();
+  for (const [atom, value] of merged) {
+    store.set(atom, value);
+  }
+
   return function Wrapper({ children }: { children: ReactNode }) {
     return (
-      <JotaiProvider>
+      <JotaiProvider store={store}>
         <TauriApiProvider api={mockTauriApi}>
-          <PlaylistProvider>
-            <HydrateAtoms initialValues={merged}>{children}</HydrateAtoms>
-          </PlaylistProvider>
+          <PlaylistProvider>{children}</PlaylistProvider>
         </TauriApiProvider>
       </JotaiProvider>
     );
