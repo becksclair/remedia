@@ -71,6 +71,21 @@ export interface TauriCommands {
   isWayland(): Promise<boolean>;
 
   /**
+   * Check if running on WSL (any version)
+   */
+  isWsl(): Promise<boolean>;
+
+  /**
+   * Check if running on WSL2 specifically
+   */
+  isWsl2(): Promise<boolean>;
+
+  /**
+   * Get window close behavior for WSL environments
+   */
+  getWslWindowCloseBehavior(): Promise<string>;
+
+  /**
    * Set window always-on-top behavior
    */
   setAlwaysOnTop(alwaysOnTop: boolean): Promise<void>;
@@ -243,6 +258,21 @@ class RealTauriApi implements TauriApi {
     async isWayland(): Promise<boolean> {
       const result = await tauriInvoke("is_wayland");
       return Boolean(result);
+    },
+
+    async isWsl(): Promise<boolean> {
+      const result = await tauriInvoke("is_wsl");
+      return Boolean(result);
+    },
+
+    async isWsl2(): Promise<boolean> {
+      const result = await tauriInvoke("is_wsl2");
+      return Boolean(result);
+    },
+
+    async getWslWindowCloseBehavior(): Promise<string> {
+      const result = await tauriInvoke("get_wsl_window_close_behavior");
+      return String(result);
     },
 
     async setAlwaysOnTop(alwaysOnTop: boolean): Promise<void> {

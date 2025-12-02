@@ -7,6 +7,9 @@ type MockState = {
   clipboardContent: string;
   downloadDir: string;
   isWayland: boolean;
+  isWsl: boolean | undefined;
+  isWsl2: boolean | undefined;
+  wslWindowCloseBehavior: string | undefined;
   notificationPermission: "granted" | "denied" | "default";
   dialogResult: string | string[] | null;
   pendingTimers: Set<ReturnType<typeof setTimeout>>;

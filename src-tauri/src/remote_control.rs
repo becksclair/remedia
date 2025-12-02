@@ -16,7 +16,7 @@ use uuid::Uuid;
 use tauri::{AppHandle, Emitter, Event, Listener, Manager};
 
 use crate::downloader::{DownloadSettings, download_media, get_queue_status};
-use crate::logging::{ErrorCategory, log_debug_simple, log_error_simple, log_info_simple, log_warning_simple};
+use crate::logging::{ErrorCategory, log_debug_simple, log_error_simple, log_info_simple};
 
 pub type RemoteEmitter = Arc<dyn Fn(&str, Value) + Send + Sync + 'static>;
 pub type RemoteEval = Arc<dyn Fn(&str) -> Result<(), String> + Send + Sync + 'static>;

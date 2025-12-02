@@ -20,9 +20,9 @@ function closeSettingsWindow({ onClose }: { onClose?: () => void }) {
 
   if (isTauriRuntime()) {
     Window.getCurrent()
-      .hide()
+      .close()
       .catch((err) => {
-        console.error("Failed to hide settings window:", err);
+        console.error("Failed to close settings window:", err);
       });
     return;
   }
@@ -41,6 +41,7 @@ function closeSettingsWindow({ onClose }: { onClose?: () => void }) {
 
 export function SettingsWindow({ onClose }: SettingsWindowProps) {
   useTheme();
+
   const handleClose = () => {
     closeSettingsWindow({ onClose });
   };

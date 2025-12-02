@@ -21,6 +21,28 @@
 				"minHeight": 400,
 				"dragDropEnabled": false,
 				"decorations": true
+			},
+			{
+				"label": "settings",
+				"url": "/settings",
+				"title": "ReMedia Settings",
+				"visible": false,
+				"width": 600,
+				"height": 700,
+				"minWidth": 500,
+				"minHeight": 600,
+				"decorations": true
+			},
+			{
+				"label": "debug-console",
+				"url": "/debug",
+				"title": "ReMedia Debug Console",
+				"visible": false,
+				"width": 800,
+				"height": 600,
+				"minWidth": 600,
+				"minHeight": 400,
+				"decorations": true
 			}
 		],
 		"security": {

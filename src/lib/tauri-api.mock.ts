@@ -110,6 +110,11 @@ export const mockState = {
   // Simulated Wayland state
   isWayland: false,
 
+  // Simulated WSL state
+  isWsl: undefined as boolean | undefined,
+  isWsl2: undefined as boolean | undefined,
+  wslWindowCloseBehavior: undefined as string | undefined,
+
   // Simulated notification permission
   notificationPermission: "granted" as "granted" | "denied" | "default",
 
@@ -255,6 +260,30 @@ class MockCommands implements TauriCommands {
       args: {},
     });
     return mockState.isWayland;
+  }
+
+  async isWsl(): Promise<boolean> {
+    mockState.commandCalls.push({
+      command: "is_wsl",
+      args: {},
+    });
+    return mockState.isWsl ?? false;
+  }
+
+  async isWsl2(): Promise<boolean> {
+    mockState.commandCalls.push({
+      command: "is_wsl2",
+      args: {},
+    });
+    return mockState.isWsl2 ?? false;
+  }
+
+  async getWslWindowCloseBehavior(): Promise<string> {
+    mockState.commandCalls.push({
+      command: "get_wsl_window_close_behavior",
+      args: {},
+    });
+    return mockState.wslWindowCloseBehavior ?? "native";
   }
 
   async setAlwaysOnTop(alwaysOnTop: boolean): Promise<void> {

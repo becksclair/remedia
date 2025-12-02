@@ -61,6 +61,17 @@ A cross-platform desktop media downloader built with Tauri, React, and yt-dlp. R
 - **Rust** 1.70+ (for Tauri backend)
 - **System dependencies** for Tauri (platform-specific)
 
+#### Ubuntu/Debian Dependencies
+
+For Ubuntu/Debian-based systems, install the following system dependencies:
+
+```bash
+sudo apt update
+sudo apt install libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev build-essential pkg-config patchelf xdg-utils
+```
+
+These packages provide the necessary GTK, WebKit, and system utilities required for Tauri applications on Linux.
+
 ### Installation
 
 ```bash

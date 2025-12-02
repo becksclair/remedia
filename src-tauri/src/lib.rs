@@ -77,6 +77,9 @@ pub fn run() {
         downloader::get_queue_status,
         remedia::set_always_on_top,
         remedia::is_wayland,
+        remedia::is_wsl,
+        remedia::is_wsl2,
+        remedia::get_wsl_window_close_behavior,
         remedia::open_preview_window,
         quit,
         #[cfg(debug_assertions)]

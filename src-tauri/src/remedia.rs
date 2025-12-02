@@ -77,3 +77,32 @@ pub fn open_preview_window(
     println!("Preview window opened successfully");
     Ok(())
 }
+
+#[tauri::command]
+pub fn is_wsl() -> bool {
+    is_wsl::is_wsl()
+}
+
+#[tauri::command]
+pub fn is_wsl2() -> bool {
+    // WSL2 can be detected by checking if we're in WSL and /proc/version contains "WSL2"
+    if !is_wsl::is_wsl() {
+        return false;
+    }
+    
+    match std::fs::read_to_string("/proc/version") {
+        Ok(content) => content.contains("WSL2"),
+        Err(_) => false,
+    }
+}
+
+#[tauri::command]
+pub fn get_wsl_window_close_behavior() -> String {
+    if is_wsl2() {
+        "wsl2".to_string()
+    } else if is_wsl::is_wsl() {
+        "wsl1".to_string()
+    } else {
+        "native".to_string()
+    }
+}

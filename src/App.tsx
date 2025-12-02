@@ -160,6 +160,9 @@ function App(): JSX.Element {
       // Check if window already exists
       const existing = await tauriApi.window.getWindow(label);
       if (existing) {
+        console.log(`[Window] Window '${label}' already exists, showing and focusing`);
+        await existing.show();
+        await existing.setFocus();
         return existing;
       }
 
@@ -190,17 +193,28 @@ function App(): JSX.Element {
       // Execute the actual window creation
       void (async () => {
         try {
+          console.log(`[Window] Creating window '${label}' with URL '${options.url}'`);
           const window = tauriApi.window.createWindow(label, options);
+
+          // Wait for window to be ready, then show and focus if not explicitly hidden
+          if (options.visible !== false) {
+            await window.show();
+            await window.setFocus();
+          }
+
+          console.log(`[Window] Successfully created window '${label}'`);
           resolveCreation(window);
         } catch (error) {
           // Treat "already exists" errors as success
           if (error instanceof Error && error.message.includes("already exists")) {
             const retryWindow = await tauriApi.window.getWindow(label);
             if (retryWindow) {
+              console.log(`[Window] Retrieved existing window '${label}' after creation conflict`);
               resolveCreation(retryWindow);
               return;
             }
           }
+          console.error(`[Window] Failed to create window '${label}':`, error);
           rejectCreation(error as Error);
         } finally {
           // Clean up the lock regardless of outcome
@@ -248,27 +262,9 @@ function App(): JSX.Element {
   }, [tauriApi.notification]);
 
   /**
-   * Preload the settings window in Tauri so it can be shown quickly later.
-   * The window is created hidden and only shown when the user opens settings.
-   * Uses atomic creation to prevent race conditions.
+   * Windows are created on-demand via config + programmatic approach.
+   * The debug console is preloaded for quicker access when needed.
    */
-  useEffect(() => {
-    if (!isTauriRuntime()) return;
-
-    void (async () => {
-      try {
-        await createWindowAtomic("settings", {
-          url: "/settings",
-          width: 600,
-          height: 700,
-          title: "ReMedia Settings",
-          visible: false,
-        });
-      } catch (error) {
-        console.error("Failed to preload settings window:", error);
-      }
-    })();
-  }, [createWindowAtomic]);
 
   /**
    * Preload the debug console window in Tauri so it can be shown quickly later.
@@ -514,6 +510,7 @@ function App(): JSX.Element {
 
   const handleShowDebugConsole = async (): Promise<void> => {
     try {
+      console.log("[Window] Creating debug console window with URL: /debug");
       const debugWindow = await createWindowAtomic("debug-console", {
         url: "/debug",
         width: DEBUG_CONSOLE_WIDTH,
@@ -523,13 +520,15 @@ function App(): JSX.Element {
 
       await debugWindow.show();
       await debugWindow.setFocus();
+      console.log("[Window] Debug console window created and shown successfully");
     } catch (error) {
-      console.error("Failed to open debug console:", error);
+      console.error("Failed to show debug console:", error);
     }
   };
 
   const handleShowSettingsWindow = async (): Promise<void> => {
     try {
+      console.log("[Window] Creating settings window with URL: /settings");
       const settingsWindow = await createWindowAtomic("settings", {
         url: "/settings",
         width: 600,
@@ -539,6 +538,7 @@ function App(): JSX.Element {
 
       await settingsWindow.show();
       await settingsWindow.setFocus();
+      console.log("[Window] Settings window created and shown successfully");
     } catch (error) {
       console.error("Failed to show settings window:", error);
     }

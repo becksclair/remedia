@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import type { JSX } from "react";
 import { Window } from "@tauri-apps/api/window";
 import { useAtomValue, useSetAtom } from "jotai";
@@ -76,6 +76,7 @@ export function DebugConsole() {
 
   // Subscribe to Tauri events for logs
   useTauriEvents(eventHandlers);
+
   const [searchTerm, setSearchTerm] = useState("");
   const [currentMatchIndex, setCurrentMatchIndex] = useState(-1);
   const [matches, setMatches] = useState<number[]>([]);
@@ -90,7 +91,7 @@ export function DebugConsole() {
   }, [searchTerm, logEntries]);
 
   // Scroll to current match
-  useEffect(() => {
+  useMemo(() => {
     if (matches.length > 0 && matchRefs.current[currentMatchIndex]) {
       matchRefs.current[currentMatchIndex]?.scrollIntoView({
         behavior: "smooth",
@@ -107,9 +108,9 @@ export function DebugConsole() {
   const handleClose = async () => {
     if (isTauriRuntime()) {
       try {
-        await Window.getCurrent().hide();
+        await Window.getCurrent().close();
       } catch (err) {
-        console.error("Failed to hide debug console:", err);
+        console.error("Failed to close debug console:", err);
       }
       return;
     }
