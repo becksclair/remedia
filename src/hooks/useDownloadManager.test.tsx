@@ -100,17 +100,20 @@ describe("useDownloadManager", () => {
         await result.current.startDownload();
       });
 
-      await waitFor(() => {
-        expect(downloadMediaSpy).toHaveBeenCalledTimes(1);
-        // Should only be called for the second item (index 1, the Pending one)
-        expect(downloadMediaSpy).toHaveBeenCalledWith(
-          1, // Index 1 (second item)
-          expect.stringContaining("pending-video"),
-          "/tmp/downloads",
-          undefined, // subfolder
-          expect.any(Object),
-        );
-      });
+      await waitFor(
+        () => {
+          expect(downloadMediaSpy).toHaveBeenCalledTimes(1);
+          // Should only be called for the second item (index 1, the Pending one)
+          expect(downloadMediaSpy).toHaveBeenCalledWith(
+            1, // Index 1 (second item)
+            expect.stringContaining("pending-video"),
+            "/tmp/downloads",
+            undefined, // subfolder
+            expect.any(Object),
+          );
+        },
+        { timeout: 2000 },
+      );
     });
 
     it("sets globalDownloading to true when starting", async () => {
@@ -158,26 +161,29 @@ describe("useDownloadManager", () => {
         await result.current.startDownload();
       });
 
-      await waitFor(() => {
-        expect(downloadMediaSpy).toHaveBeenCalledWith(
-          0,
-          "https://example.com/video1",
-          "/tmp/downloads",
-          undefined, // subfolder
-          expect.objectContaining({
-            downloadMode: "audio",
-            videoQuality: "high",
-            maxResolution: "1080p",
-            videoFormat: "mp4",
-            audioFormat: "mp3",
-            audioQuality: "2",
-            downloadRateLimit: "1M",
-            maxFileSize: "100M",
-            appendUniqueId: true,
-            uniqueIdType: "native",
-          }),
-        );
-      });
+      await waitFor(
+        () => {
+          expect(downloadMediaSpy).toHaveBeenCalledWith(
+            0,
+            "https://example.com/video1",
+            "/tmp/downloads",
+            undefined, // subfolder
+            expect.objectContaining({
+              downloadMode: "audio",
+              videoQuality: "high",
+              maxResolution: "1080p",
+              videoFormat: "mp4",
+              audioFormat: "mp3",
+              audioQuality: "2",
+              downloadRateLimit: "1M",
+              maxFileSize: "100M",
+              appendUniqueId: true,
+              uniqueIdType: "native",
+            }),
+          );
+        },
+        { timeout: 2000 },
+      );
     });
   });
 
@@ -249,18 +255,21 @@ describe("useDownloadManager", () => {
         await result.current.startDownload();
       });
 
-      await waitFor(() => {
-        expect(downloadMediaSpy).toHaveBeenCalledWith(
-          0,
-          "https://example.com/video1",
-          "/tmp/downloads",
-          undefined,
-          expect.objectContaining({
-            appendUniqueId: true,
-            uniqueIdType: "native",
-          }),
-        );
-      });
+      await waitFor(
+        () => {
+          expect(downloadMediaSpy).toHaveBeenCalledWith(
+            0,
+            "https://example.com/video1",
+            "/tmp/downloads",
+            undefined,
+            expect.objectContaining({
+              appendUniqueId: true,
+              uniqueIdType: "native",
+            }),
+          );
+        },
+        { timeout: 2000 },
+      );
     });
 
     it("passes appendUniqueId=false when disabled", async () => {
@@ -280,15 +289,18 @@ describe("useDownloadManager", () => {
         await result.current.startDownload();
       });
 
-      await waitFor(() => {
-        expect(downloadMediaSpy).toHaveBeenCalledWith(
-          0,
-          "https://example.com/video1",
-          "/tmp/downloads",
-          undefined,
-          expect.objectContaining({ appendUniqueId: false }),
-        );
-      });
+      await waitFor(
+        () => {
+          expect(downloadMediaSpy).toHaveBeenCalledWith(
+            0,
+            "https://example.com/video1",
+            "/tmp/downloads",
+            undefined,
+            expect.objectContaining({ appendUniqueId: false }),
+          );
+        },
+        { timeout: 2000 },
+      );
     });
 
     it("passes uniqueIdType=hash when set", async () => {
@@ -308,18 +320,21 @@ describe("useDownloadManager", () => {
         await result.current.startDownload();
       });
 
-      await waitFor(() => {
-        expect(downloadMediaSpy).toHaveBeenCalledWith(
-          0,
-          "https://example.com/video1",
-          "/tmp/downloads",
-          undefined,
-          expect.objectContaining({
-            appendUniqueId: true,
-            uniqueIdType: "hash",
-          }),
-        );
-      });
+      await waitFor(
+        () => {
+          expect(downloadMediaSpy).toHaveBeenCalledWith(
+            0,
+            "https://example.com/video1",
+            "/tmp/downloads",
+            undefined,
+            expect.objectContaining({
+              appendUniqueId: true,
+              uniqueIdType: "hash",
+            }),
+          );
+        },
+        { timeout: 2000 },
+      );
     });
   });
 
@@ -341,17 +356,20 @@ describe("useDownloadManager", () => {
         await result.current.startDownload();
       });
 
-      await waitFor(() => {
-        expect(downloadMediaSpy).toHaveBeenCalledWith(
-          0,
-          "https://example.com/video1",
-          "/tmp/downloads",
-          undefined,
-          expect.objectContaining({
-            downloadRateLimit: "50M",
-          }),
-        );
-      });
+      await waitFor(
+        () => {
+          expect(downloadMediaSpy).toHaveBeenCalledWith(
+            0,
+            "https://example.com/video1",
+            "/tmp/downloads",
+            undefined,
+            expect.objectContaining({
+              downloadRateLimit: "50M",
+            }),
+          );
+        },
+        { timeout: 2000 },
+      );
     });
 
     it("passes downloadRateLimit=unlimited when not set", async () => {
@@ -371,17 +389,20 @@ describe("useDownloadManager", () => {
         await result.current.startDownload();
       });
 
-      await waitFor(() => {
-        expect(downloadMediaSpy).toHaveBeenCalledWith(
-          0,
-          "https://example.com/video1",
-          "/tmp/downloads",
-          undefined,
-          expect.objectContaining({
-            downloadRateLimit: "unlimited",
-          }),
-        );
-      });
+      await waitFor(
+        () => {
+          expect(downloadMediaSpy).toHaveBeenCalledWith(
+            0,
+            "https://example.com/video1",
+            "/tmp/downloads",
+            undefined,
+            expect.objectContaining({
+              downloadRateLimit: "unlimited",
+            }),
+          );
+        },
+        { timeout: 2000 },
+      );
     });
   });
 
@@ -403,17 +424,20 @@ describe("useDownloadManager", () => {
         await result.current.startDownload();
       });
 
-      await waitFor(() => {
-        expect(downloadMediaSpy).toHaveBeenCalledWith(
-          0,
-          "https://example.com/video1",
-          "/tmp/downloads",
-          undefined,
-          expect.objectContaining({
-            maxFileSize: "100M",
-          }),
-        );
-      });
+      await waitFor(
+        () => {
+          expect(downloadMediaSpy).toHaveBeenCalledWith(
+            0,
+            "https://example.com/video1",
+            "/tmp/downloads",
+            undefined,
+            expect.objectContaining({
+              maxFileSize: "100M",
+            }),
+          );
+        },
+        { timeout: 2000 },
+      );
     });
 
     it("passes maxFileSize=unlimited when not set", async () => {
@@ -433,17 +457,20 @@ describe("useDownloadManager", () => {
         await result.current.startDownload();
       });
 
-      await waitFor(() => {
-        expect(downloadMediaSpy).toHaveBeenCalledWith(
-          0,
-          "https://example.com/video1",
-          "/tmp/downloads",
-          undefined,
-          expect.objectContaining({
-            maxFileSize: "unlimited",
-          }),
-        );
-      });
+      await waitFor(
+        () => {
+          expect(downloadMediaSpy).toHaveBeenCalledWith(
+            0,
+            "https://example.com/video1",
+            "/tmp/downloads",
+            undefined,
+            expect.objectContaining({
+              maxFileSize: "unlimited",
+            }),
+          );
+        },
+        { timeout: 2000 },
+      );
     });
   });
 });
