@@ -12,7 +12,21 @@ type SettingsWindowProps = {
   onClose?: () => void;
 };
 
-function closeSettingsWindow({ onClose }: { onClose?: () => void }) {
+type CloseSettingsWindowParams = {
+  onClose?: () => void;
+};
+
+/**
+ * Closes the settings window based on the runtime environment.
+ * 
+ * Priority order:
+ * 1. Calls onClose callback if provided
+ * 2. In Tauri runtime: closes the current window
+ * 3. In web runtime: navigates away from /settings or attempts to close the window
+ * 
+ * @param params - Configuration object containing optional onClose callback
+ */
+function closeSettingsWindow({ onClose }: CloseSettingsWindowParams): void {
   if (onClose) {
     onClose();
     return;
@@ -27,7 +41,12 @@ function closeSettingsWindow({ onClose }: { onClose?: () => void }) {
     return;
   }
 
-  if (typeof window !== "undefined") {
+  // Web runtime fallback
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
     if (window.location.pathname === "/settings") {
       window.location.assign("/");
       return;
@@ -36,6 +55,8 @@ function closeSettingsWindow({ onClose }: { onClose?: () => void }) {
     if (typeof window.close === "function") {
       window.close();
     }
+  } catch (err) {
+    console.error("Failed to close settings window:", err);
   }
 }
 
@@ -48,7 +69,7 @@ export function SettingsWindow({ onClose }: SettingsWindowProps) {
 
   return (
     <div className="container mx-auto p-6 max-w-4xl h-screen flex flex-col">
-      <div className="flex items-center justify-between mb-6">
+      <header className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold">Settings</h1>
           <p className="text-muted-foreground">
@@ -63,7 +84,7 @@ export function SettingsWindow({ onClose }: SettingsWindowProps) {
         >
           <X className="h-4 w-4" />
         </Button>
-      </div>
+      </header>
 
       <Tabs defaultValue="general" className="flex-1 flex flex-col">
         <TabsList className="grid w-full grid-cols-3">

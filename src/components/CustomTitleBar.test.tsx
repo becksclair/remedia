@@ -6,14 +6,16 @@ import { CustomTitleBar } from "./CustomTitleBar";
 const mockGetWslWindowCloseBehavior = vi.fn();
 const mockQuit = vi.fn();
 
-vi.mock("@/lib/tauri-api", () => ({
-  tauriApi: {
-    commands: {
-      getWslWindowCloseBehavior: mockGetWslWindowCloseBehavior,
-      quit: mockQuit,
+void vi.mock("@/lib/tauri-api", () => {
+  return {
+    tauriApi: {
+      commands: {
+        getWslWindowCloseBehavior: mockGetWslWindowCloseBehavior,
+        quit: mockQuit,
+      },
     },
-  },
-}));
+  };
+});
 
 // Mock the Window API
 const mockWindow = {
@@ -22,7 +24,7 @@ const mockWindow = {
   close: vi.fn(),
 };
 
-vi.mock("@tauri-apps/api/window", () => ({
+void vi.mock("@tauri-apps/api/window", () => ({
   Window: {
     getCurrent: vi.fn(() => mockWindow),
   },
@@ -76,7 +78,9 @@ describe("CustomTitleBar WSL2 Window Closing", () => {
     fireEvent.click(closeButton);
 
     // Should call window.close for native environments
-    expect(mockWindow.close).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(mockWindow.close).toHaveBeenCalled();
+    });
     expect(mockQuit).not.toHaveBeenCalled();
   });
 
@@ -96,14 +100,16 @@ describe("CustomTitleBar WSL2 Window Closing", () => {
     fireEvent.click(closeButton);
 
     // Should call window.close for WSL1 environments
-    expect(mockWindow.close).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(mockWindow.close).toHaveBeenCalled();
+    });
     expect(mockQuit).not.toHaveBeenCalled();
   });
 
   it("should fallback to window.close if quit fails in WSL2", async () => {
     // Mock WSL2 detection
     mockGetWslWindowCloseBehavior.mockResolvedValue("wsl2");
-    
+
     // Mock quit failure
     mockQuit.mockRejectedValue(new Error("Quit failed"));
 
@@ -125,11 +131,9 @@ describe("CustomTitleBar WSL2 Window Closing", () => {
     });
   });
 
-  it("should handle WSL detection errors gracefully", async () => {
+  it("should keep close button disabled when WSL detection fails", async () => {
     // Mock WSL detection failure
-    mockGetWslWindowCloseBehavior.mockRejectedValue(
-      new Error("Detection failed")
-    );
+    mockGetWslWindowCloseBehavior.mockRejectedValue(new Error("Detection failed"));
 
     const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
@@ -139,16 +143,20 @@ describe("CustomTitleBar WSL2 Window Closing", () => {
     await waitFor(() => {
       expect(consoleSpy).toHaveBeenCalledWith(
         "Failed to detect WSL environment:",
-        expect.any(Error)
+        expect.any(Error),
       );
     });
 
-    // Find and click the close button - should default to window.close
-    const closeButton = screen.getByTitle("Close");
+    // Find the close button - should be disabled when WSL detection fails
+    const closeButton = screen.getByTitle("Initializing...");
+    expect(closeButton).toBeDisabled();
+    expect(closeButton).toHaveAttribute("aria-label", "Initializing, please wait...");
+
+    // Clicking the disabled button should not trigger any close behavior
     fireEvent.click(closeButton);
 
-    // Should use window.close as fallback
-    expect(mockWindow.close).toHaveBeenCalled();
+    // Should NOT call window.close or quit since button is disabled
+    expect(mockWindow.close).not.toHaveBeenCalled();
     expect(mockQuit).not.toHaveBeenCalled();
 
     consoleSpy.mockRestore();
@@ -159,6 +167,11 @@ describe("CustomTitleBar WSL2 Window Closing", () => {
 
     render(<CustomTitleBar />);
 
+    // Wait for WSL detection to complete
+    await waitFor(() => {
+      expect(mockGetWslWindowCloseBehavior).toHaveBeenCalled();
+    });
+
     // Check for proper ARIA labels
     expect(screen.getByLabelText("Minimize window")).toBeInTheDocument();
     expect(screen.getByLabelText("Toggle maximize window")).toBeInTheDocument();
@@ -168,5 +181,35 @@ describe("CustomTitleBar WSL2 Window Closing", () => {
     expect(screen.getByTitle("Minimize")).toBeInTheDocument();
     expect(screen.getByTitle("Maximize")).toBeInTheDocument();
     expect(screen.getByTitle("Close")).toBeInTheDocument();
+  });
+
+  it("should call minimize when minimize button is clicked", async () => {
+    mockGetWslWindowCloseBehavior.mockResolvedValue("native");
+
+    render(<CustomTitleBar />);
+
+    await waitFor(() => {
+      expect(mockGetWslWindowCloseBehavior).toHaveBeenCalled();
+    });
+
+    const minimizeButton = screen.getByTitle("Minimize");
+    fireEvent.click(minimizeButton);
+
+    expect(mockWindow.minimize).toHaveBeenCalled();
+  });
+
+  it("should call toggleMaximize when maximize button is clicked", async () => {
+    mockGetWslWindowCloseBehavior.mockResolvedValue("native");
+
+    render(<CustomTitleBar />);
+
+    await waitFor(() => {
+      expect(mockGetWslWindowCloseBehavior).toHaveBeenCalled();
+    });
+
+    const maximizeButton = screen.getByTitle("Maximize");
+    fireEvent.click(maximizeButton);
+
+    expect(mockWindow.toggleMaximize).toHaveBeenCalled();
   });
 });
