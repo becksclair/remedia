@@ -34,7 +34,7 @@ jobs:
           workspaces: "./src-tauri -> target"
 
       - name: Install Bun
-        uses: oven-sh/setup-bun@v1
+        uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 
@@ -42,13 +42,16 @@ jobs:
         run: bun install
 
       - name: Run frontend tests
-        run: bun run test:run
+        run: bun run test
 
       - name: Run backend tests
         run: cargo test --manifest-path src-tauri/Cargo.toml
 
       - name: Run linting
         run: bun run lint
+
+      - name: Check formatting
+        run: bun run fmt:check
 
       - name: Build check
         run: bun run build
@@ -79,14 +82,8 @@ jobs:
         with:
           workspaces: "./src-tauri -> target"
 
-      - name: Sync node version and setup cache
-        uses: actions/setup-node@v4
-        with:
-          node-version: "lts/*"
-          cache: "npm"
-
       - name: Install Bun
-        uses: oven-sh/setup-bun@v1
+        uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 

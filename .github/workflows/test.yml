@@ -28,7 +28,7 @@ jobs:
                   workspaces: "./src-tauri -> target"
 
             - name: Install Bun
-              uses: oven-sh/setup-bun@v1
+              uses: oven-sh/setup-bun@v2
               with:
                   bun-version: latest
 
@@ -36,7 +36,7 @@ jobs:
               run: bun install
 
             - name: Run frontend tests
-              run: bun run test:run
+              run: bun run test
 
             - name: Run backend tests
               run: cargo test --manifest-path src-tauri/Cargo.toml
@@ -45,7 +45,7 @@ jobs:
               run: bun run lint
 
             - name: Check formatting
-              run: bun run fmt
+              run: bun run fmt:check
 
             - name: Build check
               run: bun run build
