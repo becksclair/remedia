@@ -1,6 +1,12 @@
 /**
  * Global test setup to ensure clean state across all test files
- * This should be imported in test files that use Jotai atoms
+ *
+ * Usage:
+ * - Import: `import { setupGlobalTestCleanup } from "@/test/global-setup"`
+ * - Use `setupGlobalTestCleanup()` in beforeAll hooks for one-time setup
+ * - Use `setupGlobalTestCleanup()` in beforeEach hooks for per-test cleanup
+ *
+ * This file exports a single cleanup function that can be used in test files
  */
 
 import { vi } from "bun:test";
@@ -16,6 +22,3 @@ export function setupGlobalTestCleanup() {
   vi.clearAllMocks();
   vi.restoreAllMocks();
 }
-
-// Run cleanup before each test file
-setupGlobalTestCleanup();

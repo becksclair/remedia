@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import type { JSX } from "react";
+import { Window } from "@tauri-apps/api/window";
 import { useAtomValue, useSetAtom } from "jotai";
 import { logEntriesAtom, addLogEntryAtom } from "@/state/app-atoms";
 import { useTauriEvents } from "@/hooks/useTauriEvent";
@@ -15,6 +16,7 @@ import {
   splitTextForHighlight,
   getLogLevelClass,
 } from "@/utils/log-helpers";
+import { isTauriRuntime } from "@/utils/env";
 
 export function DebugConsole() {
   const logEntries = useAtomValue(logEntriesAtom);
@@ -102,6 +104,21 @@ export function DebugConsole() {
     setCurrentMatchIndex((prev) => (prev === -1 ? 0 : getNextMatchIndex(prev, matches.length)));
   };
 
+  const handleClose = async () => {
+    if (isTauriRuntime()) {
+      try {
+        await Window.getCurrent().hide();
+      } catch (err) {
+        console.error("Failed to hide debug console:", err);
+      }
+      return;
+    }
+
+    if (typeof window !== "undefined" && typeof window.close === "function") {
+      window.close();
+    }
+  };
+
   const highlightText = (text: string, entryIndex: number): JSX.Element => {
     if (!searchTerm || !matches.includes(entryIndex)) {
       return <span>{text}</span>;
@@ -140,7 +157,7 @@ export function DebugConsole() {
 
   return (
     <div className="flex flex-col h-screen p-4 gap-4">
-      <div className="flex gap-2">
+      <div className="flex gap-2 items-center">
         <Input
           type="text"
           placeholder="Search logs..."
@@ -154,6 +171,9 @@ export function DebugConsole() {
             currentMatchIndex >= 0 &&
             ` (${currentMatchIndex + 1}/${matches.length})`}
         </Button>
+        <Button variant="outline" size="sm" onClick={handleClose} data-testid="debug-console-close">
+          Close
+        </Button>
       </div>
 
       <div
@@ -165,7 +185,9 @@ export function DebugConsole() {
         className="flex-1 overflow-y-auto border rounded p-4 bg-gray-50 dark:bg-gray-900 font-mono text-sm"
       >
         {logEntries.length === 0 ? (
-          <p className="text-gray-500 dark:text-gray-400">No log entries yet. Start a download to see logs.</p>
+          <p className="text-gray-500 dark:text-gray-400">
+            No log entries yet. Start a download to see logs.
+          </p>
         ) : (
           <div className="space-y-1">
             {logEntries.map((entry, index) => (
@@ -173,10 +195,14 @@ export function DebugConsole() {
                 key={`${entry.timestamp}-${index}`}
                 className={`flex gap-2 ${getLogLevelClass(entry.level)}`}
               >
-                <span className="text-gray-500 dark:text-gray-400 shrink-0">{formatTimestamp(entry.timestamp)}</span>
+                <span className="text-gray-500 dark:text-gray-400 shrink-0">
+                  {formatTimestamp(entry.timestamp)}
+                </span>
                 <span className="text-blue-600 dark:text-blue-400 shrink-0">[{entry.source}]</span>
                 {entry.mediaIdx !== undefined && (
-                  <span className="text-purple-600 dark:text-purple-400 shrink-0">[media-{entry.mediaIdx}]</span>
+                  <span className="text-purple-600 dark:text-purple-400 shrink-0">
+                    [media-{entry.mediaIdx}]
+                  </span>
                 )}
                 <span className="break-all">{highlightText(entry.message, index)}</span>
               </div>

@@ -11,11 +11,13 @@ import { createElement, useEffect } from "react";
 
 import { usePreviewLauncher } from "./usePreviewLauncher";
 
+type PreviewHandler = () => Promise<void>;
+
 type PreviewHarnessProps = {
   mediaList: ReturnType<typeof createMockMediaItem>[];
   rowSelection: Record<string, boolean>;
   notificationPermission: boolean;
-  onReady: (preview: () => Promise<void>) => void;
+  onReady: (preview: PreviewHandler) => void;
 };
 
 function PreviewHarness({
@@ -33,8 +35,10 @@ function PreviewHarness({
   return null;
 }
 
-async function setupPreview(options: Omit<PreviewHarnessProps, "onReady">) {
-  const ready = mock(() => {});
+async function setupPreview(
+  options: Omit<PreviewHarnessProps, "onReady">,
+): Promise<PreviewHandler> {
+  const ready = mock<(preview: PreviewHandler) => void>(() => {});
 
   renderWithProviders(
     createElement(PreviewHarness, {
@@ -46,13 +50,7 @@ async function setupPreview(options: Omit<PreviewHarnessProps, "onReady">) {
   );
 
   await waitFor(() => expect(ready).toHaveBeenCalledTimes(1));
-  // Get the first argument passed to the mock function
-  const preview = (ready as any).mock.calls[0][0];
-  if (!preview || typeof preview !== "function") {
-    throw new Error("Preview handler was not registered");
-  }
-
-  return preview as () => Promise<void>;
+  return ready.mock.calls[0]?.[0] as PreviewHandler;
 }
 
 describe("usePreviewLauncher", () => {

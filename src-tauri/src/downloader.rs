@@ -17,7 +17,7 @@ use tauri::async_runtime::spawn;
 
 use crate::download_queue::{DownloadStatus, QueuedDownload, get_queue};
 use crate::events::*;
-use crate::logging::append_yt_dlp_log;
+use crate::logging::{ErrorCategory, append_yt_dlp_log, log_error_simple, log_error_with_context, log_warning_simple};
 use crate::redgifs::fetch_redgifs_thumbnail;
 use crate::remote_control::{broadcast_if_active, broadcast_remote_event};
 use crate::thumbnail::resolve_thumbnail;
@@ -313,9 +313,20 @@ fn build_rate_and_size_args(settings: &DownloadSettings) -> Vec<String> {
 }
 
 fn emit_download_error(window: &Window, media_idx: i32, reason: &str) {
-    eprintln!("Download error for media_idx {}: {}", media_idx, reason);
+    log_error_simple(
+        window.app_handle(),
+        ErrorCategory::Download,
+        &format!("Download error for media_idx {}", media_idx),
+        Some(reason),
+    );
+
     if let Err(e) = window.emit(EVT_DOWNLOAD_ERROR, media_idx) {
-        eprintln!("Failed to emit download error: {}", e);
+        log_error_simple(
+            window.app_handle(),
+            ErrorCategory::System,
+            "Failed to emit download error",
+            Some(&e.to_string()),
+        );
     }
     broadcast_remote_event(EVT_DOWNLOAD_ERROR, serde_json::json!(media_idx));
     broadcast_remote_event(EVT_DOWNLOAD_ERROR_DETAIL, serde_json::json!([media_idx, reason]));
@@ -637,7 +648,11 @@ async fn apply_provider_overrides(
                         id, media_source_url
                     ),
                 );
-                println!("RedGifs API did not return thumbnail for id {}", id);
+                log_warning_simple(
+                    app,
+                    ErrorCategory::Network,
+                    &format!("RedGifs API did not return thumbnail for id {}", id),
+                );
             }
             Err(e) => {
                 append_yt_dlp_log(
@@ -648,7 +663,12 @@ async fn apply_provider_overrides(
                         id, media_source_url, e
                     ),
                 );
-                eprintln!("RedGifs thumbnail fetch failed for id {}: {}", id, e);
+                log_error_simple(
+                    app,
+                    ErrorCategory::Network,
+                    &format!("RedGifs thumbnail fetch failed for id {}", id),
+                    Some(&e.to_string()),
+                );
             }
         }
     }
@@ -764,7 +784,7 @@ pub async fn get_media_info(
 }
 
 #[tauri::command]
-pub async fn expand_playlist(_app: AppHandle, media_source_url: String) -> Result<PlaylistExpansion, String> {
+pub async fn expand_playlist(app: AppHandle, media_source_url: String) -> Result<PlaylistExpansion, String> {
     validate_url(&media_source_url)?;
 
     let mut cmd = Command::new("yt-dlp");
@@ -782,7 +802,16 @@ pub async fn expand_playlist(_app: AppHandle, media_source_url: String) -> Resul
     let (output, errors) = run_yt_dlp(&mut cmd).await.map_err(|e| e.to_string())?;
 
     if !errors.is_empty() {
-        eprintln!("[expand_playlist] yt-dlp stderr: {}", errors);
+        log_error_with_context(
+            &app,
+            ErrorCategory::Download,
+            "yt-dlp stderr during playlist expansion",
+            serde_json::json!({
+                "url": media_source_url,
+                "errors": errors
+            }),
+            None,
+        );
     }
 
     parse_playlist_expansion(&output)
@@ -807,9 +836,24 @@ fn process_queue(window: Window) {
         let settings: DownloadSettings = match serde_json::from_str(&queued_download.settings) {
             Ok(s) => s,
             Err(e) => {
-                eprintln!("Failed to deserialize settings for media {}: {}", queued_download.media_idx, e);
+                log_error_with_context(
+                    window.app_handle(),
+                    ErrorCategory::Validation,
+                    "Failed to deserialize download settings",
+                    serde_json::json!({
+                        "media_idx": queued_download.media_idx,
+                        "settings": queued_download.settings
+                    }),
+                    Some(&e.to_string()),
+                );
+
                 if let Err(emit_err) = window.emit(EVT_DOWNLOAD_ERROR, queued_download.media_idx) {
-                    eprintln!("Failed to emit download error: {}", emit_err);
+                    log_error_simple(
+                        window.app_handle(),
+                        ErrorCategory::System,
+                        "Failed to emit download error",
+                        Some(&emit_err.to_string()),
+                    );
                 }
                 broadcast_remote_event(EVT_DOWNLOAD_ERROR, serde_json::json!(queued_download.media_idx));
                 {
@@ -823,7 +867,12 @@ fn process_queue(window: Window) {
 
         // Emit download-started event
         if let Err(e) = window.emit("download-started", queued_download.media_idx) {
-            eprintln!("Failed to emit download-started: {}", e);
+            log_error_simple(
+                window.app_handle(),
+                ErrorCategory::System,
+                "Failed to emit download-started",
+                Some(&e.to_string()),
+            );
         }
         broadcast_remote_event("download-started", serde_json::json!(queued_download.media_idx));
         broadcast_remote_event(
@@ -866,7 +915,16 @@ fn execute_download(
         let mark_queue_fail = |context: &str| match get_queue().lock() {
             Ok(mut queue) => queue.fail(media_idx),
             Err(poisoned) => {
-                eprintln!("Download queue lock poisoned {context} for media_idx {}: {}", media_idx, poisoned);
+                log_error_with_context(
+                    window.app_handle(),
+                    ErrorCategory::System,
+                    "Download queue lock poisoned",
+                    serde_json::json!({
+                        "context": context,
+                        "media_idx": media_idx
+                    }),
+                    Some(&poisoned.to_string()),
+                );
                 poisoned.into_inner().fail(media_idx);
             }
         };
@@ -1059,7 +1117,7 @@ fn execute_download(
                                 let app = window.app_handle();
                                 append_yt_dlp_log(app, media_idx, &line);
 
-                                if let Err(e) = window.emit("yt-dlp-stderr", (media_idx, line.clone())) {
+                                if let Err(e) = window.emit("yt-dlp-stderr", (media_idx, &line)) {
                                     eprintln!("Failed to emit yt-dlp stderr: {}", e);
                                 }
                                 broadcast_if_active("yt-dlp-stderr", serde_json::json!([media_idx, line]));

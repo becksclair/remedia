@@ -2,7 +2,7 @@
  * Tests for DownloadControls component
  */
 
-import { describe, it, expect, beforeEach, mock, vi } from "bun:test";
+import { describe, it, expect, beforeEach, mock } from "bun:test";
 import { TestingLibraryMatchers } from "@testing-library/jest-dom/matchers";
 
 // Extend Bun's expect with jest-dom matchers
@@ -25,8 +25,6 @@ describe("DownloadControls", () => {
   beforeEach(() => {
     // Clear localStorage to ensure clean state for atomWithStorage
     localStorage.clear();
-    vi.clearAllMocks();
-    Object.values(mockHandlers).forEach((handler) => handler.mockClear?.());
   });
 
   describe("Initial Render", () => {

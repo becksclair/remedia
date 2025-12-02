@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import App from "./App";
 import Player from "@/player";
 import { DebugConsole } from "@/components/debug-console";
+import { SettingsWindow } from "@/components/settings-window";
 import { ErrorBoundary } from "@/shared/error-boundary";
 import { TauriApiProvider } from "@/lib/TauriApiContext";
 import { PlaylistProvider } from "@/lib/PlaylistContext";
@@ -57,6 +58,8 @@ if (window.location.pathname === "/player") {
   createRoot(document.getElementById("root")!).render(renderWithApi(<Player />));
 } else if (window.location.pathname === "/debug") {
   createRoot(document.getElementById("root")!).render(renderWithApi(<DebugConsole />));
+} else if (window.location.pathname === "/settings") {
+  createRoot(document.getElementById("root")!).render(renderWithApi(<SettingsWindow />));
 } else {
   createRoot(document.getElementById("root")!).render(renderWithApi(<App />));
 }

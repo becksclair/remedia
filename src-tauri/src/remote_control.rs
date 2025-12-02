@@ -13,9 +13,10 @@ use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::{WebSocketStream, accept_async};
 use uuid::Uuid;
 
-use tauri::{AppHandle, Emitter, Listener, Manager};
+use tauri::{AppHandle, Emitter, Event, Listener, Manager};
 
 use crate::downloader::{DownloadSettings, download_media, get_queue_status};
+use crate::logging::{ErrorCategory, log_debug_simple, log_error_simple, log_info_simple, log_warning_simple};
 
 pub type RemoteEmitter = Arc<dyn Fn(&str, Value) + Send + Sync + 'static>;
 pub type RemoteEval = Arc<dyn Fn(&str) -> Result<(), String> + Send + Sync + 'static>;
@@ -65,11 +66,20 @@ fn forward_debug_tauri_event(app: &AppHandle, source_event: &'static str, remote
 /// Tauri command to broadcast debug data from the webview to remote console.
 /// This allows JS scripts to send data back for debugging.
 #[tauri::command]
-pub fn debug_broadcast(data: String) {
-    eprintln!("[debug_broadcast] received data: {}", &data);
+pub fn debug_broadcast(app: AppHandle, data: String) {
+    // Log truncated preview only in debug builds to avoid exposing sensitive content
+    if cfg!(debug_assertions) {
+        let preview = if data.len() > 100 {
+            format!("{}...", &data[..100])
+        } else {
+            data.clone()
+        };
+        log_debug_simple(&app, ErrorCategory::Unknown, &format!("[debug_broadcast] received data: {}", preview));
+    }
+
     // Parse as JSON if possible, otherwise wrap as string
     let payload: Value = serde_json::from_str(&data).unwrap_or_else(|_| json!(data));
-    eprintln!("[debug_broadcast] broadcasting debug-echo with payload");
+    log_info_simple(&app, ErrorCategory::Unknown, "[debug_broadcast] broadcasting debug-echo");
     broadcast_remote_event("debug-echo", payload);
 }
 #[derive(Deserialize)]
@@ -361,7 +371,7 @@ async fn handle_socket(
 
                         // Register a listener that forwards any payload into our mpsc channel.
                         // The closure is synchronous but we spawn an async task to enqueue into the channel.
-                        let listener_id = app_for_listen.listen(&result_event_name, move |evt| {
+                        let listener_id = app_for_listen.listen(&result_event_name, move |evt: Event| {
                             let payload = evt.payload().to_string();
                             let tx = result_tx_clone.clone();
                             tauri::async_runtime::spawn(async move {
@@ -474,6 +484,64 @@ async fn handle_socket(
                         .await;
                 }
             }
+            "inspectWindow" => {
+                let Some(label) = cmd.url.clone() else {
+                    let _ = tx
+                        .lock()
+                        .await
+                        .send(Message::Text(
+                            r#"{"ok":false,"action":"inspectWindow","error":"label required"}"#.to_string().into(),
+                        ))
+                        .await;
+                    continue;
+                };
+
+                if let Some(handle) = &app {
+                    if let Some(win) = handle.get_webview_window(&label) {
+                        let visible = win.is_visible().unwrap_or(false);
+                        let focused = win.is_focused().unwrap_or(false);
+                        let minimized = win.is_minimized().unwrap_or(false);
+                        let _ = tx
+                            .lock()
+                            .await
+                            .send(Message::Text(
+                                json!({
+                                    "ok": true,
+                                    "action": "inspectWindow",
+                                    "label": label,
+                                    "visible": visible,
+                                    "focused": focused,
+                                    "minimized": minimized
+                                })
+                                .to_string()
+                                .into(),
+                            ))
+                            .await;
+                    } else {
+                        let _ = tx
+                            .lock()
+                            .await
+                            .send(Message::Text(
+                                json!({
+                                    "ok": false,
+                                    "action": "inspectWindow",
+                                    "error": format!("window '{label}' not found")
+                                })
+                                .to_string()
+                                .into(),
+                            ))
+                            .await;
+                    }
+                } else {
+                    let _ = tx
+                        .lock()
+                        .await
+                        .send(Message::Text(
+                            r#"{"ok":false,"action":"inspectWindow","error":"app handle unavailable"}"#.to_string().into(),
+                        ))
+                        .await;
+                }
+            }
             "startDownloadDirect" => {
                 if let Some(url) = cmd.url {
                     let path = cmd.path.unwrap_or_default();
@@ -569,12 +637,25 @@ pub fn start_remote_control_on(
         let listener = match TcpListener::bind(addr).await {
             Ok(l) => l,
             Err(e) => {
-                eprintln!("[remote] failed to bind websocket listener: {e}");
+                if let Some(ref app_handle) = app {
+                    log_error_simple(
+                        app_handle,
+                        ErrorCategory::Network,
+                        "Failed to bind websocket listener",
+                        Some(&e.to_string()),
+                    );
+                } else {
+                    eprintln!("Failed to bind websocket listener: {}", e);
+                }
                 return;
             }
         };
 
-        eprintln!("[remote] listening on ws://{}", addr);
+        if let Some(ref app_handle) = app {
+            log_info_simple(app_handle, ErrorCategory::Unknown, &format!("[remote] listening on ws://{}", addr));
+        } else {
+            println!("[remote] listening on ws://{}", addr);
+        }
 
         loop {
             let Ok((stream, _)) = listener.accept().await else {
@@ -582,6 +663,7 @@ pub fn start_remote_control_on(
             };
 
             let emitter = emitter.clone();
+
             let eval = eval.clone();
             let tx_broadcast = tx_broadcast.clone();
             let app_for_conn = app.clone();

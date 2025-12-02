@@ -16,10 +16,20 @@ export enum ErrorCategory {
 }
 
 export enum ErrorSeverity {
+  DEBUG = "debug",
   LOW = "low",
   MEDIUM = "medium",
   HIGH = "high",
   CRITICAL = "critical",
+}
+
+export interface StructuredLogEntry {
+  timestamp: number;
+  level: ErrorSeverity;
+  category: ErrorCategory;
+  message: string;
+  context?: Record<string, any>;
+  error_details?: string;
 }
 
 export interface AppError {
@@ -29,6 +39,81 @@ export interface AppError {
   context?: Record<string, any>;
   recoverable?: boolean;
   retryAction?: () => Promise<void>;
+}
+
+/**
+ * Create a structured log entry
+ */
+function createLogEntry(
+  level: ErrorSeverity,
+  category: ErrorCategory,
+  message: string,
+  context?: Record<string, any>,
+  error_details?: string,
+): StructuredLogEntry {
+  return {
+    timestamp: Date.now(),
+    level,
+    category,
+    message,
+    context,
+    error_details,
+  };
+}
+
+/**
+ * Safe JSON serialization with circular reference protection and BigInt handling
+ */
+function safeStringify(obj: any): string {
+  try {
+    return JSON.stringify(obj);
+  } catch (primaryError) {
+    // Log minimal serialization error
+    console.error(
+      "JSON.stringify failed, falling back to safe serializer:",
+      primaryError instanceof Error ? primaryError.message : String(primaryError),
+    );
+
+    try {
+      const seen = new WeakSet();
+      return JSON.stringify(obj, (_key, val) => {
+        if (val != null && typeof val === "object") {
+          if (seen.has(val)) {
+            return "[Circular]";
+          }
+          seen.add(val);
+        }
+        // Convert BigInt to string
+        if (typeof val === "bigint") {
+          return val.toString() + "n";
+        }
+        return val;
+      });
+    } catch (fallbackError) {
+      // Final fallback: convert to string representation
+      console.error(
+        "Safe serializer failed, using string fallback:",
+        fallbackError instanceof Error ? fallbackError.message : String(fallbackError),
+      );
+      return String(obj);
+    }
+  }
+}
+
+/**
+ * Write structured log to console with consistent format
+ */
+function writeStructuredLog(entry: StructuredLogEntry): void {
+  const logMethod =
+    entry.level === ErrorSeverity.CRITICAL || entry.level === ErrorSeverity.HIGH
+      ? console.error
+      : entry.level === ErrorSeverity.MEDIUM
+        ? console.warn
+        : entry.level === ErrorSeverity.DEBUG
+          ? console.debug
+          : console.log;
+
+  logMethod(safeStringify(entry));
 }
 
 /**
@@ -108,6 +193,7 @@ function getToastOptions(severity: ErrorSeverity): {
   };
 } {
   switch (severity) {
+    case ErrorSeverity.DEBUG:
     case ErrorSeverity.LOW:
       return { duration: 3000 };
     case ErrorSeverity.MEDIUM:
@@ -134,14 +220,17 @@ export function handleError(
   const message = getUserMessage(error, category);
   const toastOptions = getToastOptions(severity);
 
-  // Log error for debugging
-  console.error("App Error:", {
-    message,
-    category,
+  // Create structured log entry
+  const logEntry = createLogEntry(
     severity,
+    category,
+    message,
     context,
-    originalError: error,
-  });
+    error instanceof Error ? error.stack || error.message : String(error),
+  );
+
+  // Write structured log
+  writeStructuredLog(logEntry);
 
   // Add retry action if provided and error is recoverable
   if (retryAction && (category === ErrorCategory.NETWORK || category === ErrorCategory.DOWNLOAD)) {
@@ -173,6 +262,36 @@ export function handleError(
       toast(message, toastOptions);
   }
 }
+
+/**
+ * Convenience functions for structured logging
+ */
+export const StructuredLogger = {
+  error: (
+    category: ErrorCategory,
+    message: string,
+    context?: Record<string, any>,
+    errorDetails?: string,
+  ) => {
+    const entry = createLogEntry(ErrorSeverity.HIGH, category, message, context, errorDetails);
+    writeStructuredLog(entry);
+  },
+
+  warn: (category: ErrorCategory, message: string, context?: Record<string, any>) => {
+    const entry = createLogEntry(ErrorSeverity.MEDIUM, category, message, context);
+    writeStructuredLog(entry);
+  },
+
+  info: (category: ErrorCategory, message: string, context?: Record<string, any>) => {
+    const entry = createLogEntry(ErrorSeverity.LOW, category, message, context);
+    writeStructuredLog(entry);
+  },
+
+  debug: (category: ErrorCategory, message: string, context?: Record<string, any>) => {
+    const entry = createLogEntry(ErrorSeverity.DEBUG, category, message, context);
+    writeStructuredLog(entry);
+  },
+};
 
 /**
  * Specific error handlers for common scenarios

@@ -1,6 +1,7 @@
-import { describe, it, expect, beforeEach, mock, vi } from "bun:test";
+import { describe, it, expect, beforeEach, mock } from "bun:test";
 import { render, screen } from "@testing-library/react";
 import { TestingLibraryMatchers } from "@testing-library/jest-dom/matchers";
+import userEvent from "@testing-library/user-event";
 
 // Extend Bun's expect with jest-dom matchers
 declare module "bun:test" {
@@ -21,8 +22,7 @@ describe("DownloadControls (Bun)", () => {
   beforeEach(() => {
     // Clear localStorage to ensure clean state for atomWithStorage
     localStorage.clear();
-    vi.clearAllMocks();
-    // Reset mocks before each test
+    // Reset Bun mocks before each test (vi.clearAllMocks doesn't work with Bun native mocks)
     Object.values(mockHandlers).forEach((fn) => fn.mockClear?.());
   });
 
@@ -99,7 +99,9 @@ describe("DownloadControls (Bun)", () => {
     );
   });
 
-  it("calls onDownload when download button is clicked", () => {
+  it("calls onDownload when download button is clicked", async () => {
+    const user = userEvent.setup();
+
     render(
       <DownloadControls
         globalProgress={0}
@@ -113,7 +115,7 @@ describe("DownloadControls (Bun)", () => {
     );
 
     const downloadButton = screen.getByText("Download");
-    downloadButton.click();
+    await user.click(downloadButton);
 
     expect(mockHandlers.onDownload).toHaveBeenCalled();
   });

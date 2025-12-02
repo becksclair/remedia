@@ -18,6 +18,14 @@ import type {
   TauriDialog,
   TauriShell,
 } from "./tauri-api";
+
+/**
+ * Mock-specific TauriWindow interface that extends the public interface
+ * with test-only methods
+ */
+export interface MockTauriWindow extends TauriWindow {
+  clearWindows(): void;
+}
 import type { DownloadSettings, PlaylistExpansion } from "@/types";
 import { TAURI_EVENT } from "@/types";
 
@@ -36,7 +44,9 @@ class MockWebviewWindow {
     width: number;
     height: number;
     title: string;
+    visible?: boolean;
   };
+  private _visible: boolean;
 
   constructor(
     label: string,
@@ -45,10 +55,13 @@ class MockWebviewWindow {
       width: number;
       height: number;
       title: string;
+      visible?: boolean;
     },
   ) {
     this.label = label;
     this.options = options;
+    // Initialize visibility from constructor option, defaulting to true
+    this._visible = options.visible ?? true;
   }
 
   async once(event: string, handler: (data: unknown) => void): Promise<void> {
@@ -56,6 +69,25 @@ class MockWebviewWindow {
     if (event === "tauri://created") {
       setTimeout(() => handler({}), 10);
     }
+  }
+
+  async show(): Promise<void> {
+    // Set window to visible state
+    this._visible = true;
+  }
+
+  async hide(): Promise<void> {
+    // Set window to hidden state
+    this._visible = false;
+  }
+
+  async isVisible(): Promise<boolean> {
+    // Return current visibility state
+    return this._visible;
+  }
+
+  async setFocus(): Promise<void> {
+    // No-op in tests; we only need this to satisfy usage in code paths
   }
 }
 
@@ -112,6 +144,7 @@ export const mockState = {
     this.maxConcurrentDownloads = 3;
     this.playlistExpansion = null;
     mockEventListeners.clear();
+    (mockTauriApi.window as MockTauriWindow).clearWindows();
   },
 
   /**
@@ -274,7 +307,9 @@ class MockEvents implements TauriEvents {
 /**
  * Mock Window Implementation
  */
-class MockWindow implements TauriWindow {
+class MockWindow implements MockTauriWindow {
+  private windows = new Map<string, WebviewWindow>();
+
   createWindow(
     label: string,
     options: {
@@ -282,9 +317,20 @@ class MockWindow implements TauriWindow {
       width: number;
       height: number;
       title: string;
+      visible?: boolean;
     },
   ): WebviewWindow {
-    return new MockWebviewWindow(label, options) as unknown as WebviewWindow;
+    const window = new MockWebviewWindow(label, options) as unknown as WebviewWindow;
+    this.windows.set(label, window);
+    return window;
+  }
+
+  async getWindow(label: string): Promise<WebviewWindow | null> {
+    return this.windows.get(label) ?? null;
+  }
+
+  clearWindows(): void {
+    this.windows.clear();
   }
 }
 
@@ -366,7 +412,7 @@ class MockShell implements TauriShell {
 export class MockTauriApi implements TauriApi {
   commands: TauriCommands = new MockCommands();
   events: TauriEvents = new MockEvents();
-  window: TauriWindow = new MockWindow();
+  window: MockTauriWindow = new MockWindow();
   path: TauriPath = new MockPath();
   clipboard: TauriClipboard = new MockClipboard();
   notification: TauriNotification = new MockNotification();

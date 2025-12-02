@@ -100,8 +100,14 @@ export interface TauriWindow {
       width: number;
       height: number;
       title: string;
+      visible?: boolean;
     },
   ): WebviewWindow;
+
+  /**
+   * Get an existing webview window by label, or null if it does not exist
+   */
+  getWindow(label: string): Promise<WebviewWindow | null>;
 }
 
 /**
@@ -258,9 +264,14 @@ class RealTauriApi implements TauriApi {
         width: number;
         height: number;
         title: string;
+        visible?: boolean;
       },
     ): WebviewWindow {
       return new WebviewWindow(label, options);
+    },
+
+    async getWindow(label: string): Promise<WebviewWindow | null> {
+      return await WebviewWindow.getByLabel(label);
     },
   };
 

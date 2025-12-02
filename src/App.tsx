@@ -12,7 +12,6 @@ import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 
 // Components
 import { DropZone } from "./components/drop-zone";
-import { SettingsDialog } from "./components/settings-dialog";
 import { MediaTable } from "./components/MediaTable";
 import { DownloadControls } from "./components/DownloadControls";
 import { MediaListContextMenu } from "./components/MediaListContextMenu";
@@ -82,7 +81,6 @@ function App(): JSX.Element {
 
   const [notificationPermission, setNotificationPermission] = useState(false);
   const [dragHovering, setDragHovering] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
 
   // Global state
   const outputLocation = useAtomValue(downloadLocationAtom);
@@ -147,6 +145,74 @@ function App(): JSX.Element {
     await cancelAllDownloads();
   }, [cancelAllDownloads]);
 
+  // Shared promise locks to prevent race conditions during window creation
+  const windowCreationLocks = useRef<Map<string, Promise<WebviewWindow>>>(new Map());
+
+  /**
+   * Atomic, idempotent window creation helper.
+   * Ensures only one creation attempt runs at a time per window label.
+   */
+  const createWindowAtomic = useCallback(
+    async (
+      label: string,
+      options: { url: string; width: number; height: number; title: string; visible?: boolean },
+    ): Promise<WebviewWindow> => {
+      // Check if window already exists
+      const existing = await tauriApi.window.getWindow(label);
+      if (existing) {
+        return existing;
+      }
+
+      // Check if there's an ongoing creation attempt
+      const existingLock = windowCreationLocks.current.get(label);
+      if (existingLock) {
+        try {
+          return await existingLock;
+        } catch {
+          // If the previous attempt failed, remove the lock and try again
+          windowCreationLocks.current.delete(label);
+        }
+      }
+
+      // Set a sentinel promise immediately to prevent concurrent creation attempts
+      // Initialize with no-op functions to satisfy TypeScript
+      let resolveCreation: (window: WebviewWindow) => void = () => {};
+      let rejectCreation: (error: Error) => void = () => {};
+
+      const sentinelPromise = new Promise<WebviewWindow>((resolve, reject) => {
+        resolveCreation = resolve;
+        rejectCreation = reject;
+      });
+
+      // Store the sentinel lock before any async operations
+      windowCreationLocks.current.set(label, sentinelPromise);
+
+      // Execute the actual window creation
+      void (async () => {
+        try {
+          const window = tauriApi.window.createWindow(label, options);
+          resolveCreation(window);
+        } catch (error) {
+          // Treat "already exists" errors as success
+          if (error instanceof Error && error.message.includes("already exists")) {
+            const retryWindow = await tauriApi.window.getWindow(label);
+            if (retryWindow) {
+              resolveCreation(retryWindow);
+              return;
+            }
+          }
+          rejectCreation(error as Error);
+        } finally {
+          // Clean up the lock regardless of outcome
+          windowCreationLocks.current.delete(label);
+        }
+      })();
+
+      return await sentinelPromise;
+    },
+    [tauriApi],
+  );
+
   useRemoteControl({
     addMediaUrl,
     removeAll,
@@ -180,6 +246,51 @@ function App(): JSX.Element {
       }
     })();
   }, [tauriApi.notification]);
+
+  /**
+   * Preload the settings window in Tauri so it can be shown quickly later.
+   * The window is created hidden and only shown when the user opens settings.
+   * Uses atomic creation to prevent race conditions.
+   */
+  useEffect(() => {
+    if (!isTauriRuntime()) return;
+
+    void (async () => {
+      try {
+        await createWindowAtomic("settings", {
+          url: "/settings",
+          width: 600,
+          height: 700,
+          title: "ReMedia Settings",
+          visible: false,
+        });
+      } catch (error) {
+        console.error("Failed to preload settings window:", error);
+      }
+    })();
+  }, [createWindowAtomic]);
+
+  /**
+   * Preload the debug console window in Tauri so it can be shown quickly later.
+   * Uses atomic creation to prevent race conditions.
+   */
+  useEffect(() => {
+    if (!isTauriRuntime()) return;
+
+    void (async () => {
+      try {
+        await createWindowAtomic("debug-console", {
+          url: "/debug",
+          width: DEBUG_CONSOLE_WIDTH,
+          height: DEBUG_CONSOLE_HEIGHT,
+          title: "ReMedia Debug Console",
+          visible: false,
+        });
+      } catch (error) {
+        console.error("Failed to preload debug console window:", error);
+      }
+    })();
+  }, [createWindowAtomic]);
 
   /**
    * Set default download directory
@@ -403,22 +514,33 @@ function App(): JSX.Element {
 
   const handleShowDebugConsole = async (): Promise<void> => {
     try {
-      const debugWindow: WebviewWindow = tauriApi.window.createWindow("debug-console", {
+      const debugWindow = await createWindowAtomic("debug-console", {
         url: "/debug",
         width: DEBUG_CONSOLE_WIDTH,
         height: DEBUG_CONSOLE_HEIGHT,
         title: "ReMedia Debug Console",
       });
 
-      void debugWindow.once("tauri://created", () => {
-        console.log("Debug console window created");
-      });
-
-      void debugWindow.once("tauri://error", (error: unknown) => {
-        console.error("Error creating debug console window:", error);
-      });
+      await debugWindow.show();
+      await debugWindow.setFocus();
     } catch (error) {
       console.error("Failed to open debug console:", error);
+    }
+  };
+
+  const handleShowSettingsWindow = async (): Promise<void> => {
+    try {
+      const settingsWindow = await createWindowAtomic("settings", {
+        url: "/settings",
+        width: 600,
+        height: 700,
+        title: "ReMedia Settings",
+      });
+
+      await settingsWindow.show();
+      await settingsWindow.setFocus();
+    } catch (error) {
+      console.error("Failed to show settings window:", error);
     }
   };
 
@@ -636,13 +758,10 @@ function App(): JSX.Element {
           onDownload={handleStartAllDownloads}
           onCancel={handleCancelAll}
           onPreview={preview}
-          onSettings={() => setSettingsOpen(true)}
+          onSettings={handleShowSettingsWindow}
           onQuit={() => tauriApi.commands.quit()}
         />
       </div>
-
-      {/* Settings Dialog */}
-      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </main>
   );
 }

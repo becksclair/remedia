@@ -25,6 +25,9 @@
 		"dialog:default",
 		"fs:default",
 		"notification:default",
-		"updater:default"
+		"updater:default",
+		"core:window:allow-get-all-windows",
+		"core:window:allow-show",
+		"core:window:allow-set-focus"
 	]
 }

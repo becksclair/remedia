@@ -11,6 +11,20 @@ interface UsePreviewLauncherOptions {
   notificationPermission: boolean;
 }
 
+interface PreviewWindowOptions {
+  url: string;
+  width: number;
+  height: number;
+  title: string;
+}
+
+interface TauriWindowEvent {
+  event: string;
+  payload?: unknown;
+}
+
+type PreviewHandler = () => Promise<void>;
+
 export function usePreviewLauncher({
   mediaList,
   rowSelection,
@@ -18,7 +32,7 @@ export function usePreviewLauncher({
 }: UsePreviewLauncherOptions) {
   const tauriApi = useTauriApi();
 
-  const preview = useCallback(async () => {
+  const preview: PreviewHandler = useCallback(async () => {
     const selectedRowIndices = getSelectedIndices(rowSelection);
 
     if (selectedRowIndices.length === 0) {
@@ -29,18 +43,23 @@ export function usePreviewLauncher({
     try {
       for (const rowIndex of selectedRowIndices) {
         const selectedItem = mediaList[rowIndex];
-        if (!selectedItem?.url) continue;
+        if (!selectedItem?.url) {
+          console.warn(`Skipping item at index ${rowIndex}: missing URL`);
+          continue;
+        }
 
-        const previewLabel = `preview-win-${rowIndex}-${Date.now()}`;
-        const win = tauriApi.window.createWindow(previewLabel, {
+        const windowOptions: PreviewWindowOptions = {
           url: `/player?url=${encodeURIComponent(selectedItem.url)}`,
           width: PREVIEW_WINDOW_WIDTH,
           height: PREVIEW_WINDOW_HEIGHT,
           title: selectedItem.title ? `Preview: ${selectedItem.title}` : "ReMedia Preview",
-        });
+        };
 
-        void win.once("tauri://error", (error: unknown) => {
-          console.error("Error creating preview window:", error);
+        const previewLabel = `preview-win-${rowIndex}-${Date.now()}`;
+        const win = tauriApi.window.createWindow(previewLabel, windowOptions);
+
+        void win.once("tauri://error", (event: TauriWindowEvent) => {
+          console.error("Error creating preview window:", event);
         });
       }
 

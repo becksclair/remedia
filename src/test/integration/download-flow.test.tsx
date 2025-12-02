@@ -4,7 +4,7 @@
  * Tests the complete flow from URL addition to download completion.
  */
 
-import "@/test/global-setup"; // Ensure global cleanup runs
+import { setupGlobalTestCleanup } from "@/test/global-setup";
 import { describe, it, expect, beforeEach, afterEach, spyOn } from "bun:test";
 import { TestingLibraryMatchers } from "@testing-library/jest-dom/matchers";
 
@@ -43,8 +43,8 @@ describe("Download Flow Integration", () => {
   let cancelAllDownloadsSpy: ReturnType<typeof spyOn>;
 
   beforeEach(() => {
-    // Clear localStorage to ensure clean state for atomWithStorage
-    localStorage.clear();
+    // Run global cleanup for each test
+    setupGlobalTestCleanup();
     mockState.reset();
 
     getMediaInfoSpy = spyOn(mockTauriApi.commands, "getMediaInfo");
