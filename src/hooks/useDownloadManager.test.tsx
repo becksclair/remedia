@@ -241,13 +241,16 @@ describe("useDownloadManager", () => {
           if (!settings) throw new Error("Expected settings to exist");
           expect(settings).toBeDefined();
           // Verify all required keys exist
-          expect("appendUniqueId" in settings).toBe(true);
-          expect("uniqueIdType" in settings).toBe(true);
-          expect("downloadRateLimit" in settings).toBe(true);
-          expect("maxFileSize" in settings).toBe(true);
           expect("downloadMode" in settings).toBe(true);
           expect("videoQuality" in settings).toBe(true);
+          expect("maxResolution" in settings).toBe(true);
+          expect("videoFormat" in settings).toBe(true);
           expect("audioFormat" in settings).toBe(true);
+          expect("audioQuality" in settings).toBe(true);
+          expect("downloadRateLimit" in settings).toBe(true);
+          expect("maxFileSize" in settings).toBe(true);
+          expect("appendUniqueId" in settings).toBe(true);
+          expect("uniqueIdType" in settings).toBe(true);
         },
         { timeout: 2000 },
       );
