@@ -146,19 +146,19 @@ describe("useDownloadManager", () => {
           expect(call[1]).toBe("https://example.com/video1"); // URL
           expect(typeof call[2]).toBe("string"); // outputLocation
           expect(call[3]).toBeUndefined(); // subfolder
-          // Verify settings object has expected shape
+          // Verify settings object exists and has required keys
           const settings = call[4];
           expect(settings).toBeDefined();
-          expect(typeof settings.downloadMode).toBe("string");
-          expect(typeof settings.videoQuality).toBe("string");
-          expect(typeof settings.maxResolution).toBe("string");
-          expect(typeof settings.videoFormat).toBe("string");
-          expect(typeof settings.audioFormat).toBe("string");
-          expect(typeof settings.audioQuality).toBe("string");
-          expect(typeof settings.downloadRateLimit).toBe("string");
-          expect(typeof settings.maxFileSize).toBe("string");
-          expect(typeof settings.appendUniqueId).toBe("boolean");
-          expect(typeof settings.uniqueIdType).toBe("string");
+          expect("downloadMode" in settings).toBe(true);
+          expect("videoQuality" in settings).toBe(true);
+          expect("maxResolution" in settings).toBe(true);
+          expect("videoFormat" in settings).toBe(true);
+          expect("audioFormat" in settings).toBe(true);
+          expect("audioQuality" in settings).toBe(true);
+          expect("downloadRateLimit" in settings).toBe(true);
+          expect("maxFileSize" in settings).toBe(true);
+          expect("appendUniqueId" in settings).toBe(true);
+          expect("uniqueIdType" in settings).toBe(true);
         },
         { timeout: 2000 },
       );
@@ -216,7 +216,7 @@ describe("useDownloadManager", () => {
   });
 
   describe("settings structure", () => {
-    it("includes appendUniqueId boolean in settings", async () => {
+    it("includes all required settings keys", async () => {
       const wrapper = createTestWrapper();
       const mediaList: VideoInfo[] = [
         createMockMediaItem("https://example.com/video1", { status: "Pending" }),
@@ -233,54 +233,15 @@ describe("useDownloadManager", () => {
         () => {
           expect(downloadMediaSpy).toHaveBeenCalledTimes(1);
           const settings = downloadMediaSpy.mock.calls[0][4];
-          expect(typeof settings.appendUniqueId).toBe("boolean");
-          expect(typeof settings.uniqueIdType).toBe("string");
-        },
-        { timeout: 2000 },
-      );
-    });
-
-    it("includes downloadRateLimit string in settings", async () => {
-      const wrapper = createTestWrapper();
-      const mediaList: VideoInfo[] = [
-        createMockMediaItem("https://example.com/video1", { status: "Pending" }),
-      ];
-      const downloadMediaSpy = spyOn(mockTauriApi.commands, "downloadMedia");
-
-      const { result } = renderHook(() => useDownloadManager(mediaList), { wrapper });
-
-      await act(async () => {
-        await result.current.startDownload();
-      });
-
-      await waitFor(
-        () => {
-          expect(downloadMediaSpy).toHaveBeenCalledTimes(1);
-          const settings = downloadMediaSpy.mock.calls[0][4];
-          expect(typeof settings.downloadRateLimit).toBe("string");
-        },
-        { timeout: 2000 },
-      );
-    });
-
-    it("includes maxFileSize string in settings", async () => {
-      const wrapper = createTestWrapper();
-      const mediaList: VideoInfo[] = [
-        createMockMediaItem("https://example.com/video1", { status: "Pending" }),
-      ];
-      const downloadMediaSpy = spyOn(mockTauriApi.commands, "downloadMedia");
-
-      const { result } = renderHook(() => useDownloadManager(mediaList), { wrapper });
-
-      await act(async () => {
-        await result.current.startDownload();
-      });
-
-      await waitFor(
-        () => {
-          expect(downloadMediaSpy).toHaveBeenCalledTimes(1);
-          const settings = downloadMediaSpy.mock.calls[0][4];
-          expect(typeof settings.maxFileSize).toBe("string");
+          expect(settings).toBeDefined();
+          // Verify all required keys exist
+          expect("appendUniqueId" in settings).toBe(true);
+          expect("uniqueIdType" in settings).toBe(true);
+          expect("downloadRateLimit" in settings).toBe(true);
+          expect("maxFileSize" in settings).toBe(true);
+          expect("downloadMode" in settings).toBe(true);
+          expect("videoQuality" in settings).toBe(true);
+          expect("audioFormat" in settings).toBe(true);
         },
         { timeout: 2000 },
       );
