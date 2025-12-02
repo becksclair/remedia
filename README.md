@@ -67,10 +67,28 @@ For Ubuntu/Debian-based systems, install the following system dependencies:
 
 ```bash
 sudo apt update
-sudo apt install libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev build-essential pkg-config patchelf xdg-utils
+sudo apt install -y \
+    libwebkit2gtk-4.1-dev \
+    build-essential \
+    libgtk-3-dev \
+    libayatana-appindicator3-dev \
+    librsvg2-dev \
+    libssl-dev \
+    pkg-config \
+    patchelf \
+    xdg-utils
 ```
 
-These packages provide the necessary GTK, WebKit, and system utilities required for Tauri applications on Linux.
+These packages provide the necessary GTK, WebKit, build tools, and system utilities required for Tauri applications on Linux:
+- **libwebkit2gtk-4.1-dev**: WebKit GTK for UI rendering
+- **build-essential**: GCC, make, and essential build tools for Rust compilation
+- **libgtk-3-dev**: GTK3 development libraries
+- **libayatana-appindicator3-dev**: System tray support
+- **librsvg2-dev**: SVG rendering support
+- **libssl-dev**: OpenSSL development libraries
+- **pkg-config**: Package configuration tool for Rust crates
+- **patchelf**: ELF patching utility for AppImage bundling
+- **xdg-utils**: Desktop integration utilities
 
 ### Installation
 
