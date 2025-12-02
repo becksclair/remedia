@@ -1,4 +1,4 @@
-import { afterEach, expect, beforeAll, mock } from "bun:test";
+import { afterEach, expect, beforeAll, beforeEach, mock } from "bun:test";
 import { cleanup } from "@testing-library/react";
 import * as matchers from "@testing-library/jest-dom/matchers";
 
@@ -7,6 +7,13 @@ expect.extend(matchers);
 
 // Export URLSearchParams mock for tests to use
 export const mockURLSearchParamsGet = mock((): string | null => null);
+
+// Clear localStorage before each test to prevent atomWithStorage pollution
+beforeEach(() => {
+  if (typeof localStorage !== "undefined") {
+    localStorage.clear();
+  }
+});
 
 // Set up mocks before all tests
 beforeAll(() => {
