@@ -89,7 +89,7 @@ pub fn is_wsl2() -> bool {
     if !is_wsl::is_wsl() {
         return false;
     }
-    
+
     match std::fs::read_to_string("/proc/version") {
         Ok(content) => content.contains("WSL2"),
         Err(_) => false,
