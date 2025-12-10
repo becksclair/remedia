@@ -1,6 +1,10 @@
 ---
 description: Multi-phase improvement plan for ReMedia (Tauri + React + yt-dlp)
+status: ARCHIVED
 ---
+
+> **ARCHIVED**: This document has been superseded by [`specs/SPEC.md`](./SPEC.md).
+> Kept for historical reference only.
 
 # ReMedia Improvement Plan
 

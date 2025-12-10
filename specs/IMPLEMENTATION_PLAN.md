@@ -1,3 +1,6 @@
+> **ARCHIVED**: This document has been superseded by [`specs/SPEC.md`](./SPEC.md).
+> Kept for historical reference only.
+
 # Comprehensive Implementation Plan: Quality & Performance
 
 ## 🎯 Goals
