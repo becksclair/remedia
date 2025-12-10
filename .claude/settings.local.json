@@ -14,7 +14,9 @@
       "Bash(node:*)",
       "Bash(convert:*)",
       "Bash(magick:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "mcp__oracle__consult",
+      "mcp__oracle__sessions"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"

@@ -4,6 +4,7 @@ use remedia::quit;
 use tauri::Manager;
 
 pub mod download_queue;
+pub mod error;
 pub mod downloader;
 pub mod events;
 pub mod logging;

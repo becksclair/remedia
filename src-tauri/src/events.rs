@@ -16,3 +16,11 @@ pub const EVT_REMOTE_START: &str = "remote-start-downloads";
 pub const EVT_REMOTE_CANCEL: &str = "remote-cancel-downloads";
 pub const EVT_REMOTE_CLEAR_LIST: &str = "remote-clear-list";
 pub const EVT_REMOTE_SET_DOWNLOAD_DIR: &str = "remote-set-download-dir";
+
+// Remote debugging events
+pub const EVT_DOWNLOAD_EXEC: &str = "download-exec";
+pub const EVT_DOWNLOAD_RAW: &str = "download-raw";
+pub const EVT_DOWNLOAD_INVOKE: &str = "download-invoke";
+pub const EVT_REMOTE_RECV: &str = "remote-recv";
+pub const EVT_DEBUG_ECHO: &str = "debug-echo";
+pub const EVT_DEBUG_SNAPSHOT: &str = "debug-snapshot";

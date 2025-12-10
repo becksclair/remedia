@@ -16,6 +16,7 @@ use uuid::Uuid;
 use tauri::{AppHandle, Emitter, Event, Listener, Manager};
 
 use crate::downloader::{DownloadSettings, download_media, get_queue_status};
+use crate::events::*;
 use crate::logging::{ErrorCategory, log_debug_simple, log_error_simple, log_info_simple};
 
 pub type RemoteEmitter = Arc<dyn Fn(&str, Value) + Send + Sync + 'static>;
@@ -80,7 +81,7 @@ pub fn debug_broadcast(app: AppHandle, data: String) {
     // Parse as JSON if possible, otherwise wrap as string
     let payload: Value = serde_json::from_str(&data).unwrap_or_else(|_| json!(data));
     log_info_simple(&app, ErrorCategory::Unknown, "[debug_broadcast] broadcasting debug-echo");
-    broadcast_remote_event("debug-echo", payload);
+    broadcast_remote_event(EVT_DEBUG_ECHO, payload);
 }
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -146,7 +147,7 @@ async fn handle_socket(
         match cmd.action.as_str() {
             "addUrl" => {
                 if let Some(url) = cmd.url {
-                    emitter("remote-add-url", Value::String(url.clone()));
+                    emitter(EVT_REMOTE_ADD_URL, Value::String(url.clone()));
                     let _ = tx
                         .lock()
                         .await
@@ -168,7 +169,7 @@ async fn handle_socket(
                 }
             }
             "startDownloads" => {
-                emitter("remote-start-downloads", Value::Null);
+                emitter(EVT_REMOTE_START, Value::Null);
                 let _ = tx
                     .lock()
                     .await
@@ -181,7 +182,7 @@ async fn handle_socket(
                     .await;
             }
             "cancelAll" => {
-                emitter("remote-cancel-downloads", Value::Null);
+                emitter(EVT_REMOTE_CANCEL, Value::Null);
                 let _ =
                     tx.lock().await.send(Message::Text(r#"{"ok":true,"action":"cancelAll"}"#.to_string().into())).await;
                 let _ = tx
@@ -191,7 +192,7 @@ async fn handle_socket(
                     .await;
             }
             "clearList" => {
-                emitter("remote-clear-list", Value::Null);
+                emitter(EVT_REMOTE_CLEAR_LIST, Value::Null);
                 let _ =
                     tx.lock().await.send(Message::Text(r#"{"ok":true,"action":"clearList"}"#.to_string().into())).await;
                 let _ = tx
@@ -202,7 +203,7 @@ async fn handle_socket(
             }
             "setDownloadDir" => {
                 if let Some(path) = cmd.path.or(cmd.url) {
-                    emitter("remote-set-download-dir", Value::String(path.clone()));
+                    emitter(EVT_REMOTE_SET_DOWNLOAD_DIR, Value::String(path.clone()));
                     let _ = tx
                         .lock()
                         .await
@@ -250,7 +251,7 @@ async fn handle_socket(
                 let _ = tx
                     .lock()
                     .await
-                    .send(Message::Text(json!({"event": "debug-echo", "payload": data}).to_string().into()))
+                    .send(Message::Text(json!({"event": EVT_DEBUG_ECHO, "payload": data}).to_string().into()))
                     .await;
             }
             "runJs" => {
@@ -729,7 +730,7 @@ pub fn start_remote_control(app: AppHandle) {
 
     // Listen for debug events from frontend and forward to WebSocket.
     // New unified protocol: debug-snapshot with a { kind, data } payload.
-    forward_debug_tauri_event(&app, "debug-snapshot", "debug-snapshot");
+    forward_debug_tauri_event(&app, EVT_DEBUG_SNAPSHOT, EVT_DEBUG_SNAPSHOT);
 
     // Legacy events kept for backward compatibility with older scripts.
     forward_debug_tauri_event(&app, "debug-thumb-result", "debug-thumb-result");
