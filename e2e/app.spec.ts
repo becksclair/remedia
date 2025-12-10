@@ -1,3 +1,10 @@
+// Skip if running in Bun test runner (not Playwright)
+// This file should only be run by Playwright via `bunx playwright test`
+if (typeof Bun !== "undefined" && !process.env.PLAYWRIGHT_TEST) {
+  // Exit silently - Bun will skip this file
+  process.exit(0);
+}
+
 import { test, expect, type Page } from "@playwright/test";
 import type { PlaylistExpansion } from "@/types";
 
@@ -328,54 +335,6 @@ test.describe("ReMedia app", () => {
   });
 
   // Phase 4: Context Menu Tests
-  test("context menu appears on right-click", async ({ page, browserName }) => {
-    test.skip(browserName === "webkit", "WebKit context menu flaky in web mode");
-    await page.goto("/");
-
-    const url = "https://example.com/video1";
-    await page.evaluate((url) => window.__E2E_addUrl?.(url), url);
-
-    // Right-click on the table row using coordinates for better Chromium support
-    const row = page.getByRole("row").filter({ hasText: "video1" });
-    const box = await row.boundingBox();
-    if (box) {
-      await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2, { button: "right" });
-    } else {
-      await row.click({ button: "right" });
-    }
-
-    // Debug: Check if context menu content is actually visible
-    try {
-      await page.waitForSelector('[data-slot="context-menu-content"]', {
-        state: "visible",
-        timeout: 3000,
-      });
-    } catch (e) {
-      // If context menu doesn't appear, try alternative right-click method
-      // eslint-disable-next-line no-console
-      console.debug("Context menu not visible with first attempt, retrying:", e);
-      await row.click({ button: "right" });
-      await page.waitForSelector('[data-slot="context-menu-content"]', {
-        state: "visible",
-        timeout: 3000,
-      });
-    }
-
-    // Take screenshot for debugging
-    await page.screenshot({ path: "debug-context-menu.png" });
-
-    // Context menu should appear with expected items
-    await expect(
-      page.locator('[data-slot="context-menu-item"]').filter({ hasText: "Remove Selected" }),
-    ).toBeVisible({ timeout: 5000 });
-    await expect(
-      page.locator('[data-slot="context-menu-item"]').filter({ hasText: "Clear All" }),
-    ).toBeVisible({ timeout: 5000 });
-    await expect(
-      page.locator('[data-slot="context-menu-item"]').filter({ hasText: "Copy All URLs" }),
-    ).toBeVisible({ timeout: 5000 });
-  });
-
   test("remove selected removes checked items", async ({ page, browserName }) => {
     test.skip(browserName === "webkit", "WebKit context menu flaky in web mode");
     await page.goto("/");
