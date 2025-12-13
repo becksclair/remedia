@@ -8,7 +8,6 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import type { JSX } from "react";
 import type { Event } from "@tauri-apps/api/event";
-import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 
 // Components
 import { DropZone } from "./components/drop-zone";
@@ -16,9 +15,9 @@ import { MediaTable } from "./components/MediaTable";
 import { DownloadControls } from "./components/DownloadControls";
 import { MediaListContextMenu } from "./components/MediaListContextMenu";
 import { SettingsDialog } from "./components/settings-dialog";
+import { StartupErrorDialog } from "./components/StartupErrorDialog";
 
 // Hooks
-import { useWindowFocus } from "@/hooks/use-window-focus";
 import { useTauriEvents } from "@/hooks/useTauriEvent";
 import { useMediaList } from "@/hooks/useMediaList";
 import { useDownloadManager } from "@/hooks/useDownloadManager";
@@ -26,21 +25,21 @@ import { useTheme } from "@/hooks/useTheme";
 import { usePreviewLauncher } from "@/hooks/usePreviewLauncher";
 import { useRemoteControl } from "@/hooks/useRemoteControl";
 import { useQueueStatus } from "@/hooks/useQueueStatus";
+import { useWindowManager } from "@/hooks/useWindowManager";
+import { useClipboardMonitor } from "@/hooks/useClipboardMonitor";
 
 // State
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
   downloadLocationAtom,
-  clipboardAutoImportAtom,
   maxConcurrentDownloadsAtom,
   alwaysOnTopAtom,
 } from "@/state/settings-atoms";
-import { tableRowSelectionAtom, addLogEntryAtom, type LogEntry } from "@/state/app-atoms";
+import { tableRowSelectionAtom, addLogEntryAtom } from "@/state/app-atoms";
 import { upsertCollectionsAtom } from "@/state/collection-atoms";
 
 // Utils
 import { isValidUrl, clampProgress, getSelectedIndices } from "@/utils/media-helpers";
-import { processClipboardFocus } from "@/utils/clipboard-helpers";
 import { DEBUG_CONSOLE_WIDTH, DEBUG_CONSOLE_HEIGHT } from "@/utils/constants";
 import { isTauriRuntime } from "@/utils/env";
 
@@ -70,8 +69,6 @@ function App(): JSX.Element {
   // Apply theme
   useTheme();
 
-  // Ref to track when a drop occurred (skip clipboard on focus after drop)
-  const lastDropTimeRef = useRef<number>(0);
   // Counter for drag enter/leave to prevent flashing on child elements
   const dragCounterRef = useRef<number>(0);
 
@@ -84,10 +81,10 @@ function App(): JSX.Element {
   const [notificationPermission, setNotificationPermission] = useState(false);
   const [dragHovering, setDragHovering] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [startupError, setStartupError] = useState<string | null>(null);
 
   // Global state
   const outputLocation = useAtomValue(downloadLocationAtom);
-  const clipboardAutoImport = useAtomValue(clipboardAutoImportAtom);
   const maxConcurrent = useAtomValue(maxConcurrentDownloadsAtom);
   const alwaysOnTop = useAtomValue(alwaysOnTopAtom);
   const setOutputLocation = useSetAtom(downloadLocationAtom);
@@ -98,21 +95,6 @@ function App(): JSX.Element {
   const logAction = useCallback((...args: unknown[]) => {
     if (harnessEnabled) console.log("[remote-action]", ...args);
   }, [harnessEnabled]);
-
-  const logClipboard = useCallback(
-    (level: LogEntry["level"], message: string) => {
-      addLogEntry({
-        timestamp: Date.now(),
-        source: "app",
-        level,
-        message,
-      });
-      if (harnessEnabled) {
-        console.log(`[clipboard][${level}]`, message);
-      }
-    },
-    [addLogEntry, harnessEnabled],
-  );
 
   // Custom hooks
   const {
@@ -149,87 +131,14 @@ function App(): JSX.Element {
     await cancelAllDownloads();
   }, [cancelAllDownloads]);
 
-  // Shared promise locks to prevent race conditions during window creation
-  const windowCreationLocks = useRef<Map<string, Promise<WebviewWindow>>>(new Map());
+  // Window management hook (extracted from App.tsx for better maintainability)
+  const { createWindow } = useWindowManager();
 
-  /**
-   * Atomic, idempotent window creation helper.
-   * Ensures only one creation attempt runs at a time per window label.
-   */
-  const createWindowAtomic = useCallback(
-    async (
-      label: string,
-      options: { url: string; width: number; height: number; title: string; visible?: boolean },
-    ): Promise<WebviewWindow> => {
-      // Check if window already exists
-      const existing = await tauriApi.window.getWindow(label);
-      if (existing) {
-        console.log(`[Window] Window '${label}' already exists, showing and focusing`);
-        await existing.show();
-        await existing.setFocus();
-        return existing;
-      }
-
-      // Check if there's an ongoing creation attempt
-      const existingLock = windowCreationLocks.current.get(label);
-      if (existingLock) {
-        try {
-          return await existingLock;
-        } catch {
-          // If the previous attempt failed, remove the lock and try again
-          windowCreationLocks.current.delete(label);
-        }
-      }
-
-      // Set a sentinel promise immediately to prevent concurrent creation attempts
-      // Initialize with no-op functions to satisfy TypeScript
-      let resolveCreation: (window: WebviewWindow) => void = () => {};
-      let rejectCreation: (error: Error) => void = () => {};
-
-      const sentinelPromise = new Promise<WebviewWindow>((resolve, reject) => {
-        resolveCreation = resolve;
-        rejectCreation = reject;
-      });
-
-      // Store the sentinel lock before any async operations
-      windowCreationLocks.current.set(label, sentinelPromise);
-
-      // Execute the actual window creation
-      void (async () => {
-        try {
-          console.log(`[Window] Creating window '${label}' with URL '${options.url}'`);
-          const window = tauriApi.window.createWindow(label, options);
-
-          // Wait for window to be ready, then show and focus if not explicitly hidden
-          if (options.visible !== false) {
-            await window.show();
-            await window.setFocus();
-          }
-
-          console.log(`[Window] Successfully created window '${label}'`);
-          resolveCreation(window);
-        } catch (error) {
-          // Treat "already exists" errors as success
-          if (error instanceof Error && error.message.includes("already exists")) {
-            const retryWindow = await tauriApi.window.getWindow(label);
-            if (retryWindow) {
-              console.log(`[Window] Retrieved existing window '${label}' after creation conflict`);
-              resolveCreation(retryWindow);
-              return;
-            }
-          }
-          console.error(`[Window] Failed to create window '${label}':`, error);
-          rejectCreation(error as Error);
-        } finally {
-          // Clean up the lock regardless of outcome
-          windowCreationLocks.current.delete(label);
-        }
-      })();
-
-      return await sentinelPromise;
-    },
-    [tauriApi],
-  );
+  // Clipboard monitoring hook (extracted from App.tsx for better maintainability)
+  const { markDropOccurred } = useClipboardMonitor({
+    addMediaUrl,
+    harnessEnabled,
+  });
 
   useRemoteControl({
     addMediaUrl,
@@ -279,7 +188,7 @@ function App(): JSX.Element {
 
     void (async () => {
       try {
-        await createWindowAtomic("debug-console", {
+        await createWindow("debug-console", {
           url: "/debug",
           width: DEBUG_CONSOLE_WIDTH,
           height: DEBUG_CONSOLE_HEIGHT,
@@ -290,7 +199,7 @@ function App(): JSX.Element {
         console.error("Failed to preload debug console window:", error);
       }
     })();
-  }, [createWindowAtomic]);
+  }, [createWindow]);
 
   /**
    * Set default download directory
@@ -375,22 +284,6 @@ function App(): JSX.Element {
   }, [addMediaUrl]);
 
   /**
-   * Check clipboard for URLs on window focus.
-   * Skip if a drop just occurred (within 500ms) to avoid adding clipboard URL on drag-drop.
-   */
-  const handleWindowFocus = () => {
-    void processClipboardFocus({
-      enabled: clipboardAutoImport,
-      lastDropTimestamp: lastDropTimeRef.current,
-      readClipboardText: () => tauriApi.clipboard.readText(),
-      addMediaUrl,
-      logger: logClipboard,
-    });
-  };
-
-  useWindowFocus(handleWindowFocus);
-
-  /**
    * Handle drag and drop
    */
   const handleDragEnter = (event: React.DragEvent<HTMLDivElement>): void => {
@@ -414,7 +307,7 @@ function App(): JSX.Element {
   };
 
   const dropHandler = (input: string): void => {
-    lastDropTimeRef.current = Date.now();
+    markDropOccurred(); // Prevents clipboard import on subsequent focus
     dragCounterRef.current = 0;
     setDragHovering(false);
     if (isValidUrl(input)) {
@@ -538,7 +431,7 @@ function App(): JSX.Element {
   const handleShowDebugConsole = async (): Promise<void> => {
     try {
       console.log("[Window] Creating debug console window with URL: /debug");
-      const debugWindow = await createWindowAtomic("debug-console", {
+      const debugWindow = await createWindow("debug-console", {
         url: "/debug",
         width: DEBUG_CONSOLE_WIDTH,
         height: DEBUG_CONSOLE_HEIGHT,
@@ -695,6 +588,12 @@ function App(): JSX.Element {
     [addLogEntry, harnessEnabled],
   );
 
+  const handleStartupError = useCallback((event: Event<string>): void => {
+    const errorMessage = event.payload;
+    console.error("Startup error event received:", errorMessage);
+    setStartupError(errorMessage);
+  }, []);
+
   // Memoize event handlers object to prevent useEffect loop in useTauriEvents
   const tauriEventHandlers = useMemo(
     () => ({
@@ -706,6 +605,7 @@ function App(): JSX.Element {
       [TAURI_EVENT.downloadQueued]: handleQueued,
       [TAURI_EVENT.downloadStarted]: handleStarted,
       [TAURI_EVENT.ytDlpStderr]: handleYtDlpStderr,
+      [TAURI_EVENT.startupError]: handleStartupError,
     }),
     [
       handleMediaInfo,
@@ -716,6 +616,7 @@ function App(): JSX.Element {
       handleQueued,
       handleStarted,
       handleYtDlpStderr,
+      handleStartupError,
     ],
   );
 
@@ -778,6 +679,13 @@ function App(): JSX.Element {
 
       {/* Settings Dialog */}
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+
+      {/* Startup Error Dialog */}
+      <StartupErrorDialog
+        isOpen={startupError !== null}
+        errorMessage={startupError || ""}
+        onDismiss={() => setStartupError(null)}
+      />
     </main>
   );
 }

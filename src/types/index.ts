@@ -45,6 +45,7 @@ export const TAURI_EVENT = {
   remoteCancelDownloads: "remote-cancel-downloads",
   remoteClearList: "remote-clear-list",
   remoteSetDownloadDir: "remote-set-download-dir",
+  startupError: "startup-error",
 } as const;
 
 export type TauriEventName = (typeof TAURI_EVENT)[keyof typeof TAURI_EVENT];
@@ -79,7 +80,9 @@ export interface TauriEventPayloadMap {
   [TAURI_EVENT.remoteCancelDownloads]: undefined;
   [TAURI_EVENT.remoteClearList]: undefined;
   [TAURI_EVENT.remoteSetDownloadDir]: string;
+  [TAURI_EVENT.startupError]: string;
 }
+
 
 // Tauri command payloads (for invoke)
 export interface DownloadSettings {

@@ -246,6 +246,28 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_playlist_expansion_respects_max_items() {
+        let mut entries = String::new();
+        for i in 0..(MAX_PLAYLIST_ITEMS + 10) {
+            if !entries.is_empty() {
+                entries.push(',');
+            }
+            entries.push_str(&format!(
+                r#"{{"id":"id{}","webpage_url":"https://example.com/{}"}}"#,
+                i, i
+            ));
+        }
+
+        let json = format!(
+            r#"{{"_type":"playlist","entries":[{}]}}"#,
+            entries
+        );
+
+        let expansion = parse_playlist_expansion(&json).expect("should parse playlist JSON");
+        assert_eq!(expansion.entries.len(), MAX_PLAYLIST_ITEMS);
+    }
+
+    #[test]
     fn test_parse_playlist_expansion_non_playlist_has_no_collection_metadata() {
         let json = r#"{
             "title":"Single Video",

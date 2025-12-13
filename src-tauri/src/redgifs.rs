@@ -1,13 +1,12 @@
-use once_cell::sync::Lazy;
+use std::sync::{LazyLock, Mutex};
 use reqwest::Client;
 use serde_json::Value;
-use std::sync::Mutex;
 
-static CLIENT: Lazy<Client> = Lazy::new(|| {
+static CLIENT: LazyLock<Client> = LazyLock::new(|| {
     Client::builder().user_agent("remedia-redgifs/0.1.0").build().expect("Failed to build reqwest client")
 });
 
-static TOKEN: Lazy<Mutex<Option<String>>> = Lazy::new(|| Mutex::new(None));
+static TOKEN: LazyLock<Mutex<Option<String>>> = LazyLock::new(|| Mutex::new(None));
 
 async fn get_token() -> Result<String, String> {
     {

@@ -30,19 +30,22 @@ function CustomTitleBar() {
     }
 
     if (wslBehavior === "wsl2") {
-      // In WSL2, use the quit command instead of window.close()
-      // This ensures proper application termination
+      // In WSL2, prefer the quit command; fall back to a normal close if it rejects.
       try {
         await tauriApi.commands.quit();
       } catch (error) {
-        console.error("Failed to quit application in WSL2:", error);
-        // Fallback to regular close if quit fails
-        void Window.getCurrent().close();
+        console.warn("Failed to quit application in WSL2:", error);
+        try {
+          await Window.getCurrent().close();
+        } catch (closeError) {
+          console.warn("Fallback window.close also failed:", closeError);
+        }
       }
-    } else {
-      // Standard close behavior for native/WSL1 environments
-      void Window.getCurrent().close();
+      return;
     }
+
+    // Standard close behavior for native/WSL1 environments
+    await Window.getCurrent().close();
   };
 
   return (

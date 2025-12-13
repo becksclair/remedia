@@ -30,6 +30,7 @@ junit*.xml
 .claude/settings.local.json
 target-remote
 target-remote2
+target-test
 
 src-tauri/rustc-ice*.txt
 src-tauri/tests-output

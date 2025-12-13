@@ -64,53 +64,32 @@ impl DownloadSettings {
 pub fn validate_settings(settings: &DownloadSettings) -> Result<(), DownloaderError> {
     // Validate download mode
     if !matches!(settings.download_mode.as_str(), "video" | "audio") {
-        return Err(DownloaderError::invalid_settings(format!(
-            "Invalid download_mode: {}",
-            settings.download_mode
-        )));
+        return Err(DownloaderError::invalid_settings(format!("Invalid download_mode: {}", settings.download_mode)));
     }
 
     // Validate video quality
     if !matches!(settings.video_quality.as_str(), "best" | "high" | "medium" | "low") {
-        return Err(DownloaderError::invalid_settings(format!(
-            "Invalid video_quality: {}",
-            settings.video_quality
-        )));
+        return Err(DownloaderError::invalid_settings(format!("Invalid video_quality: {}", settings.video_quality)));
     }
 
     // Validate max resolution
-    if !matches!(
-        settings.max_resolution.as_str(),
-        "2160p" | "1440p" | "1080p" | "720p" | "480p" | "no-limit"
-    ) {
-        return Err(DownloaderError::invalid_settings(format!(
-            "Invalid max_resolution: {}",
-            settings.max_resolution
-        )));
+    if !matches!(settings.max_resolution.as_str(), "2160p" | "1440p" | "1080p" | "720p" | "480p" | "no-limit") {
+        return Err(DownloaderError::invalid_settings(format!("Invalid max_resolution: {}", settings.max_resolution)));
     }
 
     // Validate video format
     if !matches!(settings.video_format.as_str(), "mp4" | "mkv" | "webm" | "best") {
-        return Err(DownloaderError::invalid_settings(format!(
-            "Invalid video_format: {}",
-            settings.video_format
-        )));
+        return Err(DownloaderError::invalid_settings(format!("Invalid video_format: {}", settings.video_format)));
     }
 
     // Validate audio format
     if !matches!(settings.audio_format.as_str(), "mp3" | "m4a" | "opus" | "best") {
-        return Err(DownloaderError::invalid_settings(format!(
-            "Invalid audio_format: {}",
-            settings.audio_format
-        )));
+        return Err(DownloaderError::invalid_settings(format!("Invalid audio_format: {}", settings.audio_format)));
     }
 
     // Validate audio quality
     if !matches!(settings.audio_quality.as_str(), "0" | "2" | "5" | "9") {
-        return Err(DownloaderError::invalid_settings(format!(
-            "Invalid audio_quality: {}",
-            settings.audio_quality
-        )));
+        return Err(DownloaderError::invalid_settings(format!("Invalid audio_quality: {}", settings.audio_quality)));
     }
 
     // Validate download rate limit
@@ -123,10 +102,12 @@ pub fn validate_settings(settings: &DownloadSettings) -> Result<(), DownloaderEr
 
     // Validate max file size
     if !validate_size_or_rate(&settings.max_file_size) {
-        return Err(DownloaderError::invalid_settings(format!(
-            "Invalid max_file_size: {}",
-            settings.max_file_size
-        )));
+        return Err(DownloaderError::invalid_settings(format!("Invalid max_file_size: {}", settings.max_file_size)));
+    }
+
+    // Validate unique_id_type
+    if !matches!(settings.unique_id_type.as_str(), "native" | "hash") {
+        return Err(DownloaderError::invalid_settings(format!("Invalid unique_id_type: {}", settings.unique_id_type)));
     }
 
     Ok(())
@@ -168,6 +149,11 @@ fn validate_size_or_rate(s: &str) -> bool {
     }
 }
 
+/// Characters that could be dangerous if passed to a shell.
+/// Although we use `Command::arg()` which doesn't invoke a shell,
+/// rejecting these provides defense-in-depth.
+const DANGEROUS_SHELL_CHARS: &[char] = &['|', '&', ';', '$', '`', '\n', '\r', '(', ')', '<', '>'];
+
 /// Validate URL input
 pub fn validate_url(url: &str) -> Result<(), DownloaderError> {
     if url.trim().is_empty() {
@@ -181,10 +167,12 @@ pub fn validate_url(url: &str) -> Result<(), DownloaderError> {
 
     // Length check to prevent abuse
     if url.len() > MAX_URL_LENGTH {
-        return Err(DownloaderError::invalid_url(format!(
-            "URL is too long (max {} characters)",
-            MAX_URL_LENGTH
-        )));
+        return Err(DownloaderError::invalid_url(format!("URL is too long (max {} characters)", MAX_URL_LENGTH)));
+    }
+
+    // Defense-in-depth: reject shell metacharacters even though Command::arg() is safe
+    if url.chars().any(|c| DANGEROUS_SHELL_CHARS.contains(&c)) {
+        return Err(DownloaderError::invalid_url("URL contains invalid characters"));
     }
 
     Ok(())
@@ -271,6 +259,10 @@ pub fn build_format_args(settings: &DownloadSettings) -> Vec<String> {
         args.push(format_str);
 
         if settings.video_format != "best" {
+            // --merge-output-format controls container when merging separate video+audio streams
+            // --remux-video ensures final output is remuxed to requested container
+            args.push("--merge-output-format".to_string());
+            args.push(settings.video_format.clone());
             args.push("--remux-video".to_string());
             args.push(settings.video_format.clone());
         }
@@ -366,14 +358,61 @@ mod tests {
     }
 
     #[test]
-    fn test_build_format_args_video_remux() {
+    fn test_build_format_args_video_container_mp4() {
         let mut settings = default_settings();
         settings.video_format = "mp4".to_string();
 
         let args = build_format_args(&settings);
 
+        // Both flags should be present for proper container control
+        assert!(args.contains(&"--merge-output-format".to_string()));
         assert!(args.contains(&"--remux-video".to_string()));
-        assert!(args.contains(&"mp4".to_string()));
+
+        // Verify ordering: --merge-output-format comes before --remux-video
+        let merge_idx = args.iter().position(|a| a == "--merge-output-format").unwrap();
+        let remux_idx = args.iter().position(|a| a == "--remux-video").unwrap();
+        assert!(merge_idx < remux_idx, "--merge-output-format should come before --remux-video");
+
+        // Verify values follow their flags
+        assert_eq!(args[merge_idx + 1], "mp4");
+        assert_eq!(args[remux_idx + 1], "mp4");
+    }
+
+    #[test]
+    fn test_build_format_args_video_container_mkv() {
+        let mut settings = default_settings();
+        settings.video_format = "mkv".to_string();
+
+        let args = build_format_args(&settings);
+
+        let merge_idx = args.iter().position(|a| a == "--merge-output-format").unwrap();
+        let remux_idx = args.iter().position(|a| a == "--remux-video").unwrap();
+        assert_eq!(args[merge_idx + 1], "mkv");
+        assert_eq!(args[remux_idx + 1], "mkv");
+    }
+
+    #[test]
+    fn test_build_format_args_video_container_webm() {
+        let mut settings = default_settings();
+        settings.video_format = "webm".to_string();
+
+        let args = build_format_args(&settings);
+
+        let merge_idx = args.iter().position(|a| a == "--merge-output-format").unwrap();
+        let remux_idx = args.iter().position(|a| a == "--remux-video").unwrap();
+        assert_eq!(args[merge_idx + 1], "webm");
+        assert_eq!(args[remux_idx + 1], "webm");
+    }
+
+    #[test]
+    fn test_build_format_args_video_best_no_container_flags() {
+        let settings = default_settings(); // video_format = "best"
+
+        let args = build_format_args(&settings);
+
+        // Neither flag should be present when format is "best"
+        assert!(!args.contains(&"--merge-output-format".to_string()));
+        assert!(!args.contains(&"--remux-video".to_string()));
     }
 
     #[test]
@@ -548,5 +587,263 @@ mod tests {
         // Should not include either limit when both are unlimited
         assert!(!args.iter().any(|arg| arg == "--limit-rate"));
         assert!(!args.iter().any(|arg| arg == "--max-filesize"));
+    }
+
+    // ========================================
+    // URL Validation Tests
+    // ========================================
+
+    #[test]
+    fn test_validate_url_valid_http() {
+        assert!(validate_url("http://example.com").is_ok());
+    }
+
+    #[test]
+    fn test_validate_url_valid_https() {
+        assert!(validate_url("https://example.com/video").is_ok());
+    }
+
+    #[test]
+    fn test_validate_url_with_query_params() {
+        assert!(validate_url("https://example.com/video?id=123&t=45").is_ok());
+    }
+
+    #[test]
+    fn test_validate_url_empty() {
+        let result = validate_url("");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("empty"));
+    }
+
+    #[test]
+    fn test_validate_url_whitespace_only() {
+        let result = validate_url("   \t\n");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_url_missing_protocol() {
+        let result = validate_url("example.com/video");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("http"));
+    }
+
+    #[test]
+    fn test_validate_url_invalid_protocol() {
+        assert!(validate_url("ftp://example.com").is_err());
+        assert!(validate_url("file:///path/to/file").is_err());
+    }
+
+    #[test]
+    fn test_validate_url_too_long() {
+        let long_url = format!("https://example.com/{}", "x".repeat(MAX_URL_LENGTH));
+        let result = validate_url(&long_url);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("too long"));
+    }
+
+    #[test]
+    fn test_validate_url_max_length_ok() {
+        // URL just under the limit should be OK
+        let base = "https://example.com/";
+        let padding_len = MAX_URL_LENGTH - base.len() - 1;
+        let url = format!("{}{}", base, "a".repeat(padding_len));
+        assert!(validate_url(&url).is_ok());
+    }
+
+    #[test]
+    fn test_validate_url_rejects_shell_metacharacters() {
+        // Pipe
+        assert!(validate_url("https://example.com/video|cat").is_err());
+        // Ampersand
+        assert!(validate_url("https://example.com/video&ls").is_err());
+        // Semicolon
+        assert!(validate_url("https://example.com/video;rm -rf /").is_err());
+        // Dollar sign
+        assert!(validate_url("https://example.com/video$HOME").is_err());
+        // Backtick
+        assert!(validate_url("https://example.com/video`whoami`").is_err());
+        // Newline
+        assert!(validate_url("https://example.com/video\nls").is_err());
+        // Carriage return
+        assert!(validate_url("https://example.com/video\rls").is_err());
+        // Parentheses
+        assert!(validate_url("https://example.com/video(test)").is_err());
+        // Angle brackets
+        assert!(validate_url("https://example.com/video<test>").is_err());
+    }
+
+    #[test]
+    fn test_validate_url_allows_safe_special_chars() {
+        // Query params with = and # are fine (common in URLs)
+        assert!(validate_url("https://example.com/video?id=123").is_ok());
+        assert!(validate_url("https://example.com/video#section").is_ok());
+        // Percent encoding is fine
+        assert!(validate_url("https://example.com/video%20name").is_ok());
+        // Forward slashes are fine
+        assert!(validate_url("https://example.com/path/to/video").is_ok());
+    }
+
+    // ========================================
+    // Output Location Validation Tests
+    // ========================================
+
+    #[test]
+    fn test_validate_output_location_valid() {
+        assert!(validate_output_location("/home/user/downloads").is_ok());
+        assert!(validate_output_location("C:\\Users\\User\\Downloads").is_ok());
+    }
+
+    #[test]
+    fn test_validate_output_location_empty() {
+        let result = validate_output_location("");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("empty"));
+    }
+
+    #[test]
+    fn test_validate_output_location_whitespace_only() {
+        assert!(validate_output_location("   \t").is_err());
+    }
+
+    #[test]
+    fn test_validate_output_location_too_long() {
+        let long_path = "/".to_string() + &"x".repeat(MAX_OUTPUT_PATH_LENGTH);
+        let result = validate_output_location(&long_path);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("too long"));
+    }
+
+    // ========================================
+    // Settings Field Validation Tests
+    // ========================================
+
+    #[test]
+    fn test_validate_settings_invalid_download_mode() {
+        let mut settings = default_settings();
+        settings.download_mode = "invalid".to_string();
+
+        let result = validate_settings(&settings);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("download_mode"));
+    }
+
+    #[test]
+    fn test_validate_settings_invalid_video_quality() {
+        let mut settings = default_settings();
+        settings.video_quality = "ultra-hd".to_string();
+
+        let result = validate_settings(&settings);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("video_quality"));
+    }
+
+    #[test]
+    fn test_validate_settings_invalid_max_resolution() {
+        let mut settings = default_settings();
+        settings.max_resolution = "8k".to_string();
+
+        let result = validate_settings(&settings);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("max_resolution"));
+    }
+
+    #[test]
+    fn test_validate_settings_invalid_video_format() {
+        let mut settings = default_settings();
+        settings.video_format = "avi".to_string();
+
+        let result = validate_settings(&settings);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("video_format"));
+    }
+
+    #[test]
+    fn test_validate_settings_invalid_audio_format() {
+        let mut settings = default_settings();
+        settings.audio_format = "wav".to_string();
+
+        let result = validate_settings(&settings);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("audio_format"));
+    }
+
+    #[test]
+    fn test_validate_settings_invalid_audio_quality() {
+        let mut settings = default_settings();
+        settings.audio_quality = "10".to_string();
+
+        let result = validate_settings(&settings);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("audio_quality"));
+    }
+
+    #[test]
+    fn test_validate_settings_invalid_unique_id_type() {
+        let mut settings = default_settings();
+        settings.unique_id_type = "weird".to_string();
+
+        let result = validate_settings(&settings);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("unique_id_type"));
+    }
+
+    #[test]
+    fn test_validate_settings_valid_unique_id_type_hash() {
+        let mut settings = default_settings();
+        settings.unique_id_type = "hash".to_string();
+
+        assert!(validate_settings(&settings).is_ok());
+    }
+
+    #[test]
+    fn test_validate_settings_all_valid_combinations() {
+        // Test all valid values for each field
+        for mode in ["video", "audio"] {
+            let mut settings = default_settings();
+            settings.download_mode = mode.to_string();
+            assert!(validate_settings(&settings).is_ok(), "Failed for mode: {}", mode);
+        }
+
+        for quality in ["best", "high", "medium", "low"] {
+            let mut settings = default_settings();
+            settings.video_quality = quality.to_string();
+            assert!(validate_settings(&settings).is_ok(), "Failed for quality: {}", quality);
+        }
+
+        for res in ["2160p", "1440p", "1080p", "720p", "480p", "no-limit"] {
+            let mut settings = default_settings();
+            settings.max_resolution = res.to_string();
+            assert!(validate_settings(&settings).is_ok(), "Failed for resolution: {}", res);
+        }
+
+        for format in ["mp4", "mkv", "webm", "best"] {
+            let mut settings = default_settings();
+            settings.video_format = format.to_string();
+            assert!(validate_settings(&settings).is_ok(), "Failed for video format: {}", format);
+        }
+
+        for format in ["mp3", "m4a", "opus", "best"] {
+            let mut settings = default_settings();
+            settings.audio_format = format.to_string();
+            assert!(validate_settings(&settings).is_ok(), "Failed for audio format: {}", format);
+        }
+
+        for quality in ["0", "2", "5", "9"] {
+            let mut settings = default_settings();
+            settings.audio_quality = quality.to_string();
+            assert!(validate_settings(&settings).is_ok(), "Failed for audio quality: {}", quality);
+        }
+    }
+
+    #[test]
+    fn test_download_settings_remote_defaults() {
+        let settings = DownloadSettings::remote_defaults();
+        // Should be valid
+        assert!(validate_settings(&settings).is_ok());
+        // Should have sensible defaults
+        assert_eq!(settings.download_mode, "video");
+        assert_eq!(settings.video_quality, "best");
+        assert_eq!(settings.max_resolution, "no-limit");
     }
 }

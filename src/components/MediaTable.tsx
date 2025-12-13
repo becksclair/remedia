@@ -75,7 +75,7 @@ function createMediaColumns(onRemoveItem: (id: string) => void): ColumnDef<Video
         return (
           <img
             data-testid={`row-${row.id}-thumb`}
-            className="w-[128px] h-[80px] object-cover object-center rounded shrink-0"
+            className="w-32 h-20 object-cover object-center rounded shrink-0"
             alt="Media thumbnail"
             src={thumbnailSrc}
             loading="lazy"
@@ -136,7 +136,7 @@ function createMediaColumns(onRemoveItem: (id: string) => void): ColumnDef<Video
           <div className="flex items-center justify-center w-full h-full relative">
             <span
               data-testid={`row-${row.id}-status`}
-              className="text-[10px] font-semibold capitalize text-muted-foreground absolute -top-[14px] left-1/2 -translate-x-1/2"
+              className="text-[10px] font-semibold capitalize text-muted-foreground absolute -top-3.5 left-1/2 -translate-x-1/2"
             >
               {row.original.status}
             </span>

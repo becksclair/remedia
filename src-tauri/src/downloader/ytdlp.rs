@@ -31,7 +31,50 @@ pub async fn run_yt_dlp(cmd: &mut Command) -> Result<(String, String), std::io::
     out_res?;
     err_res?;
 
-    child.wait().await?;
+    let status = child.wait().await?;
+
+    // yt-dlp can emit valid JSON while returning non-zero (warnings, partial failures).
+    // Preserve the output so callers can still parse it, but surface the status via stderr.
+    if !status.success() {
+        let status_note = match status.code() {
+            Some(code) => format!("yt-dlp exited with status code {code}"),
+            None => "yt-dlp exited without status code (terminated by signal)".to_string(),
+        };
+
+        if errors.trim().is_empty() {
+            errors.push_str(&status_note);
+        } else {
+            errors.push('\n');
+            errors.push_str(&status_note);
+        }
+    }
 
     Ok((output, errors))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tokio::process::Command;
+
+    #[tokio::test]
+    async fn returns_output_on_non_zero_exit() {
+        // Simulate a command that prints output but exits with non-zero.
+        let mut cmd = if cfg!(windows) {
+            let mut c = Command::new("cmd");
+            c.arg("/C").arg("echo ok & echo warn 1>&2 & exit /B 3");
+            c
+        } else {
+            let mut c = Command::new("sh");
+            c.arg("-c").arg("echo ok && echo warn 1>&2 && exit 3");
+            c
+        };
+
+        let (stdout, stderr) =
+            run_yt_dlp(&mut cmd).await.expect("should not fail when command exits non-zero but produces output");
+
+        assert!(stdout.contains("ok"), "stdout should include command output");
+        assert!(stderr.contains("warn"), "stderr should include warnings");
+        assert!(stderr.contains("status"), "stderr should capture exit status note");
+    }
 }

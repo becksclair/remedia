@@ -1,7 +1,10 @@
 # Beads Configuration File
 # This file configures default behavior for all bd commands in this repository
-# All settings can also be set via environment variables (BD_* prefix)
-# or overridden with command-line flags
+# All settings can also be set via environment variables using the BD_* prefix.
+# For backward compatibility, a small set of legacy BEADS_* aliases are also accepted
+# (e.g. BEADS_DB -> BD_DB, BEADS_AUTO_START_DAEMON -> BD_AUTO_START_DAEMON,
+# BEADS_FLUSH_DEBOUNCE -> BD_FLUSH_DEBOUNCE, BEADS_SYNC_BRANCH -> BD_SYNC_BRANCH).
+# Command-line flags still take precedence over environment variables.
 
 # Issue prefix for this repository (used by bd init)
 # If not set, bd init will auto-detect from directory name

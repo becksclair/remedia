@@ -1,5 +1,5 @@
 use futures_util::{SinkExt, StreamExt};
-use once_cell::sync::OnceCell;
+use std::sync::OnceLock;
 use serde::Deserialize;
 use serde_json::{Value, json};
 use std::env;
@@ -15,7 +15,8 @@ use uuid::Uuid;
 
 use tauri::{AppHandle, Emitter, Event, Listener, Manager};
 
-use crate::downloader::{DownloadSettings, download_media, get_queue_status};
+use crate::downloader::commands::{download_media, get_queue_status};
+use crate::downloader::DownloadSettings;
 use crate::events::*;
 use crate::logging::{ErrorCategory, log_debug_simple, log_error_simple, log_info_simple};
 
@@ -23,7 +24,7 @@ pub type RemoteEmitter = Arc<dyn Fn(&str, Value) + Send + Sync + 'static>;
 pub type RemoteEval = Arc<dyn Fn(&str) -> Result<(), String> + Send + Sync + 'static>;
 
 // Broadcast channel used to push app events back to remote test clients.
-static REMOTE_BROADCAST: OnceCell<broadcast::Sender<String>> = OnceCell::new();
+static REMOTE_BROADCAST: OnceLock<broadcast::Sender<String>> = OnceLock::new();
 
 /// Check if any remote clients are connected (O(1) check to skip serialization overhead).
 pub fn is_remote_active() -> bool {
@@ -234,7 +235,7 @@ async fn handle_socket(
                     .send(Message::Text(
                         format!(
                             r#"{{"ok":true,"action":"status","queued":{},"active":{},"max":{}}}"#,
-                            status.0, status.1, status.2
+                            status.queued, status.active, status.max_concurrent
                         )
                         .into(),
                     ))

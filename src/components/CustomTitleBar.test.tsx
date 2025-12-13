@@ -112,6 +112,7 @@ describe("CustomTitleBar WSL2 Window Closing", () => {
 
     // Mock quit failure
     mockQuit.mockRejectedValue(new Error("Quit failed"));
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
     render(<CustomTitleBar />);
 
@@ -129,6 +130,8 @@ describe("CustomTitleBar WSL2 Window Closing", () => {
       expect(mockQuit).toHaveBeenCalled();
       expect(mockWindow.close).toHaveBeenCalled();
     });
+
+    warnSpy.mockRestore();
   });
 
   it("should keep close button disabled when WSL detection fails", async () => {

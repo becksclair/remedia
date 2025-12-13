@@ -17,6 +17,9 @@ pub const EVT_REMOTE_CANCEL: &str = "remote-cancel-downloads";
 pub const EVT_REMOTE_CLEAR_LIST: &str = "remote-clear-list";
 pub const EVT_REMOTE_SET_DOWNLOAD_DIR: &str = "remote-set-download-dir";
 
+// Startup/critical system events
+pub const EVT_STARTUP_ERROR: &str = "startup-error";
+
 // Remote debugging events
 pub const EVT_DOWNLOAD_EXEC: &str = "download-exec";
 pub const EVT_DOWNLOAD_RAW: &str = "download-raw";

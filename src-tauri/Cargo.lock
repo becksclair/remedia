@@ -834,7 +834,7 @@ version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "330c60081dcc4c72131f8eb70510f1ac07223e5d4163db481a04a0befcffa412"
 dependencies = [
- "libloading 0.8.9",
+ "libloading",
 ]
 
 [[package]]
@@ -1328,33 +1328,6 @@ dependencies = [
  "libc",
  "pkg-config",
  "system-deps",
-]
-
-[[package]]
-name = "gdkx11"
-version = "0.18.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3caa00e14351bebbc8183b3c36690327eb77c49abc2268dd4bd36b856db3fbfe"
-dependencies = [
- "gdk",
- "gdkx11-sys",
- "gio",
- "glib",
- "libc",
- "x11",
-]
-
-[[package]]
-name = "gdkx11-sys"
-version = "0.18.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6e2e7445fe01ac26f11601db260dd8608fe172514eb63b3b5e261ea6b0f4428d"
-dependencies = [
- "gdk-sys",
- "glib-sys",
- "libc",
- "system-deps",
- "x11",
 ]
 
 [[package]]
@@ -2106,44 +2079,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
 
 [[package]]
-name = "libappindicator"
-version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "03589b9607c868cc7ae54c0b2a22c8dc03dd41692d48f2d7df73615c6a95dc0a"
-dependencies = [
- "glib",
- "gtk",
- "gtk-sys",
- "libappindicator-sys",
- "log",
-]
-
-[[package]]
-name = "libappindicator-sys"
-version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6e9ec52138abedcc58dc17a7c6c0c00a2bdb4f3427c7f63fa97fd0d859155caf"
-dependencies = [
- "gtk-sys",
- "libloading 0.7.4",
- "once_cell",
-]
-
-[[package]]
 name = "libc"
 version = "0.2.178"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "37c93d8daa9d8a012fd8ab92f088405fb202ea0b6ab73ee2482ae66af4f42091"
-
-[[package]]
-name = "libloading"
-version = "0.7.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b67380fd3b2fbe7527a606e18729d21c6f3951633d0500574c4dc22d2d638b9f"
-dependencies = [
- "cfg-if",
- "winapi",
-]
 
 [[package]]
 name = "libloading"
@@ -3528,7 +3467,6 @@ version = "0.1.0"
 dependencies = [
  "futures-util",
  "is-wsl",
- "once_cell",
  "reqwest",
  "serde",
  "serde_json",
@@ -3538,7 +3476,6 @@ dependencies = [
  "tauri-plugin-dialog",
  "tauri-plugin-fs",
  "tauri-plugin-notification",
- "tauri-plugin-opener",
  "tauri-plugin-shell",
  "tauri-plugin-single-instance",
  "tauri-plugin-updater",
@@ -4332,7 +4269,6 @@ dependencies = [
  "dlopen2",
  "dpi",
  "gdkwayland-sys",
- "gdkx11-sys",
  "gtk",
  "jni",
  "lazy_static",
@@ -4354,7 +4290,6 @@ dependencies = [
  "windows",
  "windows-core 0.61.2",
  "windows-version",
- "x11-dl",
 ]
 
 [[package]]
@@ -4428,7 +4363,6 @@ dependencies = [
  "tauri-utils",
  "thiserror 2.0.17",
  "tokio",
- "tray-icon",
  "url",
  "webkit2gtk",
  "webview2-com",
@@ -4588,28 +4522,6 @@ dependencies = [
  "thiserror 2.0.17",
  "time",
  "url",
-]
-
-[[package]]
-name = "tauri-plugin-opener"
-version = "2.5.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c26b72571d25dee25667940027114e60f569fc3974f8cefbe50c2cbc5fd65e3b"
-dependencies = [
- "dunce",
- "glob",
- "objc2-app-kit",
- "objc2-foundation 0.3.2",
- "open",
- "schemars 0.8.22",
- "serde",
- "serde_json",
- "tauri",
- "tauri-plugin",
- "thiserror 2.0.17",
- "url",
- "windows",
- "zbus",
 ]
 
 [[package]]
@@ -5170,28 +5082,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7a04e24fab5c89c6a36eb8558c9656f30d81de51dfa4d3b45f26b21d61fa0a6c"
 dependencies = [
  "once_cell",
-]
-
-[[package]]
-name = "tray-icon"
-version = "0.21.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e3d5572781bee8e3f994d7467084e1b1fd7a93ce66bd480f8156ba89dee55a2b"
-dependencies = [
- "crossbeam-channel",
- "dirs",
- "libappindicator",
- "muda",
- "objc2 0.6.3",
- "objc2-app-kit",
- "objc2-core-foundation",
- "objc2-core-graphics",
- "objc2-foundation 0.3.2",
- "once_cell",
- "png 0.17.16",
- "serde",
- "thiserror 2.0.17",
- "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -6212,7 +6102,6 @@ dependencies = [
  "dirs",
  "dpi",
  "dunce",
- "gdkx11",
  "gtk",
  "html5ever",
  "http",
@@ -6241,28 +6130,6 @@ dependencies = [
  "windows",
  "windows-core 0.61.2",
  "windows-version",
- "x11-dl",
-]
-
-[[package]]
-name = "x11"
-version = "2.21.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "502da5464ccd04011667b11c435cb992822c2c0dbde1770c988480d312a0db2e"
-dependencies = [
- "libc",
- "pkg-config",
-]
-
-[[package]]
-name = "x11-dl"
-version = "2.21.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "38735924fedd5314a6e548792904ed8c6de6636285cb9fec04d5b1db85c1516f"
-dependencies = [
- "libc",
- "once_cell",
- "pkg-config",
 ]
 
 [[package]]

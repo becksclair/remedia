@@ -39,7 +39,7 @@ declare global {
   }
 }
 
-type TauriEventHandlers<E extends TauriEventName = TauriEventName> = {
+type TauriEventHandlers<E extends keyof TauriEventPayloadMap = keyof TauriEventPayloadMap> = {
   [K in E]?: (event: Event<TauriEventPayloadMap[K]>) => void;
 };
 

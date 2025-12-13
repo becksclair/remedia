@@ -1,3 +1,10 @@
+// Skip if running in Bun test runner (not Playwright)
+// This file should only be run by Playwright via `bunx playwright test`
+if (typeof Bun !== "undefined" && !process.env.PLAYWRIGHT_TEST) {
+  // Exit silently - Bun will skip this file
+  process.exit(0);
+}
+
 import { test } from "@playwright/test";
 
 const REAL_DL = process.env.PLAYWRIGHT_REAL_DL === "1";
@@ -7,27 +14,49 @@ const REAL_URL_PRIMARY =
 const REAL_URL_SECONDARY =
   process.env.PLAYWRIGHT_REAL_URL_ALT ?? "https://www.youtube.com/watch?v=2Z4m4lnjxkY";
 
+function parseJson(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
+// Shared helper functions for browser context (passed to page.evaluate)
+const browserHelpers = {
+  sleep: (ms: number): Promise<void> => {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  },
+  waitFor: async (
+    events: unknown[],
+    predicate: (m: unknown) => boolean,
+    label: string,
+    timeout: number,
+    sleepFn: (ms: number) => Promise<void>,
+  ): Promise<unknown> => {
+    const start = Date.now();
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const found = events.find(predicate);
+      if (found) return found;
+      if (Date.now() - start > timeout) {
+        throw new Error(`timeout waiting for ${label}`);
+      }
+      // eslint-disable-next-line no-await-in-loop
+      await sleepFn(250);
+    }
+  },
+};
+
 async function runRemoteDownloadScenario(page: import("@playwright/test").Page, url: string) {
   await page.evaluate(
-    async ({ wsUrl, downloadUrl, timeoutMs }) => {
-      function sleep(ms: number): Promise<void> {
-        return new Promise((resolve) => setTimeout(resolve, ms));
-      }
-
-      function parseJson(text: string): unknown {
-        try {
-          return JSON.parse(text);
-        } catch {
-          return null;
-        }
-      }
-
+    async ({ wsUrl, downloadUrl, timeoutMs, parseJson, sleep, waitFor }) => {
       const events: unknown[] = [];
       const ws = new WebSocket(wsUrl);
 
       await new Promise<void>((resolve, reject) => {
         ws.onopen = () => resolve();
-        ws.onerror = (err) => reject(err);
+        ws.onerror = () => reject(new Error("WebSocket connection failed"));
       });
 
       ws.onmessage = (ev) => {
@@ -46,26 +75,14 @@ async function runRemoteDownloadScenario(page: import("@playwright/test").Page, 
       send({ action: "startDownloads" });
       send({ action: "status" });
 
-      async function waitFor(
+      const waitForWithEvents = (
         predicate: (m: unknown) => boolean,
         label: string,
         timeout: number,
-      ): Promise<unknown> {
-        const start = Date.now();
-        // eslint-disable-next-line no-constant-condition
-        while (true) {
-          const found = events.find(predicate);
-          if (found) return found;
-          if (Date.now() - start > timeout) {
-            throw new Error(`timeout waiting for ${label}`);
-          }
-          // eslint-disable-next-line no-await-in-loop
-          await sleep(250);
-        }
-      }
+      ) => waitFor(events, predicate, label, timeout, sleep);
 
       // Ensure the download actually starts (progress or error).
-      const first = await waitFor(
+      const first = await waitForWithEvents(
         (m) =>
           typeof m === "object" &&
           m !== null &&
@@ -83,7 +100,7 @@ async function runRemoteDownloadScenario(page: import("@playwright/test").Page, 
       }
 
       // Wait for a progress event with non-zero percentage.
-      await waitFor(
+      await waitForWithEvents(
         (m) => {
           if (typeof m !== "object" || m === null) return false;
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -97,7 +114,7 @@ async function runRemoteDownloadScenario(page: import("@playwright/test").Page, 
       );
 
       // Finally wait for download-complete event.
-      await waitFor(
+      await waitForWithEvents(
         (m) =>
           typeof m === "object" &&
           m !== null &&
@@ -109,7 +126,14 @@ async function runRemoteDownloadScenario(page: import("@playwright/test").Page, 
 
       ws.close();
     },
-    { wsUrl: REMOTE_WS_URL, downloadUrl: url, timeoutMs: 180000 },
+    {
+      wsUrl: REMOTE_WS_URL,
+      downloadUrl: url,
+      timeoutMs: 180000,
+      parseJson,
+      sleep: browserHelpers.sleep,
+      waitFor: browserHelpers.waitFor,
+    },
   );
 }
 
@@ -119,25 +143,13 @@ async function runRemoteCancelScenario(
   secondaryUrl: string,
 ) {
   await page.evaluate(
-    async ({ wsUrl, primaryUrl, secondaryUrl, timeoutMs }) => {
-      function sleep(ms: number): Promise<void> {
-        return new Promise((resolve) => setTimeout(resolve, ms));
-      }
-
-      function parseJson(text: string): unknown {
-        try {
-          return JSON.parse(text);
-        } catch {
-          return null;
-        }
-      }
-
+    async ({ wsUrl, primaryUrl, secondaryUrl, timeoutMs, parseJson, sleep, waitFor }) => {
       const events: unknown[] = [];
       const ws = new WebSocket(wsUrl);
 
       await new Promise<void>((resolve, reject) => {
         ws.onopen = () => resolve();
-        ws.onerror = (err) => reject(err);
+        ws.onerror = () => reject(new Error("WebSocket connection failed"));
       });
 
       ws.onmessage = (ev) => {
@@ -156,26 +168,14 @@ async function runRemoteCancelScenario(
       send({ action: "addUrl", url: secondaryUrl });
       send({ action: "startDownloads" });
 
-      async function waitFor(
+      const waitForWithEvents = (
         predicate: (m: unknown) => boolean,
         label: string,
         timeout: number,
-      ): Promise<unknown> {
-        const start = Date.now();
-        // eslint-disable-next-line no-constant-condition
-        while (true) {
-          const found = events.find(predicate);
-          if (found) return found;
-          if (Date.now() - start > timeout) {
-            throw new Error(`timeout waiting for ${label}`);
-          }
-          // eslint-disable-next-line no-await-in-loop
-          await sleep(250);
-        }
-      }
+      ) => waitFor(events, predicate, label, timeout, sleep);
 
       // Wait until we see some progress to confirm downloads are active.
-      await waitFor(
+      await waitForWithEvents(
         (m) => {
           if (typeof m !== "object" || m === null) return false;
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -192,7 +192,7 @@ async function runRemoteCancelScenario(
       send({ action: "cancelAll" });
 
       // Wait for a successful cancelAll acknowledgement from remote control.
-      await waitFor(
+      await waitForWithEvents(
         (m) => {
           if (typeof m !== "object" || m === null) return false;
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -210,6 +210,9 @@ async function runRemoteCancelScenario(
       primaryUrl,
       secondaryUrl,
       timeoutMs: 180000,
+      parseJson,
+      sleep: browserHelpers.sleep,
+      waitFor: browserHelpers.waitFor,
     },
   );
 }

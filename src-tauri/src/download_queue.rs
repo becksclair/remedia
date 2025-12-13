@@ -1,4 +1,4 @@
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 /// Download Queue Manager
 ///
 /// Manages concurrent downloads with a queue system.
@@ -169,7 +169,7 @@ impl DownloadQueue {
 }
 
 /// Queue status for reporting
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct QueueStatus {
     pub queued: usize,
     pub active: usize,
@@ -177,11 +177,31 @@ pub struct QueueStatus {
 }
 
 /// Global download queue instance
-static DOWNLOAD_QUEUE: Lazy<Arc<Mutex<DownloadQueue>>> = Lazy::new(|| Arc::new(Mutex::new(DownloadQueue::new(3))));
+static DOWNLOAD_QUEUE: LazyLock<Arc<Mutex<DownloadQueue>>> = LazyLock::new(|| Arc::new(Mutex::new(DownloadQueue::new(3))));
 
 /// Get global download queue
 pub fn get_queue() -> Arc<Mutex<DownloadQueue>> {
     DOWNLOAD_QUEUE.clone()
+}
+
+/// Execute a closure with the download queue, recovering from poisoned locks.
+///
+/// This helper provides consistent lock poisoning recovery across the codebase.
+/// If a thread panics while holding the lock, subsequent accesses will still
+/// succeed by recovering the inner data.
+pub fn with_queue<F, R>(f: F) -> R
+where
+    F: FnOnce(&mut DownloadQueue) -> R,
+{
+    let queue = get_queue();
+    let mut guard = match queue.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => {
+            eprintln!("Warning: Queue lock was poisoned, recovering");
+            poisoned.into_inner()
+        }
+    };
+    f(&mut guard)
 }
 
 #[cfg(test)]
